@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { isPengawas } from './constants';
-import { tanggalISO } from './format';
 import type { PenggunaAktif } from './auth';
 
 /**
@@ -14,23 +12,28 @@ import type { PenggunaAktif } from './auth';
  * ada lencana sama sekali: orang berhenti mempercayainya, lalu berhenti
  * menengoknya, dan hal yang benar-benar mendesak ikut terlewat.
  *
- * Semua query memakai `head: true` — yang diminta hanya jumlahnya, barisnya
- * tidak pernah ikut terkirim. Bedanya terasa di ponsel dengan sinyal lemah,
- * tempat header ini justru paling sering dilihat.
+ * Keenam angkanya diambil lewat SATU panggilan RPC sm_lonceng() (migrasi 014),
+ * bukan enam query terpisah seperti versi pertama. Audit performa §108
+ * menemukan versi lama menembakkan enam permintaan HTTP tiap tiga menit — di
+ * meja kantor tidak terasa, di lapangan dengan satu bar sinyal itu berarti
+ * header yang angkanya menetes satu per satu.
+ *
+ * Fungsinya SECURITY INVOKER, jadi RLS tetap berlaku: angka yang dilihat Sales
+ * dihitung dari barisnya sendiri, bukan dari baris seluruh tim.
  */
 
 export interface Lonceng {
-  /** Laporan harian hari ini belum diisi (hanya relevan bagi yang membuatnya). */
+  /** Laporan harian hari ini belum diisi. */
   laporanBelum: boolean;
   /** Jadwal hari ini yang belum selesai. */
   jadwalHariIni: number;
   /** Meeting hari ini yang masih menunggu check-in atau foto. */
   meetingPerlu: number;
-  /** Pipeline yang perkiraan closing-nya dalam 7 hari ke depan dan belum WON/LOST. */
+  /** Pipeline yang perkiraan closing-nya dalam 7 hari dan belum WON/LOST. */
   pipelineDekat: number;
   /** Jadwal yang tanggalnya sudah lewat tapi belum diselesaikan. */
   terlewat: number;
-  /** Pengajuan jadwal yang belum ditugaskan ke siapa pun — hanya untuk pengawas. */
+  /** Pengajuan jadwal yang belum ditugaskan — selalu 0 bagi Sales. */
   belumDitugaskan: number;
 }
 
@@ -48,6 +51,15 @@ export function totalPerluTindakan(l: Lonceng): number {
   return (l.laporanBelum ? 1 : 0) + l.meetingPerlu + l.terlewat + l.belumDitugaskan;
 }
 
+interface BalasanRpc {
+  laporan_belum?: boolean;
+  jadwal_hari_ini?: number;
+  meeting_perlu?: number;
+  pipeline_dekat?: number;
+  terlewat?: number;
+  belum_ditugaskan?: number;
+}
+
 export function useLonceng(pengguna: PenggunaAktif | null) {
   const [lonceng, setLonceng] = useState<Lonceng>(KOSONG);
   const [memuat, setMemuat] = useState(true);
@@ -55,66 +67,23 @@ export function useLonceng(pengguna: PenggunaAktif | null) {
   const muat = useCallback(async () => {
     if (!pengguna) { setLonceng(KOSONG); setMemuat(false); return; }
 
-    const hariIni = tanggalISO();
-    const pekanDepan = new Date();
-    pekanDepan.setDate(pekanDepan.getDate() + 7);
-    const pengawas = isPengawas(pengguna.role);
-
-    const jumlah = (q: { count: number | null }) => q.count ?? 0;
-
-    // Jadwal milik sendiri untuk Sales; seluruh tim untuk pengawas. Penyaringan
-    // ini kosmetik — RLS sudah membatasi barisnya — tapi tanpa itu lencana
-    // Manager dan Sales akan menunjukkan angka yang sama dan kehilangan arti.
-
-    const [laporan, jadwal, meeting, pipeline, lewat, takDitugaskan] = await Promise.all([
-      supabase.from('sm_daily_reports').select('id', { count: 'exact', head: true })
-        .eq('sales_user_id', pengguna.id).eq('report_date', hariIni),
-
-      (() => {
-        let q = supabase.from('sm_schedules').select('id', { count: 'exact', head: true })
-          .eq('schedule_date', hariIni).in('status', ['UPCOMING', 'IN_PROGRESS']);
-        if (!pengawas) q = q.eq('assigned_to', pengguna.id);
-        return q;
-      })(),
-
-      (() => {
-        let q = supabase.from('sm_schedules').select('id', { count: 'exact', head: true })
-          .eq('requires_attendance', true).eq('schedule_date', hariIni)
-          .in('status', ['UPCOMING', 'IN_PROGRESS']);
-        if (!pengawas) q = q.eq('assigned_to', pengguna.id);
-        return q;
-      })(),
-
-      (() => {
-        let q = supabase.from('sm_pipeline').select('id', { count: 'exact', head: true })
-          .gte('estimated_closing', hariIni).lte('estimated_closing', tanggalISO(pekanDepan))
-          .in('stage', ['OPEN', 'QUOTATION']);
-        if (!pengawas) q = q.eq('sales_user_id', pengguna.id);
-        return q;
-      })(),
-
-      (() => {
-        let q = supabase.from('sm_schedules').select('id', { count: 'exact', head: true })
-          .lt('schedule_date', hariIni).in('status', ['UPCOMING', 'IN_PROGRESS']);
-        if (!pengawas) q = q.eq('assigned_to', pengguna.id);
-        return q;
-      })(),
-
-      pengawas
-        ? supabase.from('sm_schedules').select('id', { count: 'exact', head: true })
-            .is('assigned_to', null).eq('status', 'UPCOMING')
-        : Promise.resolve({ count: 0 }),
-    ]);
-
-    setLonceng({
-      laporanBelum: jumlah(laporan) === 0,
-      jadwalHariIni: jumlah(jadwal),
-      meetingPerlu: jumlah(meeting),
-      pipelineDekat: jumlah(pipeline),
-      terlewat: jumlah(lewat),
-      belumDitugaskan: jumlah(takDitugaskan as { count: number | null }),
-    });
+    const { data, error } = await supabase.rpc('sm_lonceng');
     setMemuat(false);
+
+    // Lencana yang gagal dimuat dibiarkan pada nilai terakhirnya, bukan
+    // dinolkan. Menampilkan "0 perlu tindakan" saat jaringan putus adalah
+    // kebohongan yang menenangkan — persis kebalikan dari gunanya lencana ini.
+    if (error || !data) return;
+
+    const d = data as BalasanRpc;
+    setLonceng({
+      laporanBelum: Boolean(d.laporan_belum),
+      jadwalHariIni: Number(d.jadwal_hari_ini ?? 0),
+      meetingPerlu: Number(d.meeting_perlu ?? 0),
+      pipelineDekat: Number(d.pipeline_dekat ?? 0),
+      terlewat: Number(d.terlewat ?? 0),
+      belumDitugaskan: Number(d.belum_ditugaskan ?? 0),
+    });
   }, [pengguna]);
 
   useEffect(() => { void muat(); }, [muat]);

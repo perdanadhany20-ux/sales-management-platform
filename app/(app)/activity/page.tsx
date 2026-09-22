@@ -10,6 +10,8 @@ import { DonutLegenda } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
+import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 
 /**
  * Activity — riwayat aktivitas dalam satu urutan waktu.
@@ -109,6 +111,27 @@ export default function HalamanActivity() {
 
   useEffect(() => { void muat(); }, [muat]);
 
+  /** Seluruh jejak sesuai penyaring, tanpa paginasi. */
+  const ambilSemua = useCallback(async () => {
+    const batasAtas = new Date(sampai);
+    batasAtas.setDate(batasAtas.getDate() + 1);
+
+    let q = supabase
+      .from('sm_activity_feed')
+      .select('*')
+      .gte('terjadi_pada', `${dari}T00:00:00`)
+      .lt('terjadi_pada', `${tanggalISO(batasAtas)}T00:00:00`)
+      .order('terjadi_pada', { ascending: false })
+      .limit(BATAS_BARIS_EKSPOR + 1);
+
+    if (filterJenis) q = q.eq('jenis', filterJenis);
+    if (filterOrang) q = q.eq('user_id', filterOrang);
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Aktivitas[];
+  }, [dari, sampai, filterJenis, filterOrang]);
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -160,13 +183,49 @@ export default function HalamanActivity() {
   return (
     <div className="flex flex-col gap-4">
 
-      <header>
-        <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Activity</h1>
-        <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">
-          {pengawas
-            ? 'Jejak seluruh tim dari modul yang sudah berjalan — termasuk check-in yang ditolak.'
-            : 'Jejak aktivitas Anda dari seluruh modul, tersusun menurut waktu.'}
-        </p>
+      <header className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Activity</h1>
+          <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">
+            {pengawas
+              ? 'Jejak seluruh tim dari modul yang sudah berjalan — termasuk check-in yang ditolak.'
+              : 'Jejak aktivitas Anda dari seluruh modul, tersusun menurut waktu.'}
+          </p>
+        </div>
+        <TombolEkspor
+          ambil={ambilSemua}
+          susun={(baris) => ({
+            namaBerkas: 'riwayat-aktivitas',
+            namaSheet: 'Activity',
+            judul: 'Riwayat Aktivitas',
+            keterangan: [
+              `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
+              filterJenis ? `Jenis: ${(JENIS[filterJenis] ?? JENIS_BAWAAN).label}` : 'Jenis: semua',
+              filterOrang ? `Pengguna: ${namaOrang[filterOrang] ?? '—'}` : 'Pengguna: semua yang boleh Anda lihat',
+              `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
+            ],
+            kolom: [
+              { judul: 'Waktu', lebar: 18,
+                nilai: (a) => `${tanggalPendek(a.terjadi_pada)} ${waktuPendek(a.terjadi_pada)}` },
+              { judul: 'Jenis', lebar: 18, nilai: (a) => (JENIS[a.jenis] ?? JENIS_BAWAAN).label },
+              { judul: 'Pengguna', lebar: 20,
+                nilai: (a) => (a.user_id ? (namaOrang[a.user_id] ?? '—') : '—') },
+              { judul: 'Judul', lebar: 26, nilai: (a) => a.judul },
+              { judul: 'Keterangan', lebar: 40, nilai: (a) => a.keterangan },
+              { judul: 'Tambahan', lebar: 30, nilai: (a) => a.tambahan },
+              { judul: 'Status', lebar: 18, nilai: (a) => a.status },
+              { judul: 'Nilai', format: 'angka', lebar: 16,
+                nilai: (a) => (a.nilai != null ? Number(a.nilai) : null) },
+            ],
+            baris,
+            ringkasan: [
+              { label: 'Jumlah jejak', nilai: baris.length },
+              { label: 'Check-in ditolak',
+                nilai: baris.filter((a) => a.jenis === 'CHECK_IN' && a.status && a.status !== 'VALID').length },
+              { label: 'Override pengawas', nilai: baris.filter((a) => a.jenis === 'OVERRIDE').length },
+            ],
+          })}
+        />
       </header>
 
       <BentoGrid>

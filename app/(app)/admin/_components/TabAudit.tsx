@@ -6,6 +6,8 @@ import { tanggalPendek, waktuPendek, angka } from '@/lib/format';
 import { Teks, Tombol, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
+import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 
 const PER_HALAMAN = 30;
 
@@ -73,6 +75,22 @@ export function TabAudit() {
 
   useEffect(() => { void muat(); }, [muat]);
 
+  /** Seluruh jejak sesuai penyaring, tanpa paginasi. */
+  const ambilSemua = useCallback(async () => {
+    let q = supabase
+      .from('audit_trail')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(BATAS_BARIS_EKSPOR + 1);
+
+    if (filterAksi) q = q.eq('action', filterAksi);
+    if (cariTertunda.trim()) q = q.ilike('actor_name', `%${cariTertunda.trim()}%`);
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Jejak[];
+  }, [filterAksi, cariTertunda]);
+
   const totalHalaman = Math.max(1, Math.ceil(total / PER_HALAMAN));
 
   return (
@@ -90,6 +108,41 @@ export function TabAudit() {
           <Teks id="a-cari" type="search" value={cari} onChange={(e) => setCari(e.target.value)}
             placeholder="Nama pelaku…" />
         </div>
+        <TombolEkspor
+          ambil={ambilSemua}
+          susun={(baris) => ({
+            namaBerkas: 'audit-log',
+            namaSheet: 'Audit Log',
+            judul: 'Audit Log',
+            keterangan: [
+              filterAksi ? `Tindakan: ${GAYA_AKSI[filterAksi]?.label ?? filterAksi}` : 'Tindakan: semua',
+              cariTertunda ? `Pelaku mengandung: ${cariTertunda}` : 'Pelaku: semua',
+              `Diekspor pada ${tanggalPendek(new Date().toISOString())}`,
+            ],
+            kolom: [
+              { judul: 'Waktu', lebar: 18,
+                nilai: (j) => `${tanggalPendek(j.created_at)} ${waktuPendek(j.created_at)}` },
+              { judul: 'Pelaku', lebar: 22, nilai: (j) => j.actor_name ?? '—' },
+              { judul: 'Tindakan', lebar: 22,
+                nilai: (j) => GAYA_AKSI[j.action]?.label ?? j.action },
+              { judul: 'Kode Tindakan', lebar: 22, nilai: (j) => j.action },
+              { judul: 'Entitas', lebar: 18, nilai: (j) => j.entity },
+              { judul: 'ID Entitas', lebar: 38, nilai: (j) => j.entity_id },
+              // Detail disimpan sebagai JSON; diratakan jadi teks supaya tetap
+              // terbaca di Excel tanpa perlu alat tambahan.
+              { judul: 'Detail', lebar: 50,
+                nilai: (j) => (j.detail ? JSON.stringify(j.detail) : '') },
+            ],
+            baris,
+            ringkasan: [
+              { label: 'Jumlah jejak', nilai: baris.length },
+              { label: 'Override meeting',
+                nilai: baris.filter((j) => j.action === 'MEETING_OVERRIDE').length },
+              { label: 'Pelaku berbeda',
+                nilai: new Set(baris.map((j) => j.actor_id ?? '—')).size },
+            ],
+          })}
+        />
       </div>
 
       <p className="text-[11px] text-slate-500 leading-relaxed">

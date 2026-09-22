@@ -57,7 +57,7 @@ export default function HalamanAdmin() {
       {/* Navigasi bagian untuk layar sempit; di layar lebar tugas ini
           dipegang sub-menu sidebar. */}
       <nav aria-label="Bagian Admin Panel"
-        className="satulayar:hidden flex gap-1.5 overflow-x-auto no-scrollbar bg-white rounded-kartu border border-slate-200 p-1.5">
+        className="sidebar:hidden flex gap-1.5 overflow-x-auto no-scrollbar bg-white rounded-kartu border border-slate-200 p-1.5">
         {tersedia.map((b) => {
           const ini = b.kunci === aktif.kunci;
           return (

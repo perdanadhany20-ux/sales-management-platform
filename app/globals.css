@@ -94,6 +94,48 @@
     display: none;
   }
 
+  /*
+   * Cetak GP Calculation — inilah "ekspor PDF"-nya.
+   *
+   * Tidak memakai pustaka PDF sama sekali, dan itu keputusan sadar: jsPDF dan
+   * sejenisnya menambah ratusan kilobyte ke bundel yang harus diunduh Sales di
+   * lapangan, hanya untuk menghasilkan tata letak yang sudah bisa dibuat
+   * peramban sendiri lewat "Simpan sebagai PDF" di dialog cetaknya.
+   *
+   * Caranya: seluruh halaman disembunyikan, lalu HANYA isi panel GP yang
+   * ditampilkan kembali. visibility dipakai, bukan display, supaya posisi
+   * elemen tidak dihitung ulang dan tata letak kolomnya tidak berantakan.
+   */
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+
+    .cetak-gp,
+    .cetak-gp * {
+      visibility: visible;
+    }
+
+    .cetak-gp {
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: 100%;
+      padding: 0;
+    }
+
+    /* Kerangka modal — latar gelap, tombol tutup, dan kaki berisi tombol
+       aksi — tidak ikut tercetak. */
+    .cetak-gp {
+      overflow: visible !important;
+      max-height: none !important;
+    }
+
+    @page {
+      size: A4 portrait;
+      margin: 12mm;
+    }
+  }
+
   @keyframes masuk {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }

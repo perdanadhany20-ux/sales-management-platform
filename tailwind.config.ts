@@ -25,6 +25,28 @@ const config: Config = {
          */
         satulayar: { raw: '(min-width: 1280px), ((pointer: fine) and (min-width: 900px))' },
         formulir: { raw: '(min-width: 900px), ((pointer: fine) and (min-width: 640px))' },
+        /**
+         * Ambang munculnya sidebar. Sengaja MURNI lebar, tanpa syarat
+         * `pointer: fine`.
+         *
+         * Chrome di ponsel punya mode "Situs desktop" yang melaporkan
+         * viewport ~980px lalu mengecilkan seluruh halaman agar muat di layar
+         * fisik. Dengan ambang lg (1024px), lebar 980px itu jatuh ke tata
+         * letak ponsel — sehingga yang didapat justru gabungan terburuk:
+         * bilah navigasi bawah dan teks ponsel, tapi diperkecil 0,7x sampai
+         * nyaris tidak terbaca. Pada 900px ke atas ruangnya memang cukup
+         * untuk sidebar, apa pun alat penunjuknya.
+         */
+        sidebar: { raw: '(min-width: 900px)' },
+        /**
+         * Layar sentuh yang melaporkan diri selebar desktop — persis yang
+         * terjadi pada mode "Situs desktop" Chrome ponsel. Di sana peramban
+         * mengecilkan halaman sekitar 0,73x, sehingga teks 11px mendarat di
+         * sekitar 8px fisik. Ukuran huruf pada bilah header dinaikkan khusus
+         * untuk kondisi ini; tingginya sengaja TIDAK diubah supaya offset
+         * sticky sidebar tetap cocok.
+         */
+        sentuhlebar: { raw: '(pointer: coarse) and (min-width: 900px)' },
       },
       borderRadius: {
         kecil: '0.5rem',    // lencana, chip, tombol ikon

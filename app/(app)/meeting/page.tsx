@@ -15,6 +15,8 @@ import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
 import { PanelMeeting, type Meeting, type Lokasi } from './_components/PanelMeeting';
+import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 
 /**
  * Halaman Meeting (§28–§39) — tempat jadwal berkehadiran DIEKSEKUSI.
@@ -32,7 +34,16 @@ import { PanelMeeting, type Meeting, type Lokasi } from './_components/PanelMeet
 const PER_HALAMAN = 20;
 
 interface BarisMeeting extends Meeting {
-  sm_attendance: { id: string; state: string; gps_verified: boolean } | null;
+  // distance_m dan accuracy_m hanya ikut terbaca pada query ekspor; daftar di
+  // layar tidak memintanya karena tidak menampilkannya.
+  sm_attendance: {
+    id?: string;
+    state: string;
+    gps_verified: boolean;
+    distance_m?: number | null;
+    accuracy_m?: number | null;
+    checkin_at?: string | null;
+  } | null;
   sm_evidence: { id: string }[];
 }
 
@@ -111,6 +122,42 @@ export default function HalamanMeeting() {
 
   useEffect(() => { void muat(); }, [muat]);
 
+  /** Seluruh meeting sesuai penyaring, lengkap dengan hasil verifikasinya. */
+  const ambilSemua = useCallback(async () => {
+    if (!pengguna) return [];
+    let q = supabase
+      .from('sm_schedules')
+      .select(
+        `id, schedule_date, schedule_time, customer_name, project, category, status,
+         assigned_to, completed_at,
+         sm_locations ( name, gps_radius_m ),
+         sm_attendance ( state, gps_verified, distance_m, accuracy_m, checkin_at ),
+         sm_evidence ( id )`,
+      )
+      .eq('requires_attendance', true)
+      .gte('schedule_date', dari)
+      .lte('schedule_date', sampai)
+      .order('schedule_date', { ascending: true })
+      .limit(BATAS_BARIS_EKSPOR + 1);
+
+    if (!pengawas) q = q.eq('assigned_to', pengguna.id);
+    else if (filterSales) q = q.eq('assigned_to', filterSales);
+    if (filterStatus) q = q.eq('status', filterStatus);
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+
+    return ((data ?? []) as unknown[]).map((r) => {
+      const b = r as Record<string, unknown>;
+      return {
+        ...(b as unknown as BarisMeeting),
+        sm_locations: satu<Lokasi>(b.sm_locations as Lokasi | Lokasi[] | null),
+        sm_attendance: satu(b.sm_attendance as BarisMeeting['sm_attendance']),
+        sm_evidence: (b.sm_evidence ?? []) as { id: string }[],
+      };
+    });
+  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus]);
+
   useEffect(() => {
     if (!pengawas) return;
     (async () => {
@@ -154,11 +201,55 @@ export default function HalamanMeeting() {
   return (
     <div className="flex flex-col gap-4">
 
-      <header>
-        <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Meeting</h1>
-        <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">
-          Check-in GPS, foto bukti, lalu penyelesaian — tiga langkah yang diperiksa di server.
-        </p>
+      <header className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Meeting</h1>
+          <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">
+            Check-in GPS, foto bukti, lalu penyelesaian — tiga langkah yang diperiksa di server.
+          </p>
+        </div>
+        <TombolEkspor
+          ambil={ambilSemua}
+          susun={(baris) => ({
+            namaBerkas: 'meeting-kehadiran',
+            namaSheet: 'Meeting',
+            judul: 'Meeting — Kehadiran & Bukti',
+            keterangan: [
+              `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
+              pengawas && filterSales ? `Sales: ${namaSales[filterSales] ?? '—'}` : 'Sales: semua yang boleh Anda lihat',
+              `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
+            ],
+            kolom: [
+              { judul: 'Tanggal', format: 'tanggal', lebar: 12, nilai: (m) => selTanggal(m.schedule_date) },
+              { judul: 'Jam', lebar: 9, nilai: (m) => m.schedule_time?.slice(0, 5) ?? '' },
+              { judul: 'Customer', lebar: 26, nilai: (m) => m.customer_name },
+              { judul: 'Proyek', lebar: 24, nilai: (m) => m.project },
+              { judul: 'Lokasi', lebar: 24, nilai: (m) => m.sm_locations?.name ?? 'Belum diatur' },
+              { judul: 'Radius (m)', format: 'angka', lebar: 12,
+                nilai: (m) => (m.sm_locations ? Number(m.sm_locations.gps_radius_m) : null) },
+              { judul: 'Sales', lebar: 20,
+                nilai: (m) => (m.assigned_to ? (namaSales[m.assigned_to] ?? '—') : 'Belum ditugaskan') },
+              { judul: 'Status Jadwal', lebar: 14,
+                nilai: (m) => STATUS_JADWAL[m.status as StatusJadwal]?.label ?? m.status },
+              { judul: 'State Kehadiran', lebar: 18,
+                nilai: (m) => STATE_KEHADIRAN[(m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran]?.label ?? '—' },
+              { judul: 'GPS Terverifikasi', lebar: 16,
+                nilai: (m) => (m.sm_attendance?.gps_verified ? 'Ya' : 'Tidak') },
+              { judul: 'Jarak (m)', format: 'angka', lebar: 12,
+                nilai: (m) => (m.sm_attendance?.distance_m != null ? Number(m.sm_attendance.distance_m) : null) },
+              { judul: 'Akurasi (m)', format: 'angka', lebar: 12,
+                nilai: (m) => (m.sm_attendance?.accuracy_m != null ? Number(m.sm_attendance.accuracy_m) : null) },
+              { judul: 'Jumlah Foto', format: 'angka', lebar: 12, nilai: (m) => m.sm_evidence.length },
+            ],
+            baris,
+            ringkasan: [
+              { label: 'Jumlah meeting', nilai: baris.length },
+              { label: 'Selesai', nilai: baris.filter((m) => m.status === 'COMPLETED').length },
+              { label: 'GPS terverifikasi', nilai: baris.filter((m) => m.sm_attendance?.gps_verified).length },
+              { label: 'Tanpa foto bukti', nilai: baris.filter((m) => m.sm_evidence.length === 0).length },
+            ],
+          })}
+        />
       </header>
 
       <BentoGrid>

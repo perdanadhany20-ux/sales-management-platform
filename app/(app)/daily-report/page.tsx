@@ -12,6 +12,8 @@ import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Konfirmasi } from '@/components/shared/Modal';
 import { FormLaporan, type Laporan } from './_components/FormLaporan';
+import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 
 const PER_HALAMAN = 20;
 
@@ -93,6 +95,34 @@ export default function HalamanDailyReport() {
 
   useEffect(() => { void muat(); }, [muat]);
 
+  /**
+   * Seluruh baris yang cocok dengan penyaring — tanpa paginasi.
+   *
+   * Sengaja mengulang syarat `muat()` alih-alih memakai `daftar` yang sudah
+   * ada di layar: `daftar` hanya berisi satu halaman, dan berkas ekspor yang
+   * diam-diam hanya memuat 20 dari 300 baris adalah kesalahan yang baru
+   * ketahuan setelah angkanya dipakai rapat.
+   */
+  const ambilSemua = useCallback(async () => {
+    let q = supabase
+      .from('sm_daily_reports')
+      .select('*')
+      .gte('report_date', dari)
+      .lte('report_date', sampai)
+      .order('report_date', { ascending: false })
+      .limit(BATAS_BARIS_EKSPOR + 1);
+
+    if (filterSales) q = q.eq('sales_user_id', filterSales);
+    if (cariTertunda.trim()) {
+      const k = cariTertunda.trim();
+      q = q.or(`customer_name.ilike.%${k}%,lead_project.ilike.%${k}%,activity.ilike.%${k}%`);
+    }
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Laporan[];
+  }, [dari, sampai, filterSales, cariTertunda]);
+
   // Dua hal berbeda dimuat dari satu query, dan pembedaannya penting.
   //
   // `daftarSales` (peran SALES saja) mengisi penyaring — menyaring "per Sales"
@@ -170,9 +200,45 @@ export default function HalamanDailyReport() {
             {pengawas ? 'Laporan harian seluruh tim Sales.' : 'Laporan harian Anda.'}
           </p>
         </div>
-        <Tombol onClick={() => { setSedangSunting(null); setFormBuka(true); }}>
-          + Laporan Baru
-        </Tombol>
+        <div className="flex items-center gap-2">
+          <TombolEkspor
+            ambil={ambilSemua}
+            susun={(baris) => ({
+              namaBerkas: 'daily-report',
+              namaSheet: 'Daily Report',
+              judul: 'Daily Sales Report',
+              keterangan: [
+                `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
+                filterSales ? `Sales: ${namaSales[filterSales] ?? '—'}` : 'Sales: semua',
+                cariTertunda ? `Kata kunci: ${cariTertunda}` : 'Tanpa kata kunci',
+                `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
+              ],
+              kolom: [
+                { judul: 'Tanggal', format: 'tanggal', lebar: 12, nilai: (r) => selTanggal(r.report_date) },
+                { judul: 'Sales', lebar: 20, nilai: (r) => namaSales[r.sales_user_id] ?? '—' },
+                { judul: 'Customer', lebar: 26, nilai: (r) => r.customer_name },
+                { judul: 'Kontak', lebar: 18, nilai: (r) => r.contact_person },
+                { judul: 'Jabatan', lebar: 16, nilai: (r) => r.position },
+                { judul: 'No. WA', lebar: 16, nilai: (r) => r.phone_whatsapp },
+                { judul: 'Aktivitas', lebar: 34, nilai: (r) => r.activity },
+                { judul: 'Lead / Proyek', lebar: 26, nilai: (r) => r.lead_project },
+                { judul: 'Hasil', lebar: 34, nilai: (r) => r.result },
+                { judul: 'Next Action', lebar: 30, nilai: (r) => r.next_action },
+              ],
+              baris,
+              ringkasan: [
+                { label: 'Jumlah laporan', nilai: baris.length },
+                { label: 'Jumlah Sales terlibat',
+                  nilai: new Set(baris.map((r) => r.sales_user_id)).size },
+                { label: 'Customer berbeda',
+                  nilai: new Set(baris.map((r) => r.customer_name.toLowerCase())).size },
+              ],
+            })}
+          />
+          <Tombol onClick={() => { setSedangSunting(null); setFormBuka(true); }}>
+            + Laporan Baru
+          </Tombol>
+        </div>
       </header>
 
       {/* ── Analitik ringkas (§16) ── */}

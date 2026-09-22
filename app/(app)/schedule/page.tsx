@@ -14,6 +14,8 @@ import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Konfirmasi } from '@/components/shared/Modal';
 import { FormJadwal, type Jadwal } from './_components/FormJadwal';
+import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 
 const PER_HALAMAN = 20;
 
@@ -98,6 +100,29 @@ export default function HalamanSchedule() {
 
   useEffect(() => { void muat(); }, [muat]);
 
+  /** Seluruh jadwal sesuai penyaring, tanpa paginasi. */
+  const ambilSemua = useCallback(async () => {
+    let q = supabase
+      .from('sm_schedules')
+      .select('*')
+      .gte('schedule_date', dari)
+      .lte('schedule_date', sampai)
+      .order('schedule_date', { ascending: true })
+      .limit(BATAS_BARIS_EKSPOR + 1);
+
+    if (filterSales) q = q.eq('assigned_to', filterSales);
+    if (filterKategori) q = q.eq('category', filterKategori);
+    if (filterStatus) q = q.eq('status', filterStatus);
+    if (cariTertunda.trim()) {
+      const k = cariTertunda.trim();
+      q = q.or(`customer_name.ilike.%${k}%,project.ilike.%${k}%,detail.ilike.%${k}%`);
+    }
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Jadwal[];
+  }, [dari, sampai, filterSales, filterKategori, filterStatus, cariTertunda]);
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -158,9 +183,47 @@ export default function HalamanSchedule() {
             {pengawas ? 'Jadwal seluruh tim, termasuk pengajuan yang menunggu penugasan.' : 'Jadwal yang ditugaskan kepada Anda dan pengajuan Anda.'}
           </p>
         </div>
-        <Tombol onClick={() => { setSedangSunting(null); setFormBuka(true); }}>
-          {pengawas ? '+ Jadwal Baru' : '+ Ajukan Jadwal'}
-        </Tombol>
+        <div className="flex items-center gap-2">
+          <TombolEkspor
+            ambil={ambilSemua}
+            susun={(baris) => ({
+              namaBerkas: 'request-schedule',
+              namaSheet: 'Schedule',
+              judul: 'Request Schedule',
+              keterangan: [
+                `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
+                filterSales ? `Sales: ${namaSales[filterSales] ?? '—'}` : 'Sales: semua',
+                filterKategori ? `Kategori: ${filterKategori}` : 'Kategori: semua',
+                `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
+              ],
+              kolom: [
+                { judul: 'Tanggal', format: 'tanggal', lebar: 12, nilai: (j) => selTanggal(j.schedule_date) },
+                { judul: 'Jam', lebar: 9, nilai: (j) => j.schedule_time?.slice(0, 5) ?? '' },
+                { judul: 'Customer', lebar: 26, nilai: (j) => j.customer_name },
+                { judul: 'Proyek', lebar: 24, nilai: (j) => j.project },
+                { judul: 'Kategori', lebar: 18, nilai: (j) => j.category },
+                { judul: 'Wajib Bukti', lebar: 12, nilai: (j) => (j.requires_attendance ? 'Ya' : 'Tidak') },
+                { judul: 'Ditugaskan ke', lebar: 20,
+                  nilai: (j) => (j.assigned_to ? (namaSales[j.assigned_to] ?? '—') : 'Belum ditugaskan') },
+                { judul: 'Status', lebar: 14,
+                  nilai: (j) => STATUS_JADWAL[j.status as StatusJadwal]?.label ?? j.status },
+                { judul: 'Detail', lebar: 34, nilai: (j) => j.detail },
+                { judul: 'Catatan', lebar: 28, nilai: (j) => j.notes },
+              ],
+              baris,
+              ringkasan: [
+                { label: 'Jumlah jadwal', nilai: baris.length },
+                { label: 'Selesai', nilai: baris.filter((j) => j.status === 'COMPLETED').length },
+                { label: 'Terlewat', nilai: baris.filter((j) => j.status === 'MISSED').length },
+                { label: 'Wajib bukti (Meeting)', nilai: baris.filter((j) => j.requires_attendance).length },
+                { label: 'Belum ditugaskan', nilai: baris.filter((j) => !j.assigned_to).length },
+              ],
+            })}
+          />
+          <Tombol onClick={() => { setSedangSunting(null); setFormBuka(true); }}>
+            {pengawas ? '+ Jadwal Baru' : '+ Ajukan Jadwal'}
+          </Tombol>
+        </div>
       </header>
 
       <BentoGrid>

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { type PenggunaAktif } from '@/lib/auth';
 import { type Branding } from '@/lib/branding';
 import { useLonceng, totalPerluTindakan } from '@/lib/use-lonceng';
+import { usePengingat } from '@/lib/notifikasi';
 import { isPengawas } from '@/lib/constants';
 import { tanggalPendek, rupiahRingkas } from '@/lib/format';
 
@@ -32,6 +33,10 @@ export function HeaderAtas({ pengguna, branding }: {
   const [bukaCari, setBukaCari] = useState(false);
   const pengawas = isPengawas(pengguna.role);
 
+  // Pengingat peramban memakai angka yang sama dengan lencana di bawah ini,
+  // jadi keduanya mustahil menyebut jumlah yang berbeda.
+  usePengingat(lonceng, pengawas);
+
   const total = totalPerluTindakan(lonceng);
 
   return (
@@ -42,7 +47,7 @@ export function HeaderAtas({ pengguna, branding }: {
         <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0 flex-shrink-0">
           <LogoMerek branding={branding} ukuran={34} />
           <span className="min-w-0 hidden sm:block">
-            <span className="block text-[14px] font-black text-slate-900 leading-tight truncate">
+            <span className="block text-[14px] sentuhlebar:text-[16px] font-black text-slate-900 leading-tight truncate">
               {branding.nama_platform}
               {branding.nama_portal && (
                 <span className="font-bold ml-1.5" style={{ color: branding.warna_aksen }}>
@@ -50,7 +55,7 @@ export function HeaderAtas({ pengguna, branding }: {
                 </span>
               )}
             </span>
-            <span className="block text-[10px] text-slate-400 leading-tight truncate">
+            <span className="block text-[10px] sentuhlebar:text-[12px] text-slate-400 leading-tight truncate">
               {branding.nama_perusahaan || 'Platform internal'}
             </span>
           </span>
@@ -69,10 +74,11 @@ export function HeaderAtas({ pengguna, branding }: {
           <button
             type="button" onClick={() => setBukaCari(true)}
             className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-kontrol border border-slate-200 bg-slate-50
-                       px-3 py-1.5 text-[12px] font-semibold text-slate-500 hover:bg-slate-100 transition-colors"
+                       px-3 py-1.5 min-h-[34px] text-[12px] sentuhlebar:text-[14px] font-semibold
+                       text-slate-500 hover:bg-slate-100 transition-colors"
           >
             <span aria-hidden="true">🔍</span>
-            <span className="hidden formulir:inline">Pencarian</span>
+            <span className="hidden sidebar:inline">Pencarian</span>
           </button>
 
           <Pintasan href="/daily-report" ikon="📝" label="Daily Report"
@@ -101,14 +107,17 @@ export function HeaderAtas({ pengguna, branding }: {
               onClick={() => { setBukaNotif((b) => !b); void muatUlang(); }}
               aria-expanded={bukaNotif}
               aria-label={`Notifikasi, ${total} perlu tindakan`}
-              className={`inline-flex items-center gap-1.5 rounded-kontrol px-3 py-1.5 text-[12px] font-bold transition-colors
+              className={`inline-flex items-center gap-1.5 rounded-kontrol px-3 py-1.5 min-h-[34px]
+                          text-[12px] sentuhlebar:text-[14px] font-bold transition-colors
                           ${total > 0
                             ? 'bg-[#e34948] text-white hover:bg-[#c93c3b]'
                             : 'border border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
             >
               <span aria-hidden="true">🔔</span>
-              <span className="hidden formulir:inline">Notifikasi</span>
-              <span className={`inline-grid place-items-center min-w-[18px] h-[18px] rounded-full px-1 text-[10px] font-black tabular-nums
+              <span className="hidden sidebar:inline">Notifikasi</span>
+              <span className={`inline-grid place-items-center min-w-[18px] h-[18px] sentuhlebar:min-w-[21px]
+                                sentuhlebar:h-[21px] rounded-full px-1 text-[10px] sentuhlebar:text-[12px]
+                                font-black tabular-nums
                                 ${total > 0 ? 'bg-white text-[#e34948]' : 'bg-slate-100 text-slate-500'}`}>
                 {total}
               </span>
@@ -144,7 +153,7 @@ export function HeaderAtas({ pengguna, branding }: {
 function Inisial({ nama }: { nama: string }) {
   const huruf = nama.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   return (
-    <span className="w-8 h-8 rounded-full bg-aksen-100 text-aksen-800 grid place-items-center text-[11px] font-black">
+    <span className="w-8 h-8 sentuhlebar:w-9 sentuhlebar:h-9 rounded-full bg-aksen-100 text-aksen-800 grid place-items-center text-[11px] sentuhlebar:text-[13px] font-black">
       {huruf || '?'}
     </span>
   );
@@ -198,16 +207,17 @@ function Pintasan({ href, ikon, label, jumlah, warna, judul, tersembunyiDiPonsel
     <Link
       href={href} title={judul}
       className={`flex-shrink-0 inline-flex items-center gap-1.5 rounded-kontrol border px-2.5 py-1.5
-                  text-[12px] font-semibold transition-colors
-                  ${tersembunyiDiPonsel ? 'hidden formulir:inline-flex' : ''}
+                  min-h-[34px] text-[12px] sentuhlebar:text-[14px] font-semibold transition-colors
+                  ${tersembunyiDiPonsel ? 'hidden sidebar:inline-flex' : ''}
                   ${menyala
                     ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50'}`}
     >
       <span aria-hidden="true">{ikon}</span>
-      <span className="hidden satulayar:inline">{label}</span>
-      <span className={`inline-grid place-items-center min-w-[18px] h-[18px] rounded-full px-1
-                        text-[10px] font-black tabular-nums
+      <span className="hidden sidebar:inline">{label}</span>
+      <span className={`inline-grid place-items-center min-w-[18px] h-[18px] sentuhlebar:min-w-[21px]
+                        sentuhlebar:h-[21px] rounded-full px-1 text-[10px] sentuhlebar:text-[12px]
+                        font-black tabular-nums
                         ${menyala ? WARNA_LENCANA[warna] : 'bg-slate-100 text-slate-400'}`}>
         {jumlah}
       </span>

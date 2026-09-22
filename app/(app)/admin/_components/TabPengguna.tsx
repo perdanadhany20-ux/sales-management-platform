@@ -20,18 +20,22 @@ interface Pengguna {
 }
 
 const GAYA_PERAN: Record<string, { color: string; bg: string }> = {
-  ADMIN:   { color: '#7c3aed', bg: '#ede9fe' },
-  MANAGER: { color: '#1d4ed8', bg: '#dbeafe' },
-  SALES:   { color: '#0891b2', bg: '#cffafe' },
+  ADMIN:    { color: '#7c3aed', bg: '#ede9fe' },
+  DIRECTOR: { color: '#be123c', bg: '#ffe4e6' },
+  FINANCE:  { color: '#008300', bg: '#e0f2e0' },
+  MANAGER:  { color: '#1d4ed8', bg: '#dbeafe' },
+  SALES:    { color: '#0891b2', bg: '#cffafe' },
 };
 
-const OPSI_PERAN = (['SALES', 'MANAGER', 'ADMIN'] as Peran[]).map((p) => ({
+const OPSI_PERAN = (['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN'] as Peran[]).map((p) => ({
   value: p,
   label: LABEL_PERAN[p],
   keterangan: {
-    SALES:   'Hanya data miliknya dan jadwal yang ditugaskan',
-    MANAGER: 'Lihat semua, tugaskan jadwal, setujui exception',
-    ADMIN:   'Semua wewenang Manager, plus kelola akun dan konfigurasi',
+    SALES:    'Hanya data miliknya dan jadwal yang ditugaskan',
+    MANAGER:  'Lihat semua, tugaskan jadwal, setujui exception, periksa GP',
+    DIRECTOR: 'Lihat semua; menyetujui GP Calculation sesudah diperiksa Manager',
+    FINANCE:  'Lihat semua; memverifikasi GP Calculation sesudah disetujui Director',
+    ADMIN:    'Semua wewenang di atas, plus kelola akun dan konfigurasi',
   }[p],
 }));
 

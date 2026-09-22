@@ -8,6 +8,9 @@ import { usePenggunaAktif, keluar } from '@/lib/auth';
 import { isPengawas, LABEL_PERAN, type Peran } from '@/lib/constants';
 import { tanggalPendek, waktuPendek, angka, rupiahRingkas } from '@/lib/format';
 import { MENU_APLIKASI } from '@/components/shared/Shell';
+import {
+  statusPengingat, nyalakanPengingat, matikanPengingat, type StatusPengingat,
+} from '@/lib/notifikasi';
 import { Kolom, KataSandi, Teks, Tombol } from '@/components/shared/FormParts';
 import { PanelGalat, LayarMemuat, useToast } from '@/components/shared/Feedback';
 
@@ -81,6 +84,12 @@ export default function HalamanProfil() {
   const [memproses, setMemproses] = useState(false);
 
   const [cariModul, setCariModul] = useState('');
+  const [pengingat, setPengingat] = useState<StatusPengingat>('mati');
+
+  // Dibaca di effect, bukan saat render: statusPengingat() menyentuh
+  // window.Notification dan localStorage, yang tidak ada saat komponen ini
+  // dirender di server.
+  useEffect(() => { setPengingat(statusPengingat()); }, []);
 
   const muatProfil = useCallback(async () => {
     const res = await fetch('/api/profil', { credentials: 'include' });
@@ -415,6 +424,45 @@ export default function HalamanProfil() {
               Daftar ini mengikuti peran Anda. Penyembunyian menu hanya merapikan tampilan —
               yang benar-benar menolak akses adalah aturan di database.
             </p>
+          </Panel>
+
+          <Panel ikon="🔔" judul="Pengingat">
+            <p className="text-[12px] text-slate-600 leading-relaxed">
+              {pengingat === 'tidak_didukung'
+                ? 'Peramban ini tidak mendukung notifikasi. Lencana di header tetap berjalan seperti biasa.'
+                : pengingat === 'ditolak'
+                  ? 'Notifikasi diblokir untuk situs ini. Izinkan lewat pengaturan situs di peramban Anda, lalu buka halaman ini lagi.'
+                  : pengingat === 'menyala'
+                    ? 'Pengingat aktif untuk laporan harian yang belum diisi, meeting yang menunggu, dan jadwal yang lewat tanggal.'
+                    : 'Dapatkan pengingat saat laporan harian belum diisi, meeting menunggu check-in, atau jadwal lewat tanggal.'}
+            </p>
+
+            <p className="text-[11px] text-slate-400 leading-relaxed mt-2">
+              Pengingat muncul selama aplikasi terbuka di salah satu tab peramban, paling
+              banyak sekali per jenis per hari. Tidak ada surel maupun WhatsApp yang
+              dikirim, dan nomor Anda tidak pernah diteruskan ke layanan lain.
+            </p>
+
+            {(pengingat === 'mati' || pengingat === 'menyala') && (
+              <div className="mt-3">
+                {pengingat === 'menyala' ? (
+                  <Tombol rupa="kedua" className="text-[12px] py-2"
+                    onClick={() => { matikanPengingat(); setPengingat(statusPengingat()); }}>
+                    Matikan Pengingat
+                  </Tombol>
+                ) : (
+                  <Tombol className="text-[12px] py-2"
+                    onClick={async () => {
+                      const hasil = await nyalakanPengingat();
+                      setPengingat(hasil);
+                      if (hasil === 'menyala') toast('sukses', 'Pengingat dinyalakan.');
+                      else if (hasil === 'ditolak') toast('galat', 'Izin notifikasi ditolak peramban.');
+                    }}>
+                    Nyalakan Pengingat
+                  </Tombol>
+                )}
+              </div>
+            )}
           </Panel>
 
           <Panel ikon="📊" judul="Ringkasan Aktivitas Anda">

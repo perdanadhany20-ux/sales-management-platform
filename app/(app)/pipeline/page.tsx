@@ -13,6 +13,8 @@ import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Konfirmasi } from '@/components/shared/Modal';
 import { FormPipeline, type Peluang } from './_components/FormPipeline';
+import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 
 const PER_HALAMAN = 20;
 
@@ -98,6 +100,30 @@ export default function HalamanPipeline() {
 
   useEffect(() => { void muat(); }, [muat]);
 
+  /** Seluruh baris sesuai penyaring, tanpa paginasi — lihat catatan di
+   *  TombolEkspor soal kenapa tidak memakai `daftar` yang sudah di layar. */
+  const ambilSemua = useCallback(async () => {
+    let q = supabase
+      .from('sm_pipeline')
+      .select('*')
+      .gte('pipeline_date', dari)
+      .lte('pipeline_date', sampai)
+      .order('estimated_closing', { ascending: true })
+      .limit(BATAS_BARIS_EKSPOR + 1);
+
+    if (filterSales) q = q.eq('sales_user_id', filterSales);
+    if (filterProb) q = q.eq('probability', Number(filterProb));
+    if (filterStage) q = q.eq('stage', filterStage);
+    if (cariTertunda.trim()) {
+      const k = cariTertunda.trim();
+      q = q.or(`customer_name.ilike.%${k}%,project_detail.ilike.%${k}%`);
+    }
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Peluang[];
+  }, [dari, sampai, filterSales, filterProb, filterStage, cariTertunda]);
+
   useEffect(() => {
     if (!pengawas) return;
     (async () => {
@@ -169,9 +195,55 @@ export default function HalamanPipeline() {
             {pengawas ? 'Peluang seluruh tim Sales.' : 'Peluang yang Anda kelola.'}
           </p>
         </div>
-        <Tombol onClick={() => { setSedangSunting(null); setFormBuka(true); }}>
-          + Peluang Baru
-        </Tombol>
+        <div className="flex items-center gap-2">
+          <TombolEkspor
+            ambil={ambilSemua}
+            susun={(baris) => ({
+              namaBerkas: 'sales-pipeline',
+              namaSheet: 'Pipeline',
+              judul: 'Sales Pipeline',
+              keterangan: [
+                `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
+                filterSales ? `Sales: ${namaSales[filterSales] ?? '—'}` : 'Sales: semua',
+                filterStage ? `Stage: ${filterStage}` : 'Stage: semua',
+                `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
+              ],
+              kolom: [
+                { judul: 'Tanggal', format: 'tanggal', lebar: 12, nilai: (p) => selTanggal(p.pipeline_date) },
+                { judul: 'Sales', lebar: 20, nilai: (p) => namaSales[p.sales_user_id] ?? '—' },
+                { judul: 'Customer', lebar: 26, nilai: (p) => p.customer_name },
+                { judul: 'Kontak', lebar: 18, nilai: (p) => p.contact_person },
+                { judul: 'Detail Proyek', lebar: 34, nilai: (p) => p.project_detail },
+                { judul: 'Qty', format: 'angka', lebar: 9, nilai: (p) => Number(p.quantity) },
+                { judul: 'Satuan', lebar: 10, nilai: (p) => p.unit },
+                { judul: 'Nilai Proyek (Rp)', format: 'rupiah', lebar: 18, nilai: (p) => Number(p.project_value) },
+                { judul: 'HPP (Rp)', format: 'rupiah', lebar: 16, nilai: (p) => Number(p.project_hpp) },
+                { judul: 'GP (Rp)', format: 'rupiah', lebar: 16, nilai: (p) => Number(p.project_gp) },
+                { judul: 'GP (%)', format: 'persen', lebar: 10, nilai: (p) => Number(p.gp_percentage) },
+                { judul: 'Probability (%)', format: 'persen', lebar: 14, nilai: (p) => Number(p.probability) },
+                { judul: 'Perkiraan Closing', format: 'tanggal', lebar: 16, nilai: (p) => selTanggal(p.estimated_closing) },
+                { judul: 'Stage', lebar: 12, nilai: (p) => p.stage },
+                { judul: 'Next Action', lebar: 30, nilai: (p) => p.next_action },
+              ],
+              baris,
+              ringkasan: [
+                { label: 'Jumlah peluang', nilai: baris.length },
+                { label: 'Total nilai proyek (Rp)',
+                  nilai: baris.reduce((t, p) => t + Number(p.project_value ?? 0), 0) },
+                { label: 'Total HPP (Rp)',
+                  nilai: baris.reduce((t, p) => t + Number(p.project_hpp ?? 0), 0) },
+                { label: 'Total gross profit (Rp)',
+                  nilai: baris.reduce((t, p) => t + Number(p.project_gp ?? 0), 0) },
+                { label: 'Nilai tertimbang probability (Rp)',
+                  nilai: Math.round(baris.reduce(
+                    (t, p) => t + (Number(p.project_value ?? 0) * Number(p.probability ?? 0)) / 100, 0)) },
+              ],
+            })}
+          />
+          <Tombol onClick={() => { setSedangSunting(null); setFormBuka(true); }}>
+            + Peluang Baru
+          </Tombol>
+        </div>
       </header>
 
       <BentoGrid>

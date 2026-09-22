@@ -67,6 +67,7 @@ export const MENU_APLIKASI: Menu[] = [
   { href: '/pipeline',     label: 'Pipeline',     utama: true,  ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
   { href: '/schedule',     label: 'Schedule',     utama: true,  ikon: I('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z') },
   { href: '/meeting',      label: 'Meeting',      utama: true,  ikon: I('M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
+  { href: '/gp',           label: 'GP Calculation', ikon: I('M9 7h6M9 11h6M9 15h3M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z') },
   { href: '/activity',     label: 'Activity',     ikon: I('M3 12h4l3 8 4-16 3 8h4') },
   { href: '/admin',        label: 'Admin Panel',  untuk: isPengawas, ikon: I('M10.3 4.3a1.9 1.9 0 013.4 0l.5 1a1.9 1.9 0 002.3 1l1-.3a1.9 1.9 0 012.1 2.9l-.6.9a1.9 1.9 0 000 2.4l.6.9a1.9 1.9 0 01-2.1 2.9l-1-.3a1.9 1.9 0 00-2.3 1l-.5 1a1.9 1.9 0 01-3.4 0l-.5-1a1.9 1.9 0 00-2.3-1l-1 .3a1.9 1.9 0 01-2.1-2.9l.6-.9a1.9 1.9 0 000-2.4l-.6-.9a1.9 1.9 0 012.1-2.9l1 .3a1.9 1.9 0 002.3-1l.5-1z M12 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
 ];
@@ -105,7 +106,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Ruang bawah menghindari bilah navigasi ponsel menutupi isi
               halaman — termasuk tombol simpan di dasar formulir. */}
-          <main className="flex-1 px-3 sm:px-5 py-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-6 max-w-[1500px] w-full mx-auto">
+          <main className="flex-1 px-3 sm:px-5 py-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sidebar:pb-6 max-w-[1500px] w-full mx-auto">
             {children}
           </main>
         </div>
@@ -121,7 +122,7 @@ function SidebarLebar({ menu, pathname, pengguna }: {
   menu: Menu[]; pathname: string; pengguna: PenggunaAktif;
 }) {
   return (
-    <aside className="hidden lg:flex w-[228px] flex-shrink-0 flex-col bg-white border-r border-slate-200
+    <aside className="hidden sidebar:flex w-[228px] flex-shrink-0 flex-col bg-white border-r border-slate-200
                       sticky top-14 h-[calc(100dvh-3.5rem)]">
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5">
         <p className="px-3 pb-1 text-[9px] font-bold text-slate-400 uppercase tracking-[0.14em]">Menu</p>
@@ -245,7 +246,7 @@ function Inisial({ nama }: { nama: string }) {
 
 function BilahBawah({ menu, pathname }: { menu: Menu[]; pathname: string }) {
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white/97 backdrop-blur border-t border-slate-200
+    <nav className="sidebar:hidden fixed bottom-0 inset-x-0 z-30 bg-white/97 backdrop-blur border-t border-slate-200
                     pb-[env(safe-area-inset-bottom)]">
       <div className="flex">
         {menu.map((m) => {

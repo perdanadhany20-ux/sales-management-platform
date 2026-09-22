@@ -89,16 +89,27 @@ export const WARNA_PROBABILITY: Record<number, string> = {
   90: '#008300',
 };
 
-export type Peran = 'SALES' | 'MANAGER' | 'ADMIN';
+export type Peran = 'SALES' | 'MANAGER' | 'ADMIN' | 'DIRECTOR' | 'FINANCE';
 
 export const LABEL_PERAN: Record<Peran, string> = {
-  SALES:   'Sales',
-  MANAGER: 'Manager',
-  ADMIN:   'Admin',
+  SALES:    'Sales',
+  MANAGER:  'Manager',
+  ADMIN:    'Admin',
+  DIRECTOR: 'Director',
+  FINANCE:  'Finance',
 };
 
+/**
+ * Peran yang melihat data seluruh tim.
+ *
+ * Director dan Finance ikut karena keduanya menandatangani GP Calculation —
+ * tanda tangan di atas angka yang tidak boleh ia baca adalah tanda tangan
+ * kosong. Keduanya tetap BUKAN Admin: pengelolaan akun dan konfigurasi
+ * platform tertutup bagi mereka, dan itu ditentukan isAdmin() di bawah,
+ * bukan fungsi ini. Padanannya di database: sm_is_pengawas() (migrasi 015).
+ */
 export function isPengawas(role: string | null | undefined): boolean {
-  return ['MANAGER', 'ADMIN'].includes((role ?? '').toUpperCase());
+  return ['MANAGER', 'ADMIN', 'DIRECTOR', 'FINANCE'].includes((role ?? '').toUpperCase());
 }
 
 export function isAdmin(role: string | null | undefined): boolean {

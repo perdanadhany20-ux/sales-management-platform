@@ -5,8 +5,12 @@
 -- Skrip TIDAK diakhiri COMMIT: begitu koneksinya tutup, seluruh data uji
 -- hilang dengan sendirinya. Jangan menambahkan COMMIT di bawah.
 --
--- Cara membaca: kolom `nyata` harus sama persis dengan `harapan` di kesembilan
--- baris. Satu saja meleset berarti ada penjaga yang jebol.
+-- Cara membaca: kolom `nyata` harus sama persis dengan `harapan` di keenam
+-- belas baris. Satu saja meleset berarti ada penjaga yang jebol.
+--
+-- Uji 10–14 ditambahkan bersama modul Activity dan Dashboard Setting: view
+-- aktivitas, pengaturan branding, dan kepemilikan bukti adalah permukaan baru,
+-- dan permukaan baru tanpa uji adalah tempat kebocoran berikutnya bersembunyi.
 -- ════════════════════════════════════════════════════════════════════════════
 
 BEGIN;
@@ -75,8 +79,86 @@ INSERT INTO hasil SELECT 9,'§42 jejak GPS tersaring per pemilik','3 jejak',
   count(*)::text||' jejak' FROM public.sm_gps_events
   WHERE schedule_id='55555555-5555-5555-5555-555555555555';
 
+-- ══ Uji permukaan baru ══════════════════════════════════════════════════════
+
+-- §47: nilai bisnis dan identitas platform hanya boleh disentuh Admin. Sales
+-- yang bisa mengubah branding juga bisa mengubah ambang akurasi GPS — baris
+-- pengaturan yang sama, policy yang sama.
+WITH u AS (UPDATE public.sm_settings SET value = '{"nama_platform":"Diretas"}'::jsonb
+            WHERE key = 'branding' RETURNING 1)
+INSERT INTO hasil SELECT 10,'Sales mengubah pengaturan branding','0 baris diubah',
+  count(*)::text||' baris diubah' FROM u;
+
+-- Eskalasi peran: menaikkan diri sendiri jadi ADMIN lewat satu UPDATE adalah
+-- jalan pintas paling murah yang ada. Tidak ada policy UPDATE untuk non-Admin
+-- pada tabel users, jadi yang terjadi bukan error melainkan nol baris.
+WITH u AS (UPDATE public.users SET role = 'ADMIN'
+            WHERE id = '11111111-1111-1111-1111-111111111111' RETURNING 1)
+INSERT INTO hasil SELECT 11,'Sales menaikkan perannya sendiri jadi ADMIN','0 baris diubah',
+  count(*)::text||' baris diubah' FROM u;
+
+-- Manager pengawas, bukan pengelola akun. Ia melihat data seluruh tim tapi
+-- tidak boleh mengangkat siapa pun jadi Admin.
+SELECT set_config('request.jwt.claims','{"sub":"33333333-3333-3333-3333-333333333333","user_role":"MANAGER"}',true);
+
+WITH u AS (UPDATE public.users SET role = 'ADMIN'
+            WHERE id = '22222222-2222-2222-2222-222222222222' RETURNING 1)
+INSERT INTO hasil SELECT 12,'Manager mengangkat Sales jadi ADMIN','0 baris diubah',
+  count(*)::text||' baris diubah' FROM u;
+
+-- Uji 15 & 16 adalah uji REGRESI untuk migrasi 013, yang memecah policy
+-- `FOR ALL` menjadi INSERT/UPDATE/DELETE demi menghapus evaluasi ganda pada
+-- SELECT. Memecah policy adalah tempat paling mudah hak tanpa sengaja hilang
+-- atau bocor, jadi kedua arahnya diuji: yang boleh harus tetap boleh, yang
+-- tidak boleh harus tetap ditolak.
+WITH i AS (INSERT INTO public.sm_locations (name, latitude, longitude, created_by)
+           VALUES ('Uji Manager', -6.2, 106.8, '33333333-3333-3333-3333-333333333333')
+           RETURNING 1)
+INSERT INTO hasil SELECT 15,'Manager menambah lokasi (harus BOLEH)','1 baris ditambah',
+  count(*)::text||' baris ditambah' FROM i;
+
+-- View aktivitas dibuat dengan security_invoker. Tanpa opsi itu ia berjalan
+-- sebagai pemiliknya dan MELEWATI seluruh RLS tabel sumber — satu SELECT
+-- membuka aktivitas seluruh tim bagi siapa pun.
+SELECT set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","user_role":"SALES"}',true);
+
+INSERT INTO hasil SELECT 13,'Sales B membaca jejak Sales A lewat activity feed','0 jejak',
+  count(*)::text||' jejak' FROM public.sm_activity_feed
+  WHERE entitas_id = '55555555-5555-5555-5555-555555555555';
+
+-- §101: foto bukti tidak boleh ditempelkan ke kehadiran orang lain. Yang diuji
+-- di sini policy ev_tulis, yang menuntut tiga syarat sekaligus — pemilik,
+-- kecocokan jadwal, dan GPS yang sudah terverifikasi.
+DO $lok$
+BEGIN
+  BEGIN
+    INSERT INTO public.sm_locations (name, latitude, longitude) VALUES ('Palsu', -6.2, 106.8);
+    INSERT INTO hasil VALUES (16,'Sales menambah lokasi meeting','ditolak','DITERIMA');
+  EXCEPTION WHEN insufficient_privilege THEN
+    INSERT INTO hasil VALUES (16,'Sales menambah lokasi meeting','ditolak','ditolak');
+  END;
+END
+$lok$;
+
+DO $uji$
+DECLARE v_att uuid;
+BEGIN
+  SELECT id INTO v_att FROM public.sm_attendance
+   WHERE schedule_id = '55555555-5555-5555-5555-555555555555';
+
+  BEGIN
+    INSERT INTO public.sm_evidence (attendance_id, schedule_id, user_id, storage_path)
+    VALUES (v_att, '55555555-5555-5555-5555-555555555555',
+            '22222222-2222-2222-2222-222222222222', 'palsu.jpg');
+    INSERT INTO hasil VALUES (14,'§101 Sales B menempelkan foto ke kehadiran Sales A','ditolak','DITERIMA');
+  EXCEPTION WHEN insufficient_privilege OR check_violation THEN
+    INSERT INTO hasil VALUES (14,'§101 Sales B menempelkan foto ke kehadiran Sales A','ditolak','ditolak');
+  END;
+END
+$uji$;
+
 RESET ROLE;
 
-SELECT * FROM hasil ORDER BY no;
+SELECT no, uji, harapan, nyata, (harapan = nyata) AS lulus FROM hasil ORDER BY no;
 
 ROLLBACK;
