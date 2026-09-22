@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
+import { useFokusBaris } from '@/lib/fokus';
 import { usePengaturan } from '@/lib/use-settings';
 import { isPengawas, WARNA_PROBABILITY } from '@/lib/constants';
 import { tanggalISO, tanggalPendek, rupiah, rupiahRingkas, angka, persen } from '@/lib/format';
@@ -99,6 +100,10 @@ export default function HalamanPipeline() {
   }, [dari, sampai, filterSales, filterProb, filterStage, cariTertunda, halaman]);
 
   useEffect(() => { void muat(); }, [muat]);
+
+  // Menyorot baris yang ditunjuk lencana header (?fokus=<id>). Dijalankan
+  // setelah daftar selesai dimuat — sebelum itu elemennya belum ada di DOM.
+  useFokusBaris(!memuat);
 
   /** Seluruh baris sesuai penyaring, tanpa paginasi — lihat catatan di
    *  TombolEkspor soal kenapa tidak memakai `daftar` yang sudah di layar. */
@@ -359,7 +364,7 @@ export default function HalamanPipeline() {
         <>
           <ul className="flex flex-col gap-2">
             {daftar.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} id={`baris-${p.id}`}>
                 <KartuPeluang
                   peluang={p}
                   namaSales={pengawas ? (namaSales[p.sales_user_id] ?? 'Pengguna lain') : null}

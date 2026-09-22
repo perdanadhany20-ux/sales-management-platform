@@ -136,6 +136,26 @@
     }
   }
 
+  /*
+   * Sorotan baris yang dituju lencana header (lib/fokus.ts).
+   *
+   * Memakai warna aksen yang memudar, bukan warna tetap: halaman ini bisa
+   * berganti warna merek lewat Administrasi → Dashboard Setting, dan sorotan
+   * yang tetap biru di platform berwarna merah akan terlihat seperti cacat
+   * tampilan, bukan seperti penunjuk.
+   */
+  @keyframes sorot {
+    0%   { box-shadow: 0 0 0 0 rgb(var(--aksen-600) / 0.45); background-color: rgb(var(--aksen-50)); }
+    70%  { box-shadow: 0 0 0 10px rgb(var(--aksen-600) / 0); background-color: rgb(var(--aksen-50)); }
+    100% { box-shadow: 0 0 0 0 rgb(var(--aksen-600) / 0); background-color: transparent; }
+  }
+
+  .sorot-fokus {
+    animation: sorot 2.4s ease-out;
+    border-radius: 1rem;
+    scroll-margin-top: 5rem;
+  }
+
   @keyframes masuk {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }

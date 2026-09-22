@@ -10,6 +10,10 @@ import { useLonceng, totalPerluTindakan } from '@/lib/use-lonceng';
 import { usePengingat } from '@/lib/notifikasi';
 import { isPengawas } from '@/lib/constants';
 import { tanggalPendek, rupiahRingkas } from '@/lib/format';
+import {
+  intipDailyReport, intipMeeting, intipJadwal, intipPipeline,
+  intipTerlewat, intipBelumDitugaskan, intipGp, type ButirIntip,
+} from '@/lib/intip';
 
 /**
  * components/shared/HeaderAtas.tsx — bilah judul + lencana di puncak halaman.
@@ -31,6 +35,9 @@ export function HeaderAtas({ pengguna, branding }: {
   const { lonceng, muatUlang } = useLonceng(pengguna);
   const [bukaNotif, setBukaNotif] = useState(false);
   const [bukaCari, setBukaCari] = useState(false);
+  // Hanya satu jendela intip terbuka pada satu waktu. Dua panel melayang
+  // bersamaan saling menutupi dan tidak ada yang bisa dibaca utuh.
+  const [intip, setIntip] = useState<string | null>(null);
   const pengawas = isPengawas(pengguna.role);
 
   // Pengingat peramban memakai angka yang sama dengan lencana di bawah ini,
@@ -81,30 +88,44 @@ export function HeaderAtas({ pengguna, branding }: {
             <span className="hidden sidebar:inline">Pencarian</span>
           </button>
 
-          <Pintasan href="/daily-report" ikon="📝" label="Daily Report"
+          <Pintasan
+            kunci="laporan" ikon="📝" label="Daily Report" href="/daily-report"
             jumlah={lonceng.laporanBelum ? '!' : 0}
             warna={lonceng.laporanBelum ? 'merah' : 'netral'}
-            judul={lonceng.laporanBelum
-              ? 'Laporan harian hari ini belum diisi'
-              : 'Laporan harian hari ini sudah diisi'} />
+            judulPanel="Daily Report hari ini"
+            kosong="Belum ada laporan hari ini."
+            terbuka={intip === 'laporan'} onToggle={setIntip}
+            ambil={() => intipDailyReport(pengguna.id)} />
 
-          <Pintasan href="/meeting" ikon="📍" label="Meeting"
+          <Pintasan
+            kunci="meeting" ikon="📍" label="Meeting" href="/meeting"
             jumlah={lonceng.meetingPerlu} warna="biru"
-            judul={`${lonceng.meetingPerlu} meeting hari ini menunggu dieksekusi`} />
+            judulPanel="Meeting hari ini"
+            kosong="Tidak ada meeting yang menunggu hari ini."
+            terbuka={intip === 'meeting'} onToggle={setIntip}
+            ambil={() => intipMeeting(pengguna.id, pengawas)} />
 
-          <Pintasan href="/schedule" ikon="🗓️" label="Hari Ini"
+          <Pintasan
+            kunci="jadwal" ikon="🗓️" label="Hari Ini" href="/schedule"
             jumlah={lonceng.jadwalHariIni} warna="netral"
-            judul={`${lonceng.jadwalHariIni} jadwal hari ini belum selesai`} />
+            judulPanel="Jadwal hari ini"
+            kosong="Tidak ada jadwal yang belum selesai hari ini."
+            terbuka={intip === 'jadwal'} onToggle={setIntip}
+            ambil={() => intipJadwal(pengguna.id, pengawas)} />
 
-          <Pintasan href="/pipeline" ikon="📊" label="Closing" tersembunyiDiPonsel
+          <Pintasan
+            kunci="pipeline" ikon="📊" label="Closing" href="/pipeline" tersembunyiDiPonsel
             jumlah={lonceng.pipelineDekat} warna="kuning"
-            judul={`${lonceng.pipelineDekat} pipeline diperkirakan closing dalam 7 hari`} />
+            judulPanel="Mendekati closing (7 hari)"
+            kosong="Tidak ada peluang yang jatuh tempo pekan ini."
+            terbuka={intip === 'pipeline'} onToggle={setIntip}
+            ambil={() => intipPipeline(pengguna.id, pengawas)} />
 
           {/* ── Lonceng ── */}
           <div className="relative flex-shrink-0">
             <button
               type="button"
-              onClick={() => { setBukaNotif((b) => !b); void muatUlang(); }}
+              onClick={() => { setIntip(null); setBukaNotif((b) => !b); void muatUlang(); }}
               aria-expanded={bukaNotif}
               aria-label={`Notifikasi, ${total} perlu tindakan`}
               className={`inline-flex items-center gap-1.5 rounded-kontrol px-3 py-1.5 min-h-[34px]
@@ -127,6 +148,8 @@ export function HeaderAtas({ pengguna, branding }: {
               <PanelNotifikasi
                 lonceng={lonceng}
                 pengawas={pengawas}
+                peran={pengguna.role}
+                userId={pengguna.id}
                 onTutup={() => setBukaNotif(false)}
               />
             )}
@@ -193,48 +216,185 @@ const WARNA_LENCANA = {
   netral: 'bg-slate-200 text-slate-600',
 } as const;
 
-function Pintasan({ href, ikon, label, jumlah, warna, judul, tersembunyiDiPonsel }: {
-  href: string;
+function Pintasan({
+  kunci, ikon, label, href, jumlah, warna, judulPanel, kosong,
+  terbuka, onToggle, ambil, tersembunyiDiPonsel,
+}: {
+  kunci: string;
   ikon: string;
   label: string;
+  /** Tujuan tombol "Lihat semua" di kaki panel. */
+  href: string;
   jumlah: number | '!';
   warna: keyof typeof WARNA_LENCANA;
-  judul: string;
+  judulPanel: string;
+  kosong: string;
+  terbuka: boolean;
+  onToggle: (kunci: string | null) => void;
+  ambil: () => Promise<ButirIntip[]>;
   tersembunyiDiPonsel?: boolean;
 }) {
   const menyala = jumlah === '!' || jumlah > 0;
+
   return (
-    <Link
-      href={href} title={judul}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 rounded-kontrol border px-2.5 py-1.5
-                  min-h-[34px] text-[12px] sentuhlebar:text-[14px] font-semibold transition-colors
-                  ${tersembunyiDiPonsel ? 'hidden sidebar:inline-flex' : ''}
-                  ${menyala
-                    ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50'}`}
+    <div className={`relative flex-shrink-0 ${tersembunyiDiPonsel ? 'hidden sidebar:block' : ''}`}>
+      <button
+        type="button"
+        aria-expanded={terbuka}
+        aria-label={`${label}, ${jumlah} perlu dilihat`}
+        onClick={() => onToggle(terbuka ? null : kunci)}
+        className={`inline-flex items-center gap-1.5 rounded-kontrol border px-2.5 py-1.5
+                    min-h-[34px] text-[12px] sentuhlebar:text-[14px] font-semibold transition-colors
+                    ${terbuka
+                      ? 'border-aksen-300 bg-aksen-50 text-aksen-800'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+      >
+        <span aria-hidden="true">{ikon}</span>
+        <span className="hidden sidebar:inline">{label}</span>
+        <span className={`inline-grid place-items-center min-w-[18px] h-[18px] sentuhlebar:min-w-[21px]
+                          sentuhlebar:h-[21px] rounded-full px-1 text-[10px] sentuhlebar:text-[12px]
+                          font-black tabular-nums
+                          ${menyala ? WARNA_LENCANA[warna] : 'bg-slate-100 text-slate-400'}`}>
+          {jumlah}
+        </span>
+      </button>
+
+      {terbuka && (
+        <PanelIntip
+          judul={judulPanel}
+          kosong={kosong}
+          hrefSemua={href}
+          labelSemua={`Buka ${label}`}
+          ambil={ambil}
+          onTutup={() => onToggle(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Jendela intip ────────────────────────────────────────────────────────── */
+
+/**
+ * Daftar pendek berisi butir sesungguhnya di balik sebuah lencana.
+ *
+ * Isinya diambil SAAT DIBUKA, bukan ikut dimuat bersama header. Header
+ * dirender di setiap halaman; memuat isi keenam panel di muka berarti enam
+ * query yang hampir selalu tidak pernah dilihat.
+ */
+function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
+  judul: string;
+  kosong: string;
+  hrefSemua: string;
+  labelSemua: string;
+  ambil: () => Promise<ButirIntip[]>;
+  onTutup: () => void;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [butir, setButir] = useState<ButirIntip[] | null>(null);
+
+  useEffect(() => {
+    let batal = false;
+    void ambil()
+      .then((hasil) => { if (!batal) setButir(hasil); })
+      .catch(() => { if (!batal) setButir([]); });
+    return () => { batal = true; };
+    // `ambil` sengaja tidak masuk daftar kebergantungan: ia ditulis sebagai
+    // arrow function di tempat pemanggilan, jadi identitasnya berubah setiap
+    // render dan memasukkannya akan membuat panel ini mengambil data tanpa
+    // henti selama ia terbuka.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const klik = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onTutup();
+    };
+    const tombol = (e: KeyboardEvent) => { if (e.key === 'Escape') onTutup(); };
+    document.addEventListener('mousedown', klik);
+    document.addEventListener('keydown', tombol);
+    return () => {
+      document.removeEventListener('mousedown', klik);
+      document.removeEventListener('keydown', tombol);
+    };
+  }, [onTutup]);
+
+  return (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-label={judul}
+      className="absolute right-0 top-[calc(100%+8px)] w-[290px] max-w-[calc(100vw-24px)]
+                 bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden z-50"
     >
-      <span aria-hidden="true">{ikon}</span>
-      <span className="hidden sidebar:inline">{label}</span>
-      <span className={`inline-grid place-items-center min-w-[18px] h-[18px] sentuhlebar:min-w-[21px]
-                        sentuhlebar:h-[21px] rounded-full px-1 text-[10px] sentuhlebar:text-[12px]
-                        font-black tabular-nums
-                        ${menyala ? WARNA_LENCANA[warna] : 'bg-slate-100 text-slate-400'}`}>
-        {jumlah}
-      </span>
-    </Link>
+      <header className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70">
+        <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">{judul}</h2>
+      </header>
+
+      {butir === null ? (
+        <p className="px-3.5 py-5 text-[12px] text-slate-400 text-center">Memuat…</p>
+      ) : butir.length === 0 ? (
+        <p className="px-3.5 py-5 text-[12px] text-slate-400 text-center leading-snug">{kosong}</p>
+      ) : (
+        <ul className="max-h-[320px] overflow-y-auto">
+          {butir.map((b) => (
+            <li key={b.id}>
+              <Link
+                href={b.href} onClick={onTutup}
+                className="flex items-start gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 transition-colors
+                           border-b border-slate-100 last:border-0"
+              >
+                <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                  style={{ background: b.warna ?? '#94a3b8' }} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-bold text-slate-800 leading-snug truncate">
+                    {b.judul}
+                  </span>
+                  <span className="block text-[11px] text-slate-500 leading-snug truncate">
+                    {b.keterangan}
+                  </span>
+                </span>
+                {b.kanan && (
+                  <span className="text-[11px] font-bold text-slate-500 tabular-nums flex-shrink-0">
+                    {b.kanan}
+                  </span>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <footer className="px-3.5 py-2 border-t border-slate-100 bg-slate-50/70">
+        <Link href={hrefSemua} onClick={onTutup}
+          className="text-[11px] font-bold text-aksen-700 hover:underline underline-offset-2">
+          {labelSemua} →
+        </Link>
+      </footer>
+    </div>
   );
 }
 
 /* ── Panel notifikasi ─────────────────────────────────────────────────────── */
 
-interface Butir { ikon: string; judul: string; keterangan: string; href: string; warna: string }
-
-function PanelNotifikasi({ lonceng, pengawas, onTutup }: {
+/**
+ * Lonceng: seluruh hal yang menunggu tindakan, sebagai BUTIR, bukan ringkasan.
+ *
+ * Versi pertama panel ini berisi kalimat rangkuman ("3 meeting menunggu") yang
+ * menautkan ke halaman modulnya. Sama seperti lencana, itu memindahkan
+ * pekerjaan alih-alih menghematnya: orang tetap harus mencari sendiri yang
+ * mana. Kini tiap baris adalah dokumen atau jadwal yang sesungguhnya, dan
+ * menekannya membawa langsung ke baris itu.
+ */
+function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
   lonceng: ReturnType<typeof useLonceng>['lonceng'];
   pengawas: boolean;
+  peran: string;
+  userId: string;
   onTutup: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [kelompok, setKelompok] = useState<{ judul: string; butir: ButirIntip[] }[] | null>(null);
 
   // Klik di luar dan tombol Escape menutup panel. Tanpa keduanya, satu-satunya
   // cara menutupnya adalah menekan tombol loncengnya lagi — dan orang yang
@@ -252,53 +412,65 @@ function PanelNotifikasi({ lonceng, pengawas, onTutup }: {
     };
   }, [onTutup]);
 
-  const butir: Butir[] = [];
+  useEffect(() => {
+    let batal = false;
 
-  if (lonceng.laporanBelum) {
-    butir.push({
-      ikon: '📝', warna: '#e34948',
-      judul: 'Daily Report hari ini belum diisi',
-      keterangan: 'Isi sebelum jam kerja berakhir.',
-      href: '/daily-report',
-    });
-  }
-  if (lonceng.meetingPerlu > 0) {
-    butir.push({
-      ikon: '📍', warna: '#1d4ed8',
-      judul: `${lonceng.meetingPerlu} meeting hari ini menunggu`,
-      keterangan: 'Check-in GPS dan foto bukti belum lengkap.',
-      href: '/meeting',
-    });
-  }
-  if (lonceng.terlewat > 0) {
-    butir.push({
-      ikon: '⏰', warna: '#e34948',
-      judul: `${lonceng.terlewat} jadwal sudah lewat tanggal`,
-      keterangan: 'Belum diselesaikan maupun dibatalkan.',
-      href: '/schedule',
-    });
-  }
-  if (pengawas && lonceng.belumDitugaskan > 0) {
-    butir.push({
-      ikon: '👤', warna: '#eda100',
-      judul: `${lonceng.belumDitugaskan} pengajuan belum ditugaskan`,
-      keterangan: 'Menunggu Anda menunjuk Sales pelaksananya.',
-      href: '/schedule',
-    });
-  }
-  if (lonceng.pipelineDekat > 0) {
-    butir.push({
-      ikon: '📊', warna: '#eda100',
-      judul: `${lonceng.pipelineDekat} pipeline mendekati closing`,
-      keterangan: 'Perkiraan closing dalam 7 hari ke depan.',
-      href: '/pipeline',
-    });
-  }
+    (async () => {
+      // Hanya bagian yang angkanya memang bukan nol yang diambil. Lencana
+      // sudah tahu jumlahnya, jadi memanggil query untuk kelompok yang pasti
+      // kosong hanya memperlambat panel tanpa menambah satu baris pun.
+      const tugas: Promise<{ judul: string; butir: ButirIntip[] }>[] = [];
+
+      if (lonceng.laporanBelum) {
+        tugas.push(Promise.resolve({
+          judul: 'Daily Report',
+          butir: [{
+            id: 'laporan-kosong',
+            judul: 'Laporan hari ini belum diisi',
+            keterangan: 'Isi sebelum jam kerja berakhir.',
+            href: '/daily-report',
+            warna: '#e34948',
+          }],
+        }));
+      }
+
+      if (lonceng.meetingPerlu > 0) {
+        tugas.push(intipMeeting(userId, pengawas)
+          .then((butir) => ({ judul: 'Meeting menunggu', butir })));
+      }
+
+      if (lonceng.terlewat > 0) {
+        tugas.push(intipTerlewat(userId, pengawas)
+          .then((butir) => ({ judul: 'Jadwal lewat tanggal', butir })));
+      }
+
+      if (pengawas && lonceng.belumDitugaskan > 0) {
+        tugas.push(intipBelumDitugaskan()
+          .then((butir) => ({ judul: 'Belum ditugaskan', butir })));
+      }
+
+      tugas.push(intipGp(peran).then((butir) => ({ judul: 'GP menunggu tanda tangan', butir })));
+
+      if (lonceng.pipelineDekat > 0) {
+        tugas.push(intipPipeline(userId, pengawas)
+          .then((butir) => ({ judul: 'Mendekati closing', butir })));
+      }
+
+      const hasil = await Promise.all(tugas);
+      if (!batal) setKelompok(hasil.filter((k) => k.butir.length > 0));
+    })();
+
+    return () => { batal = true; };
+  }, [lonceng, pengawas, peran, userId]);
+
+  const jumlah = (kelompok ?? []).reduce((t, k) => t + k.butir.length, 0);
 
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-[calc(100%+8px)] w-[300px] max-w-[calc(100vw-24px)]
+      role="dialog"
+      aria-label="Notifikasi"
+      className="absolute right-0 top-[calc(100%+8px)] w-[320px] max-w-[calc(100vw-24px)]
                  bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden z-50"
     >
       <header className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center gap-2">
@@ -308,33 +480,53 @@ function PanelNotifikasi({ lonceng, pengawas, onTutup }: {
         <span className="text-[10px] text-slate-400">{tanggalPendek(new Date().toISOString())}</span>
       </header>
 
-      {butir.length === 0 ? (
+      {kelompok === null ? (
+        <p className="px-4 py-6 text-[12px] text-slate-400 text-center">Memuat…</p>
+      ) : jumlah === 0 ? (
         <div className="px-4 py-6 text-center">
           <p className="text-xl mb-1" aria-hidden="true">✓</p>
           <p className="text-[12px] font-bold text-slate-600">Semua tertangani</p>
           <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-            Tidak ada laporan, meeting, atau jadwal yang menunggu.
+            Tidak ada laporan, meeting, jadwal, atau dokumen yang menunggu.
           </p>
         </div>
       ) : (
-        <ul className="max-h-[320px] overflow-y-auto">
-          {butir.map((b) => (
-            <li key={b.judul}>
-              <Link
-                href={b.href} onClick={onTutup}
-                className="flex items-start gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
-              >
-                <span aria-hidden="true" className="text-[13px] mt-0.5">{b.ikon}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[12px] font-bold text-slate-800 leading-snug">{b.judul}</span>
-                  <span className="block text-[11px] text-slate-500 leading-snug mt-0.5">{b.keterangan}</span>
-                </span>
-                <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                  style={{ background: b.warna }} />
-              </Link>
-            </li>
+        <div className="max-h-[360px] overflow-y-auto">
+          {kelompok.map((k) => (
+            <section key={k.judul}>
+              <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                {k.judul}
+              </p>
+              <ul>
+                {k.butir.map((b) => (
+                  <li key={`${k.judul}-${b.id}`}>
+                    <Link
+                      href={b.href} onClick={onTutup}
+                      className="flex items-start gap-2.5 px-4 py-2.5 hover:bg-slate-50 transition-colors
+                                 border-b border-slate-100 last:border-0"
+                    >
+                      <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                        style={{ background: b.warna ?? '#94a3b8' }} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[12px] font-bold text-slate-800 leading-snug truncate">
+                          {b.judul}
+                        </span>
+                        <span className="block text-[11px] text-slate-500 leading-snug truncate">
+                          {b.keterangan}
+                        </span>
+                      </span>
+                      {b.kanan && (
+                        <span className="text-[11px] font-bold text-slate-500 tabular-nums flex-shrink-0">
+                          {b.kanan}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
 
       <footer className="px-3.5 py-2 border-t border-slate-100 bg-slate-50/70">

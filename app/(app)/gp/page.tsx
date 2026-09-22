@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
+import { useFokusBaris } from '@/lib/fokus';
 import { isPengawas } from '@/lib/constants';
 import { tanggalISO, tanggalPendek, rupiah, rupiahRingkas, persen, angka } from '@/lib/format';
 import {
@@ -120,6 +121,16 @@ export default function HalamanGp() {
       .select('*').eq('calculation_id', gp.id).order('urutan');
     setItemDibuka((data ?? []) as GpItem[]);
   }, []);
+
+  // Dari lencana header (?fokus=<id>): yang dituju dokumennya, bukan
+  // halamannya. Ditaruh sesudah bukaDokumen supaya tidak merujuk variabel
+  // yang belum sempat didefinisikan.
+  const bukaDariFokus = useCallback((id: string) => {
+    const g = daftar.find((x) => x.id === id);
+    if (g) void bukaDokumen(g);
+  }, [daftar, bukaDokumen]);
+
+  useFokusBaris(!memuat && daftar.length > 0, bukaDariFokus);
 
   async function suntingDokumen(gp: GpRingkasan) {
     const { data } = await supabase.from('sm_gp_items')
@@ -354,7 +365,7 @@ export default function HalamanGp() {
         <>
           <ul className="flex flex-col gap-2">
             {terlihat.map((g) => (
-              <li key={g.id}>
+              <li key={g.id} id={`baris-${g.id}`}>
                 <KartuGp
                   gp={g}
                   namaSales={namaOrang[g.sales_user_id] ?? null}

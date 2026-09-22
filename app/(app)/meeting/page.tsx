@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
+import { useFokusBaris } from '@/lib/fokus';
 import {
   isPengawas, STATUS_JADWAL, STATE_KEHADIRAN,
   type StatusJadwal, type StateKehadiran,
@@ -121,6 +122,16 @@ export default function HalamanMeeting() {
   }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, halaman]);
 
   useEffect(() => { void muat(); }, [muat]);
+
+  // Dari lencana header, yang dituju bukan kartunya melainkan panel
+  // eksekusinya — orang yang menekan "Meeting" di header hendak check-in,
+  // bukan hendak melihat kartunya.
+  const bukaDariFokus = useCallback((id: string) => {
+    const m = daftar.find((x) => x.id === id);
+    if (m) setDibuka(m);
+  }, [daftar]);
+
+  useFokusBaris(!memuat && daftar.length > 0, bukaDariFokus);
 
   /** Seluruh meeting sesuai penyaring, lengkap dengan hasil verifikasinya. */
   const ambilSemua = useCallback(async () => {
@@ -363,7 +374,7 @@ export default function HalamanMeeting() {
         <>
           <ul className="flex flex-col gap-2">
             {daftar.map((m) => (
-              <li key={m.id}>
+              <li key={m.id} id={`baris-${m.id}`}>
                 <KartuMeeting
                   meeting={m}
                   namaSales={m.assigned_to ? (namaSales[m.assigned_to] ?? null) : null}

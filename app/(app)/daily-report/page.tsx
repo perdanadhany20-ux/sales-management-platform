@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
+import { useFokusBaris } from '@/lib/fokus';
 import { isPengawas } from '@/lib/constants';
 import { tanggalISO, tanggalPendek, angka } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar } from '@/components/shared/Bento';
@@ -94,6 +95,10 @@ export default function HalamanDailyReport() {
   }, [dari, sampai, filterSales, cariTertunda, halaman]);
 
   useEffect(() => { void muat(); }, [muat]);
+
+  // Menyorot baris yang ditunjuk lencana header (?fokus=<id>). Dijalankan
+  // setelah daftar selesai dimuat — sebelum itu elemennya belum ada di DOM.
+  useFokusBaris(!memuat);
 
   /**
    * Seluruh baris yang cocok dengan penyaring — tanpa paginasi.
@@ -378,7 +383,7 @@ export default function HalamanDailyReport() {
         <>
           <ul className="flex flex-col gap-2">
             {daftar.map((l) => (
-              <li key={l.id}>
+              <li key={l.id} id={`baris-${l.id}`}>
                 <KartuLaporan
                   laporan={l}
                   namaSales={pengawas ? (namaSales[l.sales_user_id] ?? '—') : null}

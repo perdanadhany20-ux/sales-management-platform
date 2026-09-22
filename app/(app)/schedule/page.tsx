@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
+import { useFokusBaris } from '@/lib/fokus';
 import { usePengaturan } from '@/lib/use-settings';
 import { isPengawas, STATUS_JADWAL, type StatusJadwal } from '@/lib/constants';
 import { tanggalISO, tanggalPendek, angka } from '@/lib/format';
@@ -99,6 +100,10 @@ export default function HalamanSchedule() {
   }, [dari, sampai, filterSales, filterKategori, filterStatus, cariTertunda, halaman]);
 
   useEffect(() => { void muat(); }, [muat]);
+
+  // Menyorot baris yang ditunjuk lencana header (?fokus=<id>). Dijalankan
+  // setelah daftar selesai dimuat — sebelum itu elemennya belum ada di DOM.
+  useFokusBaris(!memuat);
 
   /** Seluruh jadwal sesuai penyaring, tanpa paginasi. */
   const ambilSemua = useCallback(async () => {
@@ -383,7 +388,7 @@ export default function HalamanSchedule() {
         <>
           <ul className="flex flex-col gap-2">
             {daftar.map((j) => (
-              <li key={j.id}>
+              <li key={j.id} id={`baris-${j.id}`}>
                 <KartuJadwal
                   jadwal={j}
                   namaSales={j.assigned_to ? (namaSales[j.assigned_to] ?? 'Pengguna lain') : null}
