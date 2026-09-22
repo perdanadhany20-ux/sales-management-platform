@@ -2,11 +2,32 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import { keluar, usePenggunaAktif, type PenggunaAktif } from '@/lib/auth';
 import { LayarMemuat } from './Feedback';
 import { isPengawas, LABEL_PERAN, type Peran } from '@/lib/constants';
-import { useBranding, type Branding } from '@/lib/branding';
+import { useBranding } from '@/lib/branding';
+import { HeaderAtas } from './HeaderAtas';
+import {
+  bagianUntuk, URUTAN_KELOMPOK, type KunciBagian,
+} from '@/lib/admin-bagian';
+
+/**
+ * Bagian Admin Panel yang sedang dibuka.
+ *
+ * Tinggal di Shell, bukan di halaman /admin, karena yang MENAMPILKAN sub-menu
+ * itu adalah sidebar — dan sidebar berada di atas halaman dalam pohon React.
+ * Dengan begitu menekan "Dashboard Setting" di sidebar langsung mengganti isi
+ * halaman, tanpa halaman dan sidebar saling menyalin daftar bagian.
+ */
+const KonteksBagian = createContext<{
+  bagian: KunciBagian;
+  setBagian: (b: KunciBagian) => void;
+}>({ bagian: 'pengguna', setBagian: () => {} });
+
+export function useBagianAdmin() {
+  return useContext(KonteksBagian);
+}
 
 /**
  * components/shared/Shell.tsx — kerangka navigasi seluruh aplikasi.
@@ -47,7 +68,7 @@ export const MENU_APLIKASI: Menu[] = [
   { href: '/schedule',     label: 'Schedule',     utama: true,  ikon: I('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z') },
   { href: '/meeting',      label: 'Meeting',      utama: true,  ikon: I('M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
   { href: '/activity',     label: 'Activity',     ikon: I('M3 12h4l3 8 4-16 3 8h4') },
-  { href: '/admin',        label: 'Administrasi', untuk: isPengawas, ikon: I('M10.3 4.3a1.9 1.9 0 013.4 0l.5 1a1.9 1.9 0 002.3 1l1-.3a1.9 1.9 0 012.1 2.9l-.6.9a1.9 1.9 0 000 2.4l.6.9a1.9 1.9 0 01-2.1 2.9l-1-.3a1.9 1.9 0 00-2.3 1l-.5 1a1.9 1.9 0 01-3.4 0l-.5-1a1.9 1.9 0 00-2.3-1l-1 .3a1.9 1.9 0 01-2.1-2.9l.6-.9a1.9 1.9 0 000-2.4l-.6-.9a1.9 1.9 0 012.1-2.9l1 .3a1.9 1.9 0 002.3-1l.5-1z M12 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
+  { href: '/admin',        label: 'Admin Panel',  untuk: isPengawas, ikon: I('M10.3 4.3a1.9 1.9 0 013.4 0l.5 1a1.9 1.9 0 002.3 1l1-.3a1.9 1.9 0 012.1 2.9l-.6.9a1.9 1.9 0 000 2.4l.6.9a1.9 1.9 0 01-2.1 2.9l-1-.3a1.9 1.9 0 00-2.3 1l-.5 1a1.9 1.9 0 01-3.4 0l-.5-1a1.9 1.9 0 00-2.3-1l-1 .3a1.9 1.9 0 01-2.1-2.9l.6-.9a1.9 1.9 0 000-2.4l-.6-.9a1.9 1.9 0 012.1-2.9l1 .3a1.9 1.9 0 002.3-1l.5-1z M12 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -55,6 +76,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { branding } = useBranding();
   const pathname = usePathname();
   const router = useRouter();
+  const [bagian, setBagian] = useState<KunciBagian>('pengguna');
+  const konteks = useMemo(() => ({ bagian, setBagian }), [bagian]);
 
   if (memuat) return <LayarMemuat pesan="Memulihkan sesi…" />;
 
@@ -69,49 +92,95 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const menuPonsel = menu.filter((m) => m.utama).slice(0, 5);
 
   return (
-    <div className="min-h-[100dvh] flex">
-      <SidebarLebar menu={menu} pathname={pathname} pengguna={pengguna} branding={branding} />
+    <KonteksBagian.Provider value={konteks}>
+    <div className="min-h-[100dvh] flex flex-col">
+      {/* Bilah judul membentang penuh di atas sidebar, bukan di sampingnya:
+          identitas platform dan lencana notifikasi harus terlihat sama di
+          setiap halaman, termasuk saat sidebar disembunyikan di ponsel. */}
+      <HeaderAtas pengguna={pengguna} branding={branding} />
 
-      <div className="flex-1 min-w-0 flex flex-col">
-        <HeaderPonsel pengguna={pengguna} branding={branding} />
+      <div className="flex-1 flex min-h-0">
+        <SidebarLebar menu={menu} pathname={pathname} pengguna={pengguna} />
 
-        {/* Ruang bawah menghindari bilah navigasi ponsel menutupi isi
-            halaman — termasuk tombol simpan di dasar formulir. */}
-        <main className="flex-1 px-3 sm:px-5 py-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-6 max-w-[1500px] w-full mx-auto">
-          {children}
-        </main>
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* Ruang bawah menghindari bilah navigasi ponsel menutupi isi
+              halaman — termasuk tombol simpan di dasar formulir. */}
+          <main className="flex-1 px-3 sm:px-5 py-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-6 max-w-[1500px] w-full mx-auto">
+            {children}
+          </main>
+        </div>
       </div>
 
       <BilahBawah menu={menuPonsel} pathname={pathname} />
     </div>
+    </KonteksBagian.Provider>
   );
 }
 
-function SidebarLebar({ menu, pathname, pengguna, branding }: {
-  menu: Menu[]; pathname: string; pengguna: PenggunaAktif; branding: Branding;
+function SidebarLebar({ menu, pathname, pengguna }: {
+  menu: Menu[]; pathname: string; pengguna: PenggunaAktif;
 }) {
   return (
-    <aside className="hidden lg:flex w-[228px] flex-shrink-0 flex-col bg-white border-r border-slate-200 sticky top-0 h-[100dvh]">
-      <div className="px-4 py-5 flex items-center gap-2.5 border-b border-slate-100">
-        <LogoMerek branding={branding} ukuran={36} />
-        <div className="min-w-0">
-          <p className="text-[13px] font-black text-slate-900 leading-tight truncate">
-            {branding.nama_platform}
-          </p>
-          <p className="text-[10px] text-slate-400 leading-tight truncate">
-            {branding.nama_portal || branding.nama_perusahaan || 'Platform internal'}
-          </p>
-        </div>
-      </div>
-
+    <aside className="hidden lg:flex w-[228px] flex-shrink-0 flex-col bg-white border-r border-slate-200
+                      sticky top-14 h-[calc(100dvh-3.5rem)]">
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5">
+        <p className="px-3 pb-1 text-[9px] font-bold text-slate-400 uppercase tracking-[0.14em]">Menu</p>
         {menu.map((m) => (
-          <TautanMenu key={m.href} menu={m} aktif={pathname.startsWith(m.href)} />
+          <div key={m.href}>
+            <TautanMenu menu={m} aktif={pathname.startsWith(m.href)} />
+            {/* Sub-menu Admin Panel muncul DI SINI, menempel pada menu
+                induknya di sidebar — bukan sebagai panel terpisah di dalam
+                area isi. Panel navigasi yang mengambang di tengah halaman
+                terbaca sebagai bagian dari isi, bukan sebagai navigasi. */}
+            {m.href === '/admin' && pathname.startsWith('/admin') && (
+              <SubMenuAdmin peran={pengguna.role} />
+            )}
+          </div>
         ))}
       </nav>
 
       <KartuPengguna pengguna={pengguna} />
     </aside>
+  );
+}
+
+function SubMenuAdmin({ peran }: { peran: string }) {
+  const { bagian, setBagian } = useBagianAdmin();
+  const tersedia = bagianUntuk(peran);
+
+  return (
+    <div className="ml-4 mt-1 mb-1 pl-2.5 border-l border-slate-200 flex flex-col gap-0.5">
+      {URUTAN_KELOMPOK.map((kelompok) => {
+        const isi = tersedia.filter((b) => b.kelompok === kelompok);
+        if (isi.length === 0) return null;
+        return (
+          <div key={kelompok} className="flex flex-col gap-0.5">
+            <p className="px-2 pt-1.5 pb-0.5 text-[9px] font-bold text-slate-400 uppercase tracking-[0.12em]">
+              {kelompok}
+            </p>
+            {isi.map((b) => {
+              const ini = b.kunci === bagian;
+              return (
+                <button
+                  key={b.kunci}
+                  type="button"
+                  aria-current={ini ? 'true' : undefined}
+                  onClick={() => setBagian(b.kunci)}
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-kontrol text-left text-[12px]
+                              font-semibold transition-colors
+                              ${ini
+                                ? 'bg-aksen-50 text-aksen-800'
+                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
+                >
+                  <span aria-hidden="true" className="text-[11px]">{b.ikon}</span>
+                  {b.label}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -171,56 +240,6 @@ function Inisial({ nama }: { nama: string }) {
     <span className="w-8 h-8 rounded-full bg-aksen-100 text-aksen-800 grid place-items-center text-[11px] font-black flex-shrink-0">
       {huruf || '?'}
     </span>
-  );
-}
-
-/**
- * Logo merek. Kalau admin sudah mengunggah berkas, itu yang dipakai; kalau
- * belum, lencana gradien bawaan — bukan kotak kosong yang terlihat seperti
- * gambar gagal dimuat.
- */
-function LogoMerek({ branding, ukuran }: { branding: Branding; ukuran: number }) {
-  if (branding.logo_url) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={branding.logo_url} alt={branding.nama_platform}
-        width={ukuran} height={ukuran}
-        className="rounded-kontrol object-contain flex-shrink-0 bg-white"
-        style={{ width: ukuran, height: ukuran }}
-      />
-    );
-  }
-  return (
-    <div
-      className="rounded-kontrol bg-gradient-to-br from-aksen-700 to-aksen-500 grid place-items-center flex-shrink-0"
-      style={{ width: ukuran, height: ukuran }}
-    >
-      <svg width={ukuran * 0.47} height={ukuran * 0.47} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 19V10M10 19V5M16 19v-6M22 19H2" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-    </div>
-  );
-}
-
-function HeaderPonsel({ pengguna, branding }: { pengguna: PenggunaAktif; branding: Branding }) {
-  return (
-    <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-4 py-3 flex items-center gap-3">
-      <LogoMerek branding={branding} ukuran={32} />
-      <p className="flex-1 text-[13px] font-black text-slate-900 truncate">
-        {branding.nama_pendek || branding.nama_platform}
-      </p>
-      {/*
-        Menuju Profil, BUKAN langsung keluar. Sebelumnya avatar ini memanggil
-        logout seketika — satu sentuhan tak sengaja di pojok layar, yang di
-        ponsel justru area paling sering tersenggol ibu jari, langsung
-        mengeluarkan Sales dari akunnya di tengah lapangan. Keluar kini ada di
-        halaman Profil, di balik satu langkah yang disengaja.
-      */}
-      <Link href="/profil" aria-label={`Profil ${pengguna.full_name}`} className="flex-shrink-0">
-        <Inisial nama={pengguna.full_name} />
-      </Link>
-    </header>
   );
 }
 

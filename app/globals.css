@@ -38,6 +38,34 @@
                  'Helvetica Neue', Arial, sans-serif;
   }
 
+  /*
+   * Penjagaan tipografi menyeluruh — pelajaran dari judul halaman masuk yang
+   * pecah buruk.
+   *
+   * 1. overflow-wrap: kata panjang tanpa spasi (nama proyek, alamat surel,
+   *    URL, atau kata berimbuhan macam "dipertanggungjawabkan") dipenggal
+   *    alih-alih menjebol lebar kartunya. Ini hanya bekerja ketika katanya
+   *    memang tidak muat — kata yang muat tidak akan ikut terpenggal.
+   * 2. text-wrap: balance pada judul membuat peramban membagi barisnya rata,
+   *    sehingga tidak ada baris terakhir berisi satu kata sebatang kara.
+   * 3. text-wrap: pretty pada paragraf mencegah kata tunggal terdampar di
+   *    baris penutup.
+   *
+   * Ketiganya diterapkan di sini, sekali, supaya tidak perlu diingat ulang di
+   * setiap halaman baru.
+   */
+  body {
+    overflow-wrap: break-word;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
   /* Angka pada kartu KPI dan tabel dibuat selebar sama satu sama lain.
      Tanpa ini, angka yang berubah saat data disegarkan menggeser lebar
      teksnya sendiri dan kartunya terlihat bergoyang. */
@@ -55,6 +83,17 @@
 }
 
 @layer utilities {
+  /* Deretan lencana di header digulung mendatar di layar sempit. Bilah
+     gulirnya disembunyikan karena di sana ia menutupi lencana paling kanan —
+     kontennya tetap bisa digeser dengan jari maupun roda tetikus. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   @keyframes masuk {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }

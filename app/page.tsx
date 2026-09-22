@@ -86,14 +86,26 @@ export default function HalamanMasuk() {
           </span>
         </div>
 
-        <div className="relative max-w-md">
-          <h1 className="text-[40px] leading-[1.1] font-black mb-4 tracking-tight">
-            Aktivitas Sales yang<br />bisa dipertanggungjawabkan.
+        <div className="relative max-w-lg">
+          {/*
+            Judul sengaja PENDEK dan tanpa <br /> paksa.
+            Versi sebelumnya berbunyi "Aktivitas Sales yang bisa
+            dipertanggungjawabkan" dengan pemutus baris manual di tengahnya.
+            Hasilnya pecah buruk: "dipertanggungjawabkan" panjangnya 21 huruf
+            dan tidak bisa dipenggal peramban, sehingga ia terlempar sendirian
+            ke baris ketiga dan menyisakan baris kedua berisi satu kata "bisa".
+            Pemutus baris manual selalu berakhir begitu — ia benar pada satu
+            lebar layar dan salah pada semua lebar lainnya.
+
+            text-balance membiarkan peramban membagi barisnya rata sendiri,
+            dan ukuran clamp() menyusut mengikuti lebar kolom.
+          */}
+          <h1 className="text-[clamp(28px,3.1vw,38px)] leading-[1.14] font-black mb-4 tracking-tight text-balance">
+            Aktivitas Sales yang bisa dibuktikan.
           </h1>
-          <p className="text-white/80 text-base leading-relaxed mb-8">
-            Laporan harian, pipeline dengan margin yang dihitung sendiri oleh sistem,
-            dan meeting yang terbukti dihadiri — lengkap dengan verifikasi lokasi
-            dan bukti foto.
+          <p className="text-white/80 text-[15px] leading-relaxed mb-8 text-pretty">
+            Laporan harian, pipeline dengan margin yang dihitung sistem, dan meeting
+            yang terbukti dihadiri — lengkap dengan verifikasi lokasi dan foto bukti.
           </p>
           <ul className="flex flex-wrap gap-2.5 list-none p-0 m-0">
             {[
