@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
@@ -135,8 +135,25 @@ export function LayarMemuat({ pesan = 'Memuat…' }: { pesan?: string }) {
 // ── Galat ───────────────────────────────────────────────────────────────────
 
 export function PanelGalat({ pesan, onCoba }: { pesan: string; onCoba?: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  /**
+   * Menggulir dirinya sendiri ke tampilan begitu muncul.
+   *
+   * Ini memperbaiki kegagalan yang terlihat saat pengujian di peramban:
+   * panel galat dirender di ATAS formulir, sedangkan orang yang menekan
+   * Simpan biasanya sudah menggulir ke BAWAH — ke tombolnya. Ketika
+   * penyimpanan ditolak, yang ia lihat hanyalah modal yang tidak menutup,
+   * tanpa satu pun penjelasan. Penyebabnya terasa seperti aplikasi yang
+   * menggantung, padahal pesannya ada, cuma di luar layar.
+   */
+  useEffect(() => {
+    ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [pesan]);
+
   return (
     <div
+      ref={ref}
       className="rounded-kartu border border-[#e34948]/30 bg-[#fce3e3] px-4 py-3 flex items-start gap-3"
       role="alert"
     >

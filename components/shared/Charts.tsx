@@ -172,9 +172,17 @@ export function DonutLegenda({
  */
 export function CincinCapaian({
   nilai, maksimum = 100, warna = '#1d4ed8', ukuran = 132, tebal = 12, label, sublabel,
+  terang = false,
 }: {
   nilai: number; maksimum?: number; warna?: string;
   ukuran?: number; tebal?: number; label?: string; sublabel?: string;
+  /**
+   * Setel true bila cincinnya duduk di kartu berlatar gelap. Tanpa ini
+   * angka dan labelnya tetap memakai warna slate gelap — di atas kartu
+   * gradien biru hasilnya nyaris tidak terbaca, dan itu bukan sekadar soal
+   * selera: teks abu gelap di atas biru pekat gagal ambang kontras WCAG.
+   */
+  terang?: boolean;
 }) {
   const gradId = useId();
   const rasio = maksimum > 0 ? Math.min(1, Math.max(0, nilai / maksimum)) : 0;
@@ -199,7 +207,8 @@ export function CincinCapaian({
         </defs>
         <circle
           cx={ukuran / 2} cy={ukuran / 2} r={r} fill="none"
-          stroke="#eef2f7" strokeWidth={tebal} strokeLinecap="round"
+          stroke={terang ? 'rgba(255,255,255,0.22)' : '#eef2f7'}
+          strokeWidth={tebal} strokeLinecap="round"
           strokeDasharray={`${busur} ${kelilingPenuh}`}
         />
         <circle
@@ -209,12 +218,23 @@ export function CincinCapaian({
           style={{ transition: 'stroke-dasharray .6s cubic-bezier(.22,1,.36,1)' }}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <span className="text-[26px] font-black text-slate-900 leading-none tracking-tight">
-          {Math.round(rasio * 100)}<span className="text-[15px] text-slate-400">%</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-3 text-center">
+        <span className={`text-[26px] font-black leading-none tracking-tight
+                          ${terang ? 'text-white' : 'text-slate-900'}`}>
+          {Math.round(rasio * 100)}
+          <span className={`text-[15px] ${terang ? 'text-white/65' : 'text-slate-400'}`}>%</span>
         </span>
-        {label && <span className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-wider">{label}</span>}
-        {sublabel && <span className="text-[10px] text-slate-400 mt-0.5">{sublabel}</span>}
+        {label && (
+          <span className={`text-[10px] font-bold mt-1 uppercase tracking-wider leading-tight
+                            ${terang ? 'text-white/85' : 'text-slate-500'}`}>
+            {label}
+          </span>
+        )}
+        {sublabel && (
+          <span className={`text-[10px] mt-0.5 ${terang ? 'text-white/65' : 'text-slate-400'}`}>
+            {sublabel}
+          </span>
+        )}
       </div>
     </div>
   );

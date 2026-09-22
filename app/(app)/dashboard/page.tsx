@@ -83,6 +83,7 @@ export default function HalamanDashboard() {
           judul={pengawas ? 'Kepatuhan Laporan Hari Ini' : 'Laporan Hari Ini'}
         >
           <CincinCapaian
+            terang
             nilai={sudahLapor}
             maksimum={targetLapor}
             warna="#ffffff"

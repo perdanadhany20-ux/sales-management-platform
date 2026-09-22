@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { masuk } from '@/lib/auth';
+import { KataSandi } from '@/components/shared/FormParts';
 
 /**
  * Halaman masuk — tata letak dua sisi mengikuti pola Work Management (§60):
@@ -22,7 +23,6 @@ export default function HalamanMasuk() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [sandi, setSandi] = useState('');
-  const [lihatSandi, setLihatSandi] = useState(false);
   const [galat, setGalat] = useState('');
   const [memproses, setMemproses] = useState(false);
   const [berhasil, setBerhasil] = useState(false);
@@ -145,30 +145,12 @@ export default function HalamanMasuk() {
               <label htmlFor="sandi" className="block text-[11px] font-bold mb-2 text-slate-600 tracking-widest uppercase">
                 Kata Sandi
               </label>
-              <div className="relative">
-                <input
-                  id="sandi" type={lihatSandi ? 'text' : 'password'} value={sandi}
-                  onChange={(e) => setSandi(e.target.value)}
-                  autoComplete="current-password"
-                  required disabled={memproses} placeholder="••••••••"
-                  className="w-full border border-slate-200 rounded-kontrol pl-4 pr-11 py-3 text-sm font-medium
-                             text-slate-800 bg-white outline-none transition-all
-                             placeholder:text-slate-400 placeholder:font-normal
-                             focus:border-aksen-600 focus:ring-2 focus:ring-aksen-600/15
-                             disabled:bg-slate-50"
-                />
-                <button
-                  type="button"
-                  // tabIndex -1: menekan Tab dari kolom sandi seharusnya sampai
-                  // ke tombol Masuk, bukan tersangkut di tombol mata ini.
-                  tabIndex={-1}
-                  onClick={() => setLihatSandi((v) => !v)}
-                  aria-label={lihatSandi ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {lihatSandi ? <IkonMataTutup /> : <IkonMata />}
-                </button>
-              </div>
+              {/* Tombol tampil/sembunyikan ikut serta dari komponennya — lihat
+                  catatan di KataSandi soal kenapa ia tidak boleh opsional. */}
+              <KataSandi
+                id="sandi" nilai={sandi} onUbah={setSandi}
+                disabled={memproses} autoComplete="current-password"
+              />
             </div>
 
             {galat && (
@@ -261,24 +243,3 @@ function LogoKotak({ ukuran, biru }: { ukuran: number; biru?: boolean }) {
   );
 }
 
-function IkonMata() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function IkonMataTutup() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
-      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-      <line x1="2" y1="2" x2="22" y2="22" />
-    </svg>
-  );
-}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 /**
  * components/shared/FormParts.tsx — bagian-bagian formulir.
@@ -53,6 +53,15 @@ export function AreaTeks(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return <textarea {...props} className={`${DASAR_INPUT} resize-y min-h-[84px] ${props.className ?? ''}`} />;
 }
 
+/**
+ * `<select>` polos — JANGAN dipakai untuk memilih data (Sales, customer,
+ * lokasi, kategori, satuan). Untuk itu pakai `PilihCari`, yang membawa kotak
+ * pencarian; daftar-daftar itu bertambah panjang seiring waktu dan menggulir
+ * mencarinya cepat jadi menyiksa, terutama di ponsel.
+ *
+ * Yang tersisa untuk komponen ini hanya pilihan yang jumlahnya memang tetap
+ * sedikit dan tidak akan pernah bertambah — mis. arah urutan naik/turun.
+ */
 export function Pilihan(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={`${DASAR_INPUT} pr-8 ${props.className ?? ''}`} />;
 }
@@ -95,6 +104,75 @@ export function Uang({
         }}
         className={`${DASAR_INPUT} pl-9 text-right font-semibold tabular-nums`}
       />
+    </div>
+  );
+}
+
+/**
+ * Kolom kata sandi — SELALU dengan tombol tampil/sembunyikan.
+ *
+ * Dibuat sebagai komponen tersendiri, bukan sekadar `<Teks type="password">`,
+ * supaya aturannya tidak bergantung pada ingatan siapa pun: setiap tempat
+ * yang meminta kata sandi — masuk, daftar, ganti sandi, admin membuat akun —
+ * memakai ini dan otomatis mendapat togglenya.
+ *
+ * Alasannya praktis: kata sandi diketik tanpa umpan balik apa pun, dan di
+ * papan tombol ponsel salah ketik satu huruf tidak terlihat sama sekali.
+ * Tanpa tombol ini, satu-satunya cara memastikan adalah menghapus semuanya
+ * lalu mengetik ulang.
+ */
+export function KataSandi({
+  id, nilai, onUbah, invalid, disabled, placeholder = '••••••••', autoComplete = 'current-password',
+}: {
+  id?: string;
+  nilai: string;
+  onUbah: (v: string) => void;
+  invalid?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
+  autoComplete?: string;
+}) {
+  const [lihat, setLihat] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type={lihat ? 'text' : 'password'}
+        value={nilai}
+        onChange={(e) => onUbah(e.target.value)}
+        aria-invalid={invalid}
+        disabled={disabled}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className={`${DASAR_INPUT} pr-11`}
+      />
+      <button
+        type="button"
+        // tabIndex -1: Tab dari kolom sandi harus sampai ke tombol kirim,
+        // bukan tersangkut di tombol mata ini.
+        tabIndex={-1}
+        disabled={disabled}
+        onClick={() => setLihat((v) => !v)}
+        aria-label={lihat ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-40"
+      >
+        {lihat ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+            <line x1="2" y1="2" x2="22" y2="22" />
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        )}
+      </button>
     </div>
   );
 }

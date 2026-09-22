@@ -7,7 +7,8 @@ import { isPengawas } from '@/lib/constants';
 import { tanggalISO, tanggalPendek, angka } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar } from '@/components/shared/Bento';
 import { CincinCapaian, DonutLegenda, Sparkline } from '@/components/shared/Charts';
-import { Tombol, Teks, Pilihan, Lencana } from '@/components/shared/FormParts';
+import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
+import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Konfirmasi } from '@/components/shared/Modal';
 import { FormLaporan, type Laporan } from './_components/FormLaporan';
@@ -92,16 +93,25 @@ export default function HalamanDailyReport() {
 
   useEffect(() => { void muat(); }, [muat]);
 
-  // Daftar Sales hanya berguna bagi pengawas — dan hanya dimuat sekali.
+  // Dua hal berbeda dimuat dari satu query, dan pembedaannya penting.
+  //
+  // `daftarSales` (peran SALES saja) mengisi penyaring — menyaring "per Sales"
+  // memang hanya masuk akal untuk Sales.
+  //
+  // `namaSales` memetakan SELURUH pengguna aktif, termasuk Admin dan Manager.
+  // Sebelumnya peta ini hanya berisi peran SALES, sehingga laporan yang
+  // dibuat seorang Admin jatuh ke label cadangan 'Tidak dikenal' — yang lalu
+  // dipotong `.split(' ')[0]` untuk legenda donat dan tampil sebagai kata
+  // "Tidak" begitu saja. Terlihat langsung saat pengujian di peramban.
   useEffect(() => {
     if (!pengawas) return;
     (async () => {
       const { data } = await supabase
-        .from('users').select('id, full_name')
-        .eq('role', 'SALES').eq('active', true).order('full_name');
-      const rows = (data ?? []) as Sales[];
-      setDaftarSales(rows);
-      setNamaSales(Object.fromEntries(rows.map((s) => [s.id, s.full_name])));
+        .from('users').select('id, full_name, role')
+        .eq('active', true).order('full_name');
+      const semua = (data ?? []) as (Sales & { role: string })[];
+      setDaftarSales(semua.filter((u) => u.role === 'SALES'));
+      setNamaSales(Object.fromEntries(semua.map((u) => [u.id, u.full_name])));
     })();
   }, [pengawas]);
 
@@ -132,7 +142,7 @@ export default function HalamanDailyReport() {
       peta.set(l.sales_user_id, (peta.get(l.sales_user_id) ?? 0) + 1);
     }
     return [...peta.entries()]
-      .map(([id, jml]) => ({ nama: namaSales[id] ?? 'Tidak dikenal', jml }))
+      .map(([id, jml]) => ({ nama: namaSales[id] ?? 'Pengguna lain', jml }))
       .sort((a, b) => b.jml - a.jml)
       .slice(0, 6);
   }, [daftar, namaSales, pengawas]);
@@ -193,12 +203,28 @@ export default function HalamanDailyReport() {
           </BentoCard>
         ) : (
           <BentoCard rentang={4} tinggi="sedang" rupa="sorot" judul="Kepatuhan Periode Ini">
-            <CincinCapaian
-              nilai={new Set(daftar.map((l) => l.sales_user_id)).size}
-              maksimum={Math.max(1, daftarSales.length)}
-              warna="#ffffff"
-              label={`${new Set(daftar.map((l) => l.sales_user_id)).size} dari ${daftarSales.length} Sales`}
-            />
+            {daftarSales.length === 0 ? (
+              /* Tanpa satu pun akun berperan SALES, persentase kepatuhan tidak
+                 punya penyebut yang bermakna. Sebelumnya penyebutnya dipaksa
+                 minimal 1, sehingga layar menampilkan "100%" bersanding dengan
+                 "1 dari 0 Sales" — angka yang tampak meyakinkan padahal tidak
+                 mengukur apa pun. Lebih jujur mengatakan datanya belum ada. */
+              <div className="text-center py-2">
+                <p className="text-sm font-black text-white">Belum ada akun Sales</p>
+                <p className="text-[11px] text-white/70 mt-1 leading-snug">
+                  Tambahkan pengguna berperan Sales di menu Administrasi agar
+                  kepatuhan laporan bisa diukur.
+                </p>
+              </div>
+            ) : (
+              <CincinCapaian
+                terang
+                nilai={new Set(daftar.map((l) => l.sales_user_id)).size}
+                maksimum={daftarSales.length}
+                warna="#ffffff"
+                label={`${new Set(daftar.map((l) => l.sales_user_id)).size} dari ${daftarSales.length} Sales`}
+              />
+            )}
           </BentoCard>
         )}
 
@@ -248,13 +274,15 @@ export default function HalamanDailyReport() {
         </div>
 
         {pengawas && (
-          <div className="flex flex-col gap-1 min-w-[160px]">
+          <div className="flex flex-col gap-1 min-w-[180px]">
             <label htmlFor="f-sales" className="text-[11px] font-semibold text-slate-600">Sales</label>
-            <Pilihan id="f-sales" value={filterSales}
-              onChange={(e) => { setFilterSales(e.target.value); setHalaman(0); }}>
-              <option value="">Semua Sales</option>
-              {daftarSales.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-            </Pilihan>
+            <PilihCari
+              id="f-sales"
+              nilai={filterSales}
+              onUbah={(v) => { setFilterSales(v); setHalaman(0); }}
+              bolehKosong labelKosong="Semua Sales"
+              opsi={daftarSales.map((s) => ({ value: s.id, label: s.full_name }))}
+            />
           </div>
         )}
 
