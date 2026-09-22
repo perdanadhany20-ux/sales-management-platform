@@ -63,3 +63,61 @@ export function useDashboard(hariKeBelakang = 29) {
 
   return { data, memuat, galat, muatUlang: muat };
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Bagian yang belum tercakup sm_dashboard(): GP Calculation, Proyek, tahapan
+ * pipeline, corong, per-Sales, dan customer teratas.
+ *
+ * Dipisah sebagai hook sendiri karena RPC-nya memang terpisah (migrasi 019).
+ * Keduanya dipanggil berdampingan dari halaman dashboard, bukan berurutan —
+ * yang kedua tidak menunggu yang pertama selesai.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+export interface DataDashboardPlus {
+  gp: {
+    jumlah: number; nilai: number; dpp: number; profit: number; margin: number;
+    draft: number; menunggu: number; selesai: number; ditolak: number;
+    di_bawah_target: number;
+  };
+  gp_mutu: { mutu: string; jumlah: number; nilai: number }[];
+  proyek: {
+    jumlah: number; aktif: number; selesai: number;
+    nilai_pipeline: number; profit_gp: number; tanpa_catatan: number;
+  };
+  stage: { stage: string; jumlah: number; nilai: number }[];
+  corong: { laporan: number; peluang: number; meeting: number; gp: number; gp_gol: number };
+  per_sales: {
+    user_id: string; nama: string; laporan: number; peluang: number;
+    nilai: number; gp: number; profit: number; meeting: number;
+  }[];
+  customer_teratas: { nama: string; jumlah: number; nilai: number }[];
+}
+
+export function useDashboardPlus(hariKeBelakang = 29) {
+  const [data, setData] = useState<DataDashboardPlus | null>(null);
+  const [memuat, setMemuat] = useState(true);
+
+  const muat = useCallback(async () => {
+    setMemuat(true);
+
+    const sampai = new Date();
+    const dari = new Date();
+    dari.setDate(dari.getDate() - hariKeBelakang);
+
+    const { data: hasil, error } = await supabase.rpc('sm_dashboard_plus', {
+      p_dari: tanggalISO(dari),
+      p_sampai: tanggalISO(sampai),
+    });
+
+    // Galat TIDAK dinaikkan ke halaman. Bagian ini pelengkap; kalau gagal
+    // dimuat, dashboard intinya harus tetap tampil utuh — bukan berganti jadi
+    // satu panel error yang menyembunyikan angka yang sebenarnya baik-baik
+    // saja.
+    if (!error && hasil) setData(hasil as DataDashboardPlus);
+    setMemuat(false);
+  }, [hariKeBelakang]);
+
+  useEffect(() => { void muat(); }, [muat]);
+
+  return { data, memuat, muatUlang: muat };
+}
