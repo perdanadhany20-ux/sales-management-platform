@@ -1,5 +1,10 @@
 {
   "compilerOptions": {
+    // Tanpa target eksplisit, TypeScript memakai ES5 — dan di situ menyebar
+    // Map/Set dengan spread (`[...peta.values()]`) ditolak. Next.js sendiri
+    // mentranspilasi ke target modern, jadi ES5 di sini hanya menghalangi
+    // tanpa memberi kompatibilitas apa pun.
+    "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
