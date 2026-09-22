@@ -5,7 +5,7 @@
 -- Skrip TIDAK diakhiri COMMIT: begitu koneksinya tutup, seluruh data uji
 -- hilang dengan sendirinya. Jangan menambahkan COMMIT di bawah.
 --
--- Cara membaca: kolom `nyata` harus sama persis dengan `harapan` di keenam
+-- Cara membaca: kolom `nyata` harus sama persis dengan `harapan` di kesembilan
 -- belas baris. Satu saja meleset berarti ada penjaga yang jebol.
 --
 -- Uji 10–14 ditambahkan bersama modul Activity dan Dashboard Setting: view
@@ -21,7 +21,9 @@ GRANT ALL ON hasil TO authenticated;
 INSERT INTO public.users (id, username, full_name, role) VALUES
   ('11111111-1111-1111-1111-111111111111','salesa','Sales A','SALES'),
   ('22222222-2222-2222-2222-222222222222','salesb','Sales B','SALES'),
-  ('33333333-3333-3333-3333-333333333333','mgr','Manager','MANAGER');
+  ('33333333-3333-3333-3333-333333333333','mgr','Manager','MANAGER'),
+  ('44444444-4444-4444-4444-444444444445','dir','Director','DIRECTOR'),
+  ('55555555-5555-5555-5555-555555555556','fin','Finance','FINANCE');
 
 INSERT INTO public.sm_locations (id, name, latitude, longitude, gps_radius_m, created_by)
 VALUES ('44444444-4444-4444-4444-444444444444','Kantor Monas',-6.1753924,106.8271528,50,
@@ -156,6 +158,31 @@ BEGIN
   END;
 END
 $uji$;
+
+-- ══ Peran DIRECTOR & FINANCE (migrasi 015) ══════════════════════════════════
+--
+-- Keduanya ditambahkan ke sm_is_pengawas() karena menandatangani GP
+-- Calculation. Yang diuji di sini DUA arah sekaligus: mereka memang bisa
+-- melihat data tim (kalau tidak, tanda tangannya kosong), TAPI tetap bukan
+-- Admin — sm_is_admin() sengaja tidak disentuh, sehingga pengelolaan akun
+-- tetap tertutup bagi mereka.
+
+SELECT set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444445","user_role":"DIRECTOR"}',true);
+
+INSERT INTO hasil SELECT 17,'Director melihat jadwal seluruh tim','1 baris',
+  count(*)::text||' baris' FROM public.sm_schedules
+  WHERE id='55555555-5555-5555-5555-555555555555';
+
+WITH u AS (UPDATE public.users SET role = 'ADMIN'
+            WHERE id = '22222222-2222-2222-2222-222222222222' RETURNING 1)
+INSERT INTO hasil SELECT 18,'Director mengangkat orang jadi ADMIN','0 baris diubah',
+  count(*)::text||' baris diubah' FROM u;
+
+SELECT set_config('request.jwt.claims','{"sub":"55555555-5555-5555-5555-555555555556","user_role":"FINANCE"}',true);
+
+INSERT INTO hasil SELECT 19,'Finance melihat jadwal seluruh tim','1 baris',
+  count(*)::text||' baris' FROM public.sm_schedules
+  WHERE id='55555555-5555-5555-5555-555555555555';
 
 RESET ROLE;
 

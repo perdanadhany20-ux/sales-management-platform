@@ -1,9 +1,10 @@
 # Laporan Audit — Sales Management Platform
 
-Tanggal: 22 September 2026
+Tanggal: 22 September 2026 (diperbarui sesudah modul GP Calculation dan
+pendaftaran akun)
 Cakupan: keamanan, mobile, dan performa, pada commit yang memuat seluruh modul
-(Login, Dashboard, Daily Report, Pipeline, Request Schedule, Meeting, Activity,
-Profil, Admin Panel).
+(Login & pendaftaran, Dashboard, Daily Report, Pipeline, Request Schedule,
+Meeting, GP Calculation, Activity, Profil, Admin Panel).
 
 ---
 
@@ -23,9 +24,10 @@ pada "terlihat baik di layar".
 
 ## 1. Keamanan
 
-### 1.1 Uji penetrasi peran (16 uji, lulus semua)
+### 1.1 Uji penetrasi peran (19 + 29 uji, lulus semua)
 
-Berkas: `supabase/tests/keamanan.sql`. Dijalankan langsung terhadap basis data
+Dua berkas: `supabase/tests/keamanan.sql` (19 uji, alur inti) dan
+`supabase/tests/keamanan-gp.sql` (29 uji, GP Calculation). Dijalankan langsung terhadap basis data
 produksi di dalam satu transaksi yang diakhiri `ROLLBACK`, sehingga tidak ada
 satu baris uji pun yang tertinggal (diperiksa sesudahnya: 0 sisa).
 
@@ -51,6 +53,9 @@ berjalan sebagai pemilik basis data yang **melewati RLS**, dan seluruh uji akan
 | 14 | Sales B menempelkan foto ke kehadiran Sales A | ditolak | ✅ |
 | 15 | Manager menambah lokasi meeting (**harus boleh**) | 1 baris ditambah | ✅ |
 | 16 | Sales menambah lokasi meeting | ditolak | ✅ |
+| 17 | Director melihat jadwal seluruh tim (**harus boleh**) | 1 baris | ✅ |
+| 18 | Director mengangkat orang jadi ADMIN | 0 baris diubah | ✅ |
+| 19 | Finance melihat jadwal seluruh tim (**harus boleh**) | 1 baris | ✅ |
 
 Uji 3 adalah yang paling penting dan paling mudah disalahpahami: hasilnya
 bukan *error*, melainkan **nol baris tersentuh**. Sales memang sengaja tidak
@@ -67,14 +72,81 @@ Uji 15 dan 16 adalah **uji regresi** untuk migrasi 013 (pemecahan policy
 `FOR ALL`). Memecah policy adalah tempat hak paling mudah hilang atau bocor
 tanpa sengaja, jadi kedua arah diuji: yang boleh harus tetap boleh.
 
+Uji 17–19 menguji peran DIRECTOR dan FINANCE yang ditambahkan migrasi 015,
+juga dari dua arah: keduanya memang harus bisa membaca data tim (kalau tidak,
+tanda tangannya di GP Calculation kosong), tapi tetap bukan Admin.
+
+### 1.1b Uji GP Calculation (29 uji, lulus semua)
+
+Berkas: `supabase/tests/keamanan-gp.sql`. Menguji tiga hal yang tidak bisa
+diuji di tempat lain.
+
+**Ketepatan angka (uji 1–12).** Dibandingkan dengan berkas asli tim
+`GP_BALAIKOTA.xlsx`, sel per sel:
+
+| Pos | Berkas asli | Database | |
+|-----|-------------|----------|---|
+| Total Selling (bruto) | 56.550.000 | 56.550.000 | ✅ |
+| Total Selling (DPP) | 50.945.946 | 50.945.946 | ✅ |
+| PPN 11% | 5.604.054 | 5.604.054 | ✅ |
+| Pph 2,5% | 1.273.649 | 1.273.649 | ✅ |
+| Net Amount Received | 49.664.297 | 49.664.297 | ✅ |
+| Total Costing | 48.633.370 | 48.633.370 | ✅ |
+| Net Profit | 1.030.927 | 1.030.927 | ✅ |
+| Net Margin | 0,0202 | 0,0202 | ✅ |
+| Mutu margin | DIRECTOR APPROVAL | DIRECTOR APPROVAL | ✅ |
+| GP item | 8.916.630 (15,7677%) | sama | ✅ |
+
+Nilainya cocok sampai rupiah terakhir. Kalau kelak rumus di view diubah
+"supaya lebih rapi", uji inilah yang akan memberi tahu bahwa hasilnya tidak
+lagi sama dengan berkas yang selama ini dipakai tim.
+
+**Kerahasiaan antar-Sales (uji 13–16).** Syarat yang ditegaskan langsung
+pemilik platform. Sales B memperoleh **0 baris** pada tabel dokumen, **0
+baris** pada tabel item, dan **0 baris** pada view ringkasan milik Sales A —
+view diuji terpisah dari tabelnya dengan sengaja, karena `security_invoker`
+bisa saja terlupa saat view-nya kelak dibuat ulang, dan kebocorannya justru
+akan lewat sana lengkap dengan seluruh angka marginnya.
+
+**Rantai persetujuan (uji 17–26).** Status tidak bisa ditembak langsung oleh
+pemiliknya; Director ditolak saat mencoba melompati pemeriksaan Manager;
+Manager ditolak saat mencoba mengambil langkah Director; dokumen beku sesudah
+diajukan — menyunting maupun menambah item ditolak.
+
 ### 1.2 Advisor keamanan Supabase
 
-Dijalankan sesudah seluruh migrasi diterapkan. Hasil: **tidak ada temuan baru**
-di luar tiga hal yang memang disengaja dan terdokumentasi.
+Dijalankan ulang sesudah setiap kelompok migrasi. Hasil akhir: **bersih**,
+menyisakan tiga hal yang memang disengaja dan terdokumentasi di tabel bawah.
+
+Di antaranya, **satu temuan nyata ditemukan dan diperbaiki.** Segera sesudah migrasi 016
+diterapkan, advisor melaporkan bahwa keempat fungsi GP Calculation bisa
+dipanggil peran `anon` — yaitu tanpa sesi sama sekali.
+
+Sebabnya halus: migrasi 016 menutupnya dengan `REVOKE ... FROM public`, dan
+itu **tidak cukup**. Supabase memberi `EXECUTE` kepada `anon` secara
+**eksplisit** pada setiap fungsi baru di schema public, bukan lewat peran
+`public`; mencabut dari `public` tidak menyentuh pemberian eksplisit itu.
+
+Dampaknya nyata meski sempit: `sm_gp_buka_ulang()` memeriksa kepemilikan
+dengan `v_gp.sales_user_id <> v_uid`, dan ketika pemanggilnya tanpa sesi
+`v_uid` bernilai NULL. Di SQL, `sesuatu <> NULL` menghasilkan NULL — bukan
+TRUE — sehingga penjaganya terlewati. Siapa pun yang menebak UUID dokumen GP
+berstatus DITOLAK bisa mengembalikannya ke DRAFT.
+
+Keduanya ditutup migrasi 017: `anon` dicabut dengan menyebut namanya, dan
+fungsinya menolak lebih dulu pemanggil tanpa sesi. Diverifikasi dua kali —
+lewat `has_function_privilege()` untuk kesembilan fungsi, dan lewat uji 27–29
+yang memanggilnya sebagai `anon` dan memastikan ditolak.
+
+**Pelajarannya sudah dicatat di uji regresi**, karena jenis kesalahan ini tidak
+menghasilkan error apa pun saat aplikasi dipakai normal — tanpa advisor, ia
+akan tetap berada di sana sampai seseorang menemukannya dari luar.
+
+Sisa temuan sesudah perbaikan, seluruhnya disengaja:
 
 | Temuan | Status | Alasan |
 |--------|--------|--------|
-| `authenticated` bisa memanggil 3 fungsi `SECURITY DEFINER` | Disengaja | `sm_check_in`, `sm_complete_schedule`, `sm_override_completion` adalah **satu-satunya** jalan sah menuju status COMPLETED. Justru itu rancangannya. `EXECUTE` sudah dicabut dari `public` dan `anon` (migrasi 004/008) — hanya sesi yang membawa JWT terbitan server yang bisa memanggilnya, dan tiap fungsi memeriksa ulang wewenang di dalam dirinya. |
+| `authenticated` bisa memanggil 7 fungsi `SECURITY DEFINER` | Disengaja | Ketujuhnya (`sm_check_in`, `sm_complete_schedule`, `sm_override_completion`, dan empat fungsi GP) adalah **satu-satunya** jalan sah status berpindah. Justru itu rancangannya. `EXECUTE` sudah dicabut dari `public` dan `anon` (migrasi 004/008/017) — hanya sesi yang membawa JWT terbitan server yang bisa memanggilnya, dan tiap fungsi memeriksa ulang wewenang di dalam dirinya. |
 | RLS aktif tanpa policy pada `user_credentials`, `user_sessions`, `login_attempts` | Disengaja | Tanpa policy, klien mana pun membaca ketiganya sebagai tabel kosong. Satu-satunya yang boleh menyentuhnya adalah route handler lewat service role. Menambahkan policy di sini justru akan **membuka** yang sekarang tertutup rapat. |
 | — | — | `sm_activity_feed` **tidak** muncul sebagai `security_definer_view`, yang mengonfirmasi `security_invoker = true`-nya benar-benar aktif. |
 
@@ -98,6 +170,14 @@ di luar tiga hal yang memang disengaja dan terdokumentasi.
 - **`/api/branding` terbuka tanpa sesi, tapi hanya membaca SATU baris
   pengaturan.** Bukan seluruh isi `sm_settings`, yang juga memuat ambang
   akurasi GPS dan nilai bisnis lain.
+- **Pendaftaran mandiri tidak menerima peran dari klien.** `role`, `active`,
+  dan `approval_status` seluruhnya diisi server di `/api/auth/register`. Kalau
+  ketiganya boleh datang dari badan permintaan, siapa pun bisa mendaftarkan
+  dirinya sebagai ADMIN yang langsung aktif.
+- **Status dokumen GP dijaga lewat hak kolom, bukan hanya RLS.** RLS bekerja
+  per baris; pemilik dokumen yang punya hak UPDATE atas barisnya juga punya hak
+  atas kolom `status` pada baris itu. Hak UPDATE dicabut lalu diberikan ulang
+  hanya pada kolom isian.
 - **Hash kata sandi wajib bcrypt 60 karakter (`$2b$`).** Pernah tertimpa teks
   polos pada tahap awal dan membuat seluruh login gagal. Periksa dengan
   `SELECT left(password_hash, 4), length(password_hash) FROM user_credentials`.
@@ -241,6 +321,9 @@ Supaya tidak terulang di halaman lain, penjagaannya dipasang **sekali** di
 
 | Perubahan | Berkas |
 |-----------|--------|
+| `anon` dicabut dari 5 fungsi + `sm_gp_buka_ulang()` menolak pemanggil tanpa sesi | `supabase/migrations/017_gp_perketat_eksekusi.sql` |
+| Uji GP: ketepatan angka, isolasi antar-Sales, rantai persetujuan, regresi `anon` | `supabase/tests/keamanan-gp.sql` |
+| Uji peran DIRECTOR & FINANCE | `supabase/tests/keamanan.sql` (17–19) |
 | 10 indeks penutup foreign key | `supabase/migrations/013_audit_performa.sql` |
 | Policy `FOR ALL` dipecah jadi INSERT/UPDATE/DELETE pada 3 tabel | `supabase/migrations/013_audit_performa.sql` |
 | RPC `sm_lonceng()` — 6 permintaan jadi 1 | `supabase/migrations/014_lonceng.sql`, `lib/use-lonceng.ts` |
@@ -295,5 +378,6 @@ Diurutkan menurut manfaat dibanding usahanya.
    pengelolaan langganan.
 4. **Uji beban sebelum pemakaian penuh satu tim.** Terutama halaman Activity,
    yang menyatukan tujuh sumber dalam satu view.
-5. **Ganti dua akun contoh** (`admin`, `budi.santoso`) dengan akun sungguhan,
+5. **Hapus data uji dan akun contoh** sebelum pemakaian sungguhan.
+6. **Ganti dua akun contoh** (`admin`, `budi.santoso`) dengan akun sungguhan,
    dan hapus jadwal contoh "PT Contoh Sejahtera" begitu pengujian selesai.
