@@ -1,12 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
 import { usePengaturan } from '@/lib/use-settings';
-import { ambilLokasi, urlPetaKecil, GpsError } from '@/lib/gps';
+import { ambilLokasi, GpsError } from '@/lib/gps';
 import { Modal, Konfirmasi } from '@/components/shared/Modal';
 import { Kolom, Teks, Tombol, Lencana } from '@/components/shared/FormParts';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
+
+// Leaflet menyentuh `window` saat modulnya dimuat, jadi ia tidak boleh ikut
+// dirender di server — `ssr:false` membuat Next.js hanya memuatnya di
+// browser, sesudah hidrasi.
+const PetaLokasi = dynamic(
+  () => import('@/components/shared/PetaLokasi').then((m) => m.PetaLokasi),
+  { ssr: false, loading: () => <div className="w-full h-72 rounded-kontrol bg-slate-100 animate-pulse" /> },
+);
 
 interface Lokasi {
   id: string;
@@ -279,17 +288,21 @@ function FormLokasi({
           </p>
         </div>
 
-        {koordinatSah && (
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Pratinjau Peta</p>
-            <iframe
-              title={`Peta ${nama || 'lokasi'}`}
-              src={urlPetaKecil(latNum, lngNum)}
-              className="w-full h-56 rounded-kontrol border border-slate-200"
-              loading="lazy"
-            />
-          </div>
-        )}
+        <div>
+          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+            Cari &amp; Tunjuk di Peta
+          </p>
+          <PetaLokasi
+            lat={koordinatSah ? latNum : null}
+            lng={koordinatSah ? lngNum : null}
+            radiusM={radius}
+            onUbahTitik={(latBaru, lngBaru) => {
+              setLat(String(latBaru));
+              setLng(String(lngBaru));
+              setGalat(null);
+            }}
+          />
+        </div>
       </form>
     </Modal>
   );
