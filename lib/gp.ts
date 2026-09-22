@@ -71,6 +71,9 @@ export interface GpDokumen {
   id: string;
   nomor: string;
   sales_user_id: string;
+  /** Tautan ke sm_projects (migrasi 018). Nullable dengan sengaja: dokumen GP
+   *  proyek lama boleh berdiri tanpa baris proyek terdaftar. */
+  project_id: string | null;
   pipeline_id: string | null;
   customer_id: string | null;
   customer_name: string;

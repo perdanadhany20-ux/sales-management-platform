@@ -6,6 +6,7 @@ import { tanggalISO } from '@/lib/format';
 import { Modal } from '@/components/shared/Modal';
 import { Kolom, Teks, AreaTeks, Tombol } from '@/components/shared/FormParts';
 import { PilihCustomer, pastikanCustomer } from '@/components/shared/PilihCustomer';
+import { PilihProyek } from '@/components/shared/PilihProyek';
 import { PanelGalat, useToast } from '@/components/shared/Feedback';
 
 export interface Laporan {
@@ -19,6 +20,8 @@ export interface Laporan {
   phone_whatsapp: string | null;
   activity: string;
   lead_project: string | null;
+  /** Tautan ke sm_projects. Nullable dengan sengaja (migrasi 018). */
+  project_id: string | null;
   result: string;
   next_action: string;
 }
@@ -35,6 +38,7 @@ function drafKosong(): Draf {
     phone_whatsapp: '',
     activity: '',
     lead_project: '',
+    project_id: null,
     result: '',
     next_action: '',
   };
@@ -103,6 +107,7 @@ export function FormLaporan({
         phone_whatsapp: draf.phone_whatsapp?.trim() || null,
         activity: draf.activity.trim(),
         lead_project: draf.lead_project?.trim() || null,
+        project_id: draf.project_id ?? null,
         result: draf.result.trim(),
         next_action: draf.next_action.trim(),
       };
@@ -209,6 +214,29 @@ export function FormLaporan({
             )}
           </Kolom>
         </div>
+
+        {/* Tautan proyek berdiri di barisnya sendiri, lebih lebar, karena
+            isinya nama proyek beserta kodenya — dua hal yang terpotong kalau
+            dijejalkan ke kolom setengah lebar. */}
+        <Kolom label="Tautkan ke Proyek"
+          bantuan="Membuat laporan ini muncul di ringkasan proyek. Boleh dikosongkan.">
+          {(id) => (
+            <PilihProyek
+              id={id}
+              nilai={draf.project_id ?? null}
+              ownerId={userId}
+              customerId={draf.customer_id}
+              customerName={draf.customer_name}
+              onUbah={(proyekId, proyek) => {
+                setDraf((d) => ({
+                  ...d,
+                  project_id: proyekId,
+                  lead_project: d.lead_project?.trim() ? d.lead_project : (proyek?.name ?? ''),
+                }));
+              }}
+            />
+          )}
+        </Kolom>
 
         <Kolom label="Aktivitas" wajib galat={galatKolom.activity}
           bantuan="Apa yang Anda lakukan hari ini dengan customer ini.">

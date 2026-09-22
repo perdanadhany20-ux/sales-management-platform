@@ -8,6 +8,7 @@ import { Modal } from '@/components/shared/Modal';
 import { Kolom, Teks, AreaTeks, Tombol } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { PilihCustomer, pastikanCustomer } from '@/components/shared/PilihCustomer';
+import { PilihProyek } from '@/components/shared/PilihProyek';
 import { PanelGalat, useToast } from '@/components/shared/Feedback';
 
 export interface Jadwal {
@@ -17,6 +18,8 @@ export interface Jadwal {
   customer_id: string | null;
   customer_name: string;
   project: string | null;
+  /** Tautan ke sm_projects. Nullable dengan sengaja (migrasi 018). */
+  project_id: string | null;
   category: string;
   detail: string | null;
   requires_attendance: boolean;
@@ -40,6 +43,7 @@ type Draf = {
   customer_id: string | null;
   customer_name: string;
   project: string;
+  project_id: string | null;
   category: string;
   detail: string;
   assigned_to: string;
@@ -81,6 +85,7 @@ export function FormJadwal({
           customer_id: awal.customer_id,
           customer_name: awal.customer_name,
           project: awal.project ?? '',
+          project_id: awal.project_id ?? null,
           category: awal.category,
           detail: awal.detail ?? '',
           assigned_to: awal.assigned_to ?? '',
@@ -93,6 +98,7 @@ export function FormJadwal({
           customer_id: null,
           customer_name: '',
           project: '',
+          project_id: null,
           category: '',
           detail: '',
           assigned_to: '',
@@ -169,6 +175,7 @@ export function FormJadwal({
         customer_id: customerId,
         customer_name: draf.customer_name.trim(),
         project: draf.project.trim() || null,
+        project_id: draf.project_id,
         category: draf.category,
         detail: draf.detail.trim() || null,
         requires_attendance: butuhKehadiran,
@@ -251,7 +258,34 @@ export function FormJadwal({
             )}
           </Kolom>
 
-          <Kolom label="Proyek">
+          {/* Dua isian proyek yang berbeda, dan keduanya perlu.
+              "Tautkan ke Proyek" menyambungkan jadwal ini ke ringkasan proyek;
+              "Nama proyek" tetap ada sebagai catatan bebas untuk pembicaraan
+              yang belum punya proyek terdaftar — persis kasus yang paling
+              sering terjadi saat jadwal dibuat mendahului pipelinenya. */}
+          <Kolom label="Tautkan ke Proyek"
+            bantuan="Membuat jadwal ini muncul di ringkasan proyek. Boleh dikosongkan.">
+            {(id) => (
+              <PilihProyek
+                id={id}
+                nilai={draf.project_id}
+                ownerId={userId}
+                customerId={draf.customer_id}
+                customerName={draf.customer_name}
+                onUbah={(proyekId, proyek) => {
+                  setDraf((d) => ({
+                    ...d,
+                    project_id: proyekId,
+                    // Nama proyek ikut terisi saat tautannya dipilih, supaya
+                    // tidak perlu mengetik hal yang sama dua kali.
+                    project: proyek?.name ?? d.project,
+                  }));
+                }}
+              />
+            )}
+          </Kolom>
+
+          <Kolom label="Nama Proyek (catatan bebas)">
             {(id) => (
               <Teks id={id} value={draf.project} onChange={(e) => ubah('project', e.target.value)}
                 placeholder="Nama proyek yang dibahas" />

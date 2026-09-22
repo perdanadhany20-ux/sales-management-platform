@@ -8,11 +8,14 @@ import { Modal } from '@/components/shared/Modal';
 import { Kolom, Teks, AreaTeks, Uang, Tombol } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { PilihCustomer, pastikanCustomer } from '@/components/shared/PilihCustomer';
+import { PilihProyek } from '@/components/shared/PilihProyek';
 import { PanelGalat, useToast } from '@/components/shared/Feedback';
 
 export interface Peluang {
   id: string;
   sales_user_id: string;
+  /** Tautan ke sm_projects. Nullable dengan sengaja (migrasi 018). */
+  project_id: string | null;
   pipeline_date: string;
   customer_id: string | null;
   customer_name: string;
@@ -32,6 +35,7 @@ export interface Peluang {
 }
 
 type Draf = {
+  project_id: string | null;
   pipeline_date: string;
   customer_id: string | null;
   customer_name: string;
@@ -52,6 +56,7 @@ function drafKosong(unitBawaan: string): Draf {
   tigaPuluhHari.setDate(tigaPuluhHari.getDate() + 30);
   return {
     pipeline_date: tanggalISO(),
+    project_id: null,
     customer_id: null,
     customer_name: '',
     contact_person: '',
@@ -90,6 +95,7 @@ export function FormPipeline({
     awal
       ? {
           pipeline_date: awal.pipeline_date,
+          project_id: awal.project_id ?? null,
           customer_id: awal.customer_id,
           customer_name: awal.customer_name,
           contact_person: awal.contact_person ?? '',
@@ -157,6 +163,7 @@ export function FormPipeline({
       const isi = {
         sales_user_id: userId,
         pipeline_date: draf.pipeline_date,
+        project_id: draf.project_id,
         customer_id: customerId,
         customer_name: draf.customer_name.trim(),
         contact_person: draf.contact_person.trim() || null,
@@ -221,6 +228,23 @@ export function FormPipeline({
                 id={id} invalid={invalid}
                 nilai={{ customer_id: draf.customer_id, customer_name: draf.customer_name }}
                 onUbah={(v) => setDraf((d) => ({ ...d, ...v }))}
+              />
+            )}
+          </Kolom>
+
+          {/* Tautan ke Proyek. Boleh dikosongkan — lihat catatan di migrasi 018
+              soal kenapa memaksa proyek dipilih lebih dulu justru membuat
+              catatannya tidak jadi diisi sama sekali. */}
+          <Kolom label="Proyek"
+            bantuan="Menautkan peluang ini ke ringkasan proyek. Boleh dikosongkan.">
+            {(id) => (
+              <PilihProyek
+                id={id}
+                nilai={draf.project_id ?? null}
+                ownerId={userId}
+                customerId={draf.customer_id}
+                customerName={draf.customer_name}
+                onUbah={(proyekId) => setDraf((d) => ({ ...d, project_id: proyekId }))}
               />
             )}
           </Kolom>

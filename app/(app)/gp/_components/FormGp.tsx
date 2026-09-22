@@ -8,6 +8,8 @@ import type { GpRingkasan, GpItem } from '@/lib/gp';
 import { Modal } from '@/components/shared/Modal';
 import { Kolom, Teks, AreaTeks, Tombol, Uang } from '@/components/shared/FormParts';
 import { PilihCustomer } from '@/components/shared/PilihCustomer';
+import { PilihProyek } from '@/components/shared/PilihProyek';
+import { baaGpDariExcel } from '@/lib/gp-impor';
 import { useToast } from '@/components/shared/Feedback';
 
 /**
@@ -48,6 +50,7 @@ export function FormGp({ buka, onTutup, onTersimpan, awal, awalItem }: {
   const { pengguna } = usePenggunaAktif();
   const toast = useToast();
 
+  const [proyekId, setProyekId] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -72,10 +75,13 @@ export function FormGp({ buka, onTutup, onTersimpan, awal, awalItem }: {
   const [item, setItem] = useState<DrafItem[]>([itemKosong()]);
   const [menyimpan, setMenyimpan] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+  const [mengimpor, setMengimpor] = useState(false);
+  const [catatanImpor, setCatatanImpor] = useState<string[]>([]);
 
   useEffect(() => {
     if (!buka) return;
     if (awal) {
+      setProyekId(awal.project_id ?? null);
       setCustomerId(awal.customer_id);
       setCustomerName(awal.customer_name);
       setProjectName(awal.project_name);
@@ -101,6 +107,7 @@ export function FormGp({ buka, onTutup, onTersimpan, awal, awalItem }: {
           }))
         : [itemKosong()]);
     } else {
+      setProyekId(null);
       setCustomerId(null); setCustomerName(''); setProjectName(''); setPoSpk('');
       setTanggal(tanggalISO()); setPaymentTerm(''); setLeadTime('');
       setPpn(11); setPph(2.5); setTarget(20);
@@ -118,6 +125,53 @@ export function FormGp({ buka, onTutup, onTersimpan, awal, awalItem }: {
   const totalBiaya = totalModal + instalasi + kirim + operasional + lain;
   const netPratinjau = dppPratinjau - dppPratinjau * (pph / 100) - disbursement - totalBiaya;
   const marginPratinjau = dppPratinjau === 0 ? 0 : (netPratinjau / dppPratinjau) * 100;
+
+  /**
+   * Membaca berkas GP lama lalu MENGISI FORMULIR — bukan menyimpannya langsung.
+   *
+   * Perbedaan itu penting. Berkas lama beredar dalam banyak versi tata letak,
+   * dan pembacaan otomatis apa pun pasti kadang meleset. Mengisikannya ke
+   * formulir berarti orangnya melihat seluruh angka sebelum menekan Simpan;
+   * menyimpannya langsung berarti kesalahan pembacaan menjadi dokumen resmi
+   * tanpa sempat dilihat siapa pun.
+   */
+  async function imporExcel(file: File) {
+    setMengimpor(true);
+    setGalat(null);
+    setCatatanImpor([]);
+    try {
+      const h = await baaGpDariExcel(file);
+
+      if (h.customer_name) setCustomerName(h.customer_name);
+      if (h.project_name) setProjectName(h.project_name);
+      if (h.po_spk_no) setPoSpk(h.po_spk_no);
+      if (h.calc_date) setTanggal(h.calc_date);
+      if (h.payment_term) setPaymentTerm(h.payment_term);
+      if (h.lead_time) setLeadTime(h.lead_time);
+      if (h.ppn_rate !== null) setPpn(h.ppn_rate * 100);
+      if (h.gp_target !== null) setTarget(h.gp_target * 100);
+
+      setInstalasi(h.installation_cost);
+      setKirim(h.shipping_cost);
+      setOperasional(h.operational_cost);
+      setLain(h.other_cost);
+      setDisbursement(h.disbursement_cost);
+
+      if (h.item.length > 0) {
+        setItem(h.item.map((i) => ({
+          description: i.description, qty: i.qty, vendor: i.vendor,
+          unit_price: i.unit_price, unit_cost: i.unit_cost,
+        })));
+      }
+
+      setCatatanImpor(h.catatan);
+      toast('sukses', `${h.item.length} item terbaca dari berkas. Periksa angkanya sebelum menyimpan.`);
+    } catch (e) {
+      setGalat(e instanceof Error ? e.message : 'Berkas tidak bisa dibaca.');
+    } finally {
+      setMengimpor(false);
+    }
+  }
 
   function ubahItem(indeks: number, tambal: Partial<DrafItem>) {
     setItem((d) => d.map((x, i) => (i === indeks ? { ...x, ...tambal } : x)));
@@ -137,6 +191,7 @@ export function FormGp({ buka, onTutup, onTersimpan, awal, awalItem }: {
     setMenyimpan(true);
     try {
       const isian = {
+        project_id: proyekId,
         customer_id: customerId,
         customer_name: customerName.trim(),
         project_name: projectName.trim(),
@@ -233,6 +288,46 @@ export function FormGp({ buka, onTutup, onTersimpan, awal, awalItem }: {
           </p>
         )}
 
+        {/* ── Impor berkas lama ── */}
+        {!awal && (
+          <section className="rounded-kartu border border-dashed border-slate-300 bg-slate-50/70 p-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-[12px] font-bold text-slate-700">Punya berkas GP lama?</p>
+                <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
+                  Unggah .xlsx-nya dan formulir ini akan terisi sendiri. Yang dibaca hanya angka
+                  mentahnya; DPP, PPN, GP, dan margin tetap dihitung ulang di sini.
+                </p>
+              </div>
+              <input
+                id="impor-gp" type="file" className="sr-only"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void imporExcel(f);
+                  e.target.value = '';
+                }}
+              />
+              <label htmlFor="impor-gp"
+                className={`inline-flex items-center gap-1.5 rounded-kontrol border border-slate-300
+                            bg-white px-3.5 py-2 text-[12px] font-semibold cursor-pointer transition-colors
+                            ${mengimpor ? 'opacity-60 pointer-events-none' : 'hover:bg-slate-50'}`}>
+                {mengimpor ? '⏳ Membaca…' : '⬆ Impor dari Excel'}
+              </label>
+            </div>
+
+            {catatanImpor.length > 0 && (
+              <ul className="mt-2.5 flex flex-col gap-1">
+                {catatanImpor.map((c) => (
+                  <li key={c} className="text-[11px] text-[#7a5300] bg-[#fef3d9] rounded-kontrol px-2.5 py-1.5 leading-snug">
+                    ⚠ {c}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
         {/* ── Identitas ── */}
         <section>
           <Judul>Identitas Proyek</Judul>
@@ -246,7 +341,39 @@ export function FormGp({ buka, onTutup, onTersimpan, awal, awalItem }: {
                 />
               )}
             </Kolom>
-            <Kolom label="Nama Proyek" wajib>
+            {/*
+              Proyek dipilih dari yang SUDAH TERCATAT, bukan diketik ulang.
+              Inilah yang membuat satu proyek bisa menampilkan pipeline,
+              jadwal, meeting, laporan, dan GP-nya dalam satu ringkasan —
+              sebelumnya ketiganya hanya teks bebas yang kebetulan mirip.
+
+              Tetap ada jalan manual di bawahnya: proyek lama yang belum
+              terdaftar bisa diketik namanya saja, dan dokumennya tetap sah.
+            */}
+            <Kolom label="Tautkan ke Proyek"
+              bantuan="Pilih proyek yang sudah tercatat, atau buat baru di sini. Boleh dikosongkan untuk proyek lama.">
+              {(id) => (
+                <PilihProyek
+                  id={id}
+                  nilai={proyekId}
+                  ownerId={pengguna?.id}
+                  customerId={customerId}
+                  customerName={customerName}
+                  onUbah={(pid, proyek) => {
+                    setProyekId(pid);
+                    if (proyek) {
+                      // Nama proyek dan customer ikut terisi supaya tidak
+                      // perlu mengetik hal yang sama untuk ketiga kalinya.
+                      setProjectName(proyek.name);
+                      if (!customerName.trim()) setCustomerName(proyek.customer_name);
+                    }
+                  }}
+                />
+              )}
+            </Kolom>
+
+            <Kolom label="Nama Proyek" wajib
+              bantuan="Tercetak pada dokumen GP. Terisi otomatis bila proyeknya dipilih di atas.">
               {(id) => (
                 <Teks id={id} value={projectName} required
                   onChange={(e) => setProjectName(e.target.value)}

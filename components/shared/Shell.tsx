@@ -64,7 +64,8 @@ const I = (d: string) => (
 export const MENU_APLIKASI: Menu[] = [
   { href: '/dashboard',    label: 'Dashboard',    utama: true,  ikon: I('M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z') },
   { href: '/daily-report', label: 'Daily Report', utama: true,  ikon: I('M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4') },
-  { href: '/pipeline',     label: 'Pipeline',     utama: true,  ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
+  { href: '/proyek',       label: 'Proyek',       utama: true,  ikon: I('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
+  { href: '/pipeline',     label: 'Pipeline',     ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
   { href: '/schedule',     label: 'Schedule',     utama: true,  ikon: I('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z') },
   { href: '/meeting',      label: 'Meeting',      utama: true,  ikon: I('M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
   { href: '/gp',           label: 'GP Calculation', ikon: I('M9 7h6M9 11h6M9 15h3M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z') },
