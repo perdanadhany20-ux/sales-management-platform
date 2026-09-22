@@ -141,7 +141,10 @@ function KartuPengguna({ pengguna }: { pengguna: PenggunaAktif }) {
 
   return (
     <div className="px-2.5 py-3 border-t border-slate-100">
-      <div className="flex items-center gap-2.5 px-2 py-2">
+      <Link
+        href="/profil"
+        className="flex items-center gap-2.5 px-2 py-2 rounded-kontrol hover:bg-slate-50 transition-colors"
+      >
         <Inisial nama={pengguna.full_name} />
         <div className="min-w-0 flex-1">
           <p className="text-[12px] font-bold text-slate-800 truncate">{pengguna.full_name}</p>
@@ -149,7 +152,7 @@ function KartuPengguna({ pengguna }: { pengguna: PenggunaAktif }) {
             {LABEL_PERAN[(pengguna.role as Peran)] ?? pengguna.role}
           </p>
         </div>
-      </div>
+      </Link>
       <button
         type="button" onClick={lakukanKeluar} disabled={keluarBerjalan}
         className="w-full mt-1 px-3 py-2 rounded-kontrol text-[12px] font-semibold text-slate-500 hover:bg-slate-50 hover:text-[#e34948] transition-colors text-left disabled:opacity-50"
@@ -170,7 +173,6 @@ function Inisial({ nama }: { nama: string }) {
 }
 
 function HeaderPonsel({ pengguna }: { pengguna: PenggunaAktif }) {
-  const router = useRouter();
   return (
     <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-4 py-3 flex items-center gap-3">
       <div className="w-8 h-8 rounded-kontrol bg-gradient-to-br from-aksen-700 to-aksen-500 grid place-items-center flex-shrink-0">
@@ -179,14 +181,16 @@ function HeaderPonsel({ pengguna }: { pengguna: PenggunaAktif }) {
         </svg>
       </div>
       <p className="flex-1 text-[13px] font-black text-slate-900 truncate">Sales Management</p>
-      <button
-        type="button"
-        onClick={async () => { await keluar(); router.replace('/'); }}
-        className="flex items-center gap-2"
-        aria-label={`Keluar dari akun ${pengguna.full_name}`}
-      >
+      {/*
+        Menuju Profil, BUKAN langsung keluar. Sebelumnya avatar ini memanggil
+        logout seketika — satu sentuhan tak sengaja di pojok layar, yang di
+        ponsel justru area paling sering tersenggol ibu jari, langsung
+        mengeluarkan Sales dari akunnya di tengah lapangan. Keluar kini ada di
+        halaman Profil, di balik satu langkah yang disengaja.
+      */}
+      <Link href="/profil" aria-label={`Profil ${pengguna.full_name}`} className="flex-shrink-0">
         <Inisial nama={pengguna.full_name} />
-      </button>
+      </Link>
     </header>
   );
 }

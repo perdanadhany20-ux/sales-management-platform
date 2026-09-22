@@ -17,6 +17,12 @@ export interface KategoriJadwal {
   requires_attendance: boolean;
 }
 
+export interface KartuDashboard {
+  key: string;
+  label: string;
+  aktif: boolean;
+}
+
 export interface Pengaturan {
   schedule_categories: KategoriJadwal[];
   probability_options: number[];
@@ -24,6 +30,7 @@ export interface Pengaturan {
   gps_accuracy_threshold_m: number;
   pipeline_units: string[];
   activity_categories: string[];
+  dashboard_widgets: KartuDashboard[];
 }
 
 const BAWAAN: Pengaturan = {
@@ -36,6 +43,18 @@ const BAWAAN: Pengaturan = {
   gps_accuracy_threshold_m: 100,
   pipeline_units: ['unit', 'set', 'titik', 'paket', 'lot', 'meter'],
   activity_categories: ['Meeting', 'Follow Up', 'Quotation', 'Customer Visit', 'Survey', 'Other'],
+  // Bawaan: semua kartu tampil. Kalau baris pengaturannya belum ada, dashboard
+  // harus tetap lengkap — bukan kosong.
+  dashboard_widgets: [
+    { key: 'kepatuhan', label: 'Kepatuhan Laporan Hari Ini', aktif: true },
+    { key: 'nilai_pipeline', label: 'Nilai Pipeline', aktif: true },
+    { key: 'gross_profit', label: 'Gross Profit', aktif: true },
+    { key: 'probability', label: 'Sebaran Probability', aktif: true },
+    { key: 'status_jadwal', label: 'Status Jadwal', aktif: true },
+    { key: 'tren', label: 'Aktivitas 6 Bulan Terakhir', aktif: true },
+    { key: 'meeting', label: 'Meeting', aktif: true },
+    { key: 'pengecualian', label: 'Perlu Ditindaklanjuti', aktif: true },
+  ],
 };
 
 // Pengaturan nyaris tidak pernah berubah dalam satu sesi, sedangkan hampir
@@ -76,6 +95,7 @@ export function usePengaturan() {
           probability_options:      ambil('probability_options',      BAWAAN.probability_options,      true),
           pipeline_units:           ambil('pipeline_units',           BAWAAN.pipeline_units,           true),
           activity_categories:      ambil('activity_categories',      BAWAAN.activity_categories,      true),
+          dashboard_widgets:        ambil('dashboard_widgets',        BAWAAN.dashboard_widgets,        true),
           default_gps_radius_m:     ambil('default_gps_radius_m',     BAWAAN.default_gps_radius_m,     false),
           gps_accuracy_threshold_m: ambil('gps_accuracy_threshold_m', BAWAAN.gps_accuracy_threshold_m, false),
         };

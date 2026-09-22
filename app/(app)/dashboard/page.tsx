@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useDashboard } from '@/lib/use-dashboard';
 import { usePenggunaAktif } from '@/lib/auth';
+import { usePengaturan } from '@/lib/use-settings';
 import { BentoGrid, BentoCard, AngkaJangkar, BarisBento } from '@/components/shared/Bento';
 import {
   DonutLegenda, CincinCapaian, CorongTingkat, BatangPeriode, Sparkline, Meter, LencanaTren,
@@ -27,8 +28,19 @@ import { WARNA_PROBABILITY, PESAN_GPS, isPengawas } from '@/lib/constants';
 export default function HalamanDashboard() {
   const { pengguna } = usePenggunaAktif();
   const { data, memuat, galat, muatUlang } = useDashboard();
+  const { pengaturan } = usePengaturan();
 
   const pengawas = isPengawas(pengguna?.role);
+
+  /**
+   * Kartu mana yang boleh tampil, diatur Admin lewat Administrasi → Tampilan.
+   *
+   * Kartu yang key-nya TIDAK ada di pengaturan tetap ditampilkan. Itu
+   * disengaja: menambah kartu baru di kode tidak boleh membuatnya tersembunyi
+   * diam-diam hanya karena baris pengaturannya belum menyebutnya.
+   */
+  const tampil = (key: string) =>
+    pengaturan.dashboard_widgets.find((k) => k.key === key)?.aktif ?? true;
 
   if (galat) {
     return (
@@ -78,6 +90,7 @@ export default function HalamanDashboard() {
       <BentoGrid>
 
         {/* ── Jangkar: kepatuhan laporan harian ── */}
+        {tampil('kepatuhan') && (
         <BentoCard
           rentang={4} tinggi="sedang" rupa="sorot"
           judul={pengawas ? 'Kepatuhan Laporan Hari Ini' : 'Laporan Hari Ini'}
@@ -103,8 +116,10 @@ export default function HalamanDashboard() {
             </Link>
           )}
         </BentoCard>
+        )}
 
         {/* ── Nilai pipeline ── */}
+        {tampil('nilai_pipeline') && (
         <BentoCard rentang={4} tinggi="sedang" judul="Nilai Pipeline" aksi={<TautanKecil href="/pipeline" />}>
           <AngkaJangkar
             nilai={rupiahRingkas(pl.total_nilai)}
@@ -124,8 +139,10 @@ export default function HalamanDashboard() {
             />
           </div>
         </BentoCard>
+        )}
 
         {/* ── Kartu gelap: GP ── */}
+        {tampil('gross_profit') && (
         <BentoCard rentang={4} tinggi="sedang" rupa="gelap" judul="Gross Profit">
           <AngkaJangkar
             terang
@@ -139,8 +156,10 @@ export default function HalamanDashboard() {
             <BarisTerang label="Selisih (GP)" nilai={rupiahRingkas(pl.total_gp)} tebal />
           </div>
         </BentoCard>
+        )}
 
         {/* ── Corong probability ── */}
+        {tampil('probability') && (
         <BentoCard
           rentang={8} tinggi="sedang"
           judul="Sebaran Probability Pipeline"
@@ -162,8 +181,10 @@ export default function HalamanDashboard() {
             />
           )}
         </BentoCard>
+        )}
 
         {/* ── Status jadwal ── */}
+        {tampil('status_jadwal') && (
         <BentoCard rentang={4} tinggi="sedang" judul="Status Jadwal" aksi={<TautanKecil href="/schedule" />}>
           <DonutLegenda
             judul=""
@@ -177,8 +198,10 @@ export default function HalamanDashboard() {
             ].filter((d) => d.value > 0)}
           />
         </BentoCard>
+        )}
 
         {/* ── Tren bulanan ── */}
+        {tampil('tren') && (
         <BentoCard rentang={6} tinggi="sedang" judul="Aktivitas 6 Bulan Terakhir">
           <BatangPeriode
             data={tren_bulanan.map((t) => ({ label: t.bulan, value: t.laporan }))}
@@ -190,8 +213,10 @@ export default function HalamanDashboard() {
             </span>
           </div>
         </BentoCard>
+        )}
 
         {/* ── Meeting ── */}
+        {tampil('meeting') && (
         <BentoCard rentang={3} tinggi="sedang" judul="Meeting" aksi={<TautanKecil href="/meeting" />}>
           {meeting.total === 0 ? (
             <Kosong judul="Belum ada meeting" keterangan="Jadwal berkategori Meeting akan tampil di sini." />
@@ -211,8 +236,10 @@ export default function HalamanDashboard() {
             />
           )}
         </BentoCard>
+        )}
 
         {/* ── Panel pengecualian: yang butuh tindakan ── */}
+        {tampil('pengecualian') && (
         <BentoCard
           rentang={3} tinggi="sedang" rupa="garis"
           judul="Perlu Ditindaklanjuti"
@@ -259,6 +286,7 @@ export default function HalamanDashboard() {
             </div>
           )}
         </BentoCard>
+        )}
 
       </BentoGrid>
     </div>
