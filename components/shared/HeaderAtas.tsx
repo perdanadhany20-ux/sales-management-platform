@@ -14,6 +14,7 @@ import {
   intipDailyReport, intipMeeting, intipJadwal, intipPipeline,
   intipTerlewat, intipBelumDitugaskan, intipGp, type ButirIntip,
 } from '@/lib/intip';
+import { DropdownMengambang } from './DropdownMengambang';
 
 /**
  * components/shared/HeaderAtas.tsx — bilah judul + lencana di puncak halaman.
@@ -35,6 +36,7 @@ export function HeaderAtas({ pengguna, branding }: {
   const { lonceng, muatUlang } = useLonceng(pengguna);
   const [bukaNotif, setBukaNotif] = useState(false);
   const [bukaCari, setBukaCari] = useState(false);
+  const loncengRef = useRef<HTMLButtonElement>(null);
   // Hanya satu jendela intip terbuka pada satu waktu. Dua panel melayang
   // bersamaan saling menutupi dan tidak ada yang bisa dibaca utuh.
   const [intip, setIntip] = useState<string | null>(null);
@@ -124,6 +126,7 @@ export function HeaderAtas({ pengguna, branding }: {
           {/* ── Lonceng ── */}
           <div className="relative flex-shrink-0">
             <button
+              ref={loncengRef}
               type="button"
               onClick={() => { setIntip(null); setBukaNotif((b) => !b); void muatUlang(); }}
               aria-expanded={bukaNotif}
@@ -144,7 +147,10 @@ export function HeaderAtas({ pengguna, branding }: {
               </span>
             </button>
 
-            {bukaNotif && (
+            <DropdownMengambang
+              buka={bukaNotif} onTutup={() => setBukaNotif(false)}
+              triggerRef={loncengRef} lebar={320}
+            >
               <PanelNotifikasi
                 lonceng={lonceng}
                 pengawas={pengawas}
@@ -152,7 +158,7 @@ export function HeaderAtas({ pengguna, branding }: {
                 userId={pengguna.id}
                 onTutup={() => setBukaNotif(false)}
               />
-            )}
+            </DropdownMengambang>
           </div>
 
           {/*
@@ -235,10 +241,12 @@ function Pintasan({
   tersembunyiDiPonsel?: boolean;
 }) {
   const menyala = jumlah === '!' || jumlah > 0;
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   return (
     <div className={`relative flex-shrink-0 ${tersembunyiDiPonsel ? 'hidden sidebar:block' : ''}`}>
       <button
+        ref={btnRef}
         type="button"
         aria-expanded={terbuka}
         aria-label={`${label}, ${jumlah} perlu dilihat`}
@@ -259,7 +267,7 @@ function Pintasan({
         </span>
       </button>
 
-      {terbuka && (
+      <DropdownMengambang buka={terbuka} onTutup={() => onToggle(null)} triggerRef={btnRef}>
         <PanelIntip
           judul={judulPanel}
           kosong={kosong}
@@ -268,7 +276,7 @@ function Pintasan({
           ambil={ambil}
           onTutup={() => onToggle(null)}
         />
-      )}
+      </DropdownMengambang>
     </div>
   );
 }
@@ -290,7 +298,6 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
   ambil: () => Promise<ButirIntip[]>;
   onTutup: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const [butir, setButir] = useState<ButirIntip[] | null>(null);
 
   useEffect(() => {
@@ -306,26 +313,14 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const klik = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onTutup();
-    };
-    const tombol = (e: KeyboardEvent) => { if (e.key === 'Escape') onTutup(); };
-    document.addEventListener('mousedown', klik);
-    document.addEventListener('keydown', tombol);
-    return () => {
-      document.removeEventListener('mousedown', klik);
-      document.removeEventListener('keydown', tombol);
-    };
-  }, [onTutup]);
-
+  // Posisi (fixed, portal ke body) dan klik-di-luar/Escape sudah ditangani
+  // DropdownMengambang yang membungkus komponen ini — tidak diulang di sini.
   return (
     <div
-      ref={panelRef}
       role="dialog"
       aria-label={judul}
-      className="absolute right-0 top-[calc(100%+8px)] w-[290px] max-w-[calc(100vw-24px)]
-                 bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden z-50"
+      className="w-full max-w-[calc(100vw-24px)]
+                 bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden"
     >
       <header className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70">
         <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">{judul}</h2>
@@ -393,25 +388,10 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
   userId: string;
   onTutup: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const [kelompok, setKelompok] = useState<{ judul: string; butir: ButirIntip[] }[] | null>(null);
 
-  // Klik di luar dan tombol Escape menutup panel. Tanpa keduanya, satu-satunya
-  // cara menutupnya adalah menekan tombol loncengnya lagi — dan orang yang
-  // tidak menemukannya akan mengira halamannya macet.
-  useEffect(() => {
-    const klik = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onTutup();
-    };
-    const tombol = (e: KeyboardEvent) => { if (e.key === 'Escape') onTutup(); };
-    document.addEventListener('mousedown', klik);
-    document.addEventListener('keydown', tombol);
-    return () => {
-      document.removeEventListener('mousedown', klik);
-      document.removeEventListener('keydown', tombol);
-    };
-  }, [onTutup]);
-
+  // Posisi (fixed, portal ke body), klik-di-luar, dan Escape sudah ditangani
+  // DropdownMengambang yang membungkus komponen ini.
   useEffect(() => {
     let batal = false;
 
@@ -467,11 +447,10 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
 
   return (
     <div
-      ref={panelRef}
       role="dialog"
       aria-label="Notifikasi"
-      className="absolute right-0 top-[calc(100%+8px)] w-[320px] max-w-[calc(100vw-24px)]
-                 bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden z-50"
+      className="w-full max-w-[calc(100vw-24px)]
+                 bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden"
     >
       <header className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center gap-2">
         <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex-1">
