@@ -3,8 +3,29 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Palet aksen sebagai variabel CSS (format "R G B", bukan hex, supaya
+   * Tailwind bisa menyisipkan alpha lewat rgb(var(--x) / <alpha>)).
+   *
+   * Nilai di sini adalah BAWAAN — biru profesional yang sama seperti
+   * sebelumnya. Saat admin mengubah warna di Administrasi → Tampilan,
+   * lib/branding.ts menimpanya di document.documentElement, sehingga
+   * seluruh kelas aksen-* ikut berubah tanpa satu komponen pun disentuh.
+   */
   :root {
     color-scheme: light;
+
+    --aksen-50:  239 246 255;
+    --aksen-100: 219 234 254;
+    --aksen-200: 191 219 254;
+    --aksen-300: 147 197 253;
+    --aksen-400: 96 165 250;
+    --aksen-500: 59 130 246;
+    --aksen-600: 37 99 235;
+    --aksen-700: 29 78 216;
+    --aksen-800: 30 64 175;
+    --aksen-900: 30 58 138;
+    --merek-aksen: 237 161 0;
   }
 
   html {
@@ -28,7 +49,7 @@
      Ini yang dilakukan :focus-visible — sedangkan :focus polos membuat setiap
      tombol yang diklik meninggalkan cincin yang mengganggu. */
   :focus-visible {
-    outline: 2px solid theme('colors.aksen.600');
+    outline: 2px solid rgb(var(--aksen-600));
     outline-offset: 2px;
   }
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { masuk } from '@/lib/auth';
 import { KataSandi } from '@/components/shared/FormParts';
+import { useBranding, type Branding } from '@/lib/branding';
 
 /**
  * Halaman masuk — tata letak dua sisi mengikuti pola Work Management (§60):
@@ -21,6 +22,7 @@ import { KataSandi } from '@/components/shared/FormParts';
  */
 export default function HalamanMasuk() {
   const router = useRouter();
+  const { branding } = useBranding();
   const [username, setUsername] = useState('');
   const [sandi, setSandi] = useState('');
   const [galat, setGalat] = useState('');
@@ -59,14 +61,28 @@ export default function HalamanMasuk() {
       {/* ── KIRI: panel branding (desktop) ── */}
       <aside
         className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 text-white overflow-hidden"
-        style={{ background: 'linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 48%, #2563eb 100%)' }}
+        style={{
+          background: `linear-gradient(145deg, ${branding.warna_utama_2} 0%, ${branding.warna_utama} 48%, ${branding.warna_utama} 100%)`,
+        }}
       >
+        {/* Foto latar, bila admin memasangnya. Digelapkan supaya teks putih di
+            atasnya tetap terbaca berapa pun terang fotonya. */}
+        {branding.latar_login_url && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-cover bg-center opacity-35"
+            style={{ backgroundImage: `url(${branding.latar_login_url})` }}
+          />
+        )}
         <BentukLatar />
 
         <div className="relative flex items-center gap-3">
-          <LogoKotak ukuran={40} />
+          <LogoLogin branding={branding} ukuran={40} />
           <span className="text-lg font-bold tracking-tight">
-            Sales Management <span className="font-normal text-white/70">· Platform</span>
+            {branding.nama_platform}
+            {branding.nama_portal && (
+              <span className="font-normal text-white/70"> · {branding.nama_portal}</span>
+            )}
           </span>
         </div>
 
@@ -98,7 +114,8 @@ export default function HalamanMasuk() {
         </div>
 
         <p className="relative text-white/50 text-xs">
-          © {new Date().getFullYear()} Sales Management Platform
+          © {new Date().getFullYear()} {branding.nama_perusahaan || branding.nama_platform}
+          {branding.kredit && <span className="ml-2">· {branding.kredit}</span>}
         </p>
       </aside>
 
@@ -110,9 +127,9 @@ export default function HalamanMasuk() {
 
           {/* Identitas untuk ponsel — di desktop sudah ada di panel kiri. */}
           <div className="flex lg:hidden items-center gap-2.5 mb-6">
-            <LogoKotak ukuran={38} biru />
-            <span className="text-base font-bold text-slate-800">
-              Sales Management <span className="text-slate-400 font-normal">· Platform</span>
+            <LogoLogin branding={branding} ukuran={38} biru />
+            <span className="text-base font-bold text-slate-800 truncate">
+              {branding.nama_pendek || branding.nama_platform}
             </span>
           </div>
 
@@ -169,7 +186,7 @@ export default function HalamanMasuk() {
               style={{
                 background: berhasil
                   ? 'linear-gradient(to right, #047857, #008300)'
-                  : 'linear-gradient(to right, #1e3a8a, #2563eb)',
+                  : `linear-gradient(to right, ${branding.warna_utama_2}, ${branding.warna_utama})`,
                 opacity: memproses && !berhasil ? 0.75 : 1,
               }}
             >
@@ -194,6 +211,9 @@ export default function HalamanMasuk() {
 
           <p className="text-center text-[11px] text-slate-400 mt-6">
             Lupa kata sandi? Hubungi admin untuk mengatur ulang.
+            {branding.kontak_bantuan && (
+              <><br /><span className="font-semibold text-slate-500">{branding.kontak_bantuan}</span></>
+            )}
           </p>
         </div>
       </section>
@@ -224,14 +244,37 @@ function BentukLatar() {
   );
 }
 
-function LogoKotak({ ukuran, biru }: { ukuran: number; biru?: boolean }) {
+/**
+ * Logo pada halaman masuk. Memakai berkas yang diunggah admin bila ada;
+ * kalau belum, lencana bawaan — bukan kotak kosong yang terlihat seperti
+ * gambar yang gagal dimuat.
+ */
+function LogoLogin({ branding, ukuran, biru }: {
+  branding: Branding; ukuran: number; biru?: boolean;
+}) {
+  if (branding.logo_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={branding.logo_url} alt={branding.nama_platform}
+        className="rounded-kontrol object-contain flex-shrink-0 bg-white/90"
+        style={{ width: ukuran, height: ukuran }}
+      />
+    );
+  }
+  return <LogoKotak ukuran={ukuran} biru={biru} warna={branding.warna_utama} />;
+}
+
+function LogoKotak({ ukuran, biru, warna = '#1d4ed8' }: {
+  ukuran: number; biru?: boolean; warna?: string;
+}) {
   return (
     <span
       className="rounded-kontrol grid place-items-center flex-shrink-0"
       style={{
         width: ukuran, height: ukuran,
         background: biru
-          ? 'linear-gradient(135deg, #1d4ed8, #3b82f6)'
+          ? `linear-gradient(135deg, ${warna}, ${warna}cc)`
           : 'rgba(255,255,255,0.16)',
         border: biru ? 'none' : '1px solid rgba(255,255,255,0.22)',
       }}

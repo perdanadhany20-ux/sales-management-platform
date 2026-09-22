@@ -42,20 +42,28 @@ const config: Config = {
         bento: '0 1px 3px rgba(15,23,42,0.06), 0 8px 24px -12px rgba(15,23,42,0.18)',
       },
       colors: {
-        /** Aksen biru profesional — warna utama platform. */
+        /**
+         * Aksen platform. Nilainya TIDAK dipaku di sini melainkan menunjuk ke
+         * variabel CSS yang dipasang lib/branding.ts, supaya warna yang
+         * dipilih admin di Administrasi → Tampilan langsung berlaku di
+         * seluruh aplikasi tanpa satu pun komponen diubah. Nilai bawaannya
+         * ada di app/globals.css.
+         */
         aksen: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-          DEFAULT: '#1d4ed8',
+          50:  'rgb(var(--aksen-50)  / <alpha-value>)',
+          100: 'rgb(var(--aksen-100) / <alpha-value>)',
+          200: 'rgb(var(--aksen-200) / <alpha-value>)',
+          300: 'rgb(var(--aksen-300) / <alpha-value>)',
+          400: 'rgb(var(--aksen-400) / <alpha-value>)',
+          500: 'rgb(var(--aksen-500) / <alpha-value>)',
+          600: 'rgb(var(--aksen-600) / <alpha-value>)',
+          700: 'rgb(var(--aksen-700) / <alpha-value>)',
+          800: 'rgb(var(--aksen-800) / <alpha-value>)',
+          900: 'rgb(var(--aksen-900) / <alpha-value>)',
+          DEFAULT: 'rgb(var(--aksen-700) / <alpha-value>)',
         },
+        /** Warna aksen merek (nama portal), terpisah dari biru utama. */
+        merek: 'rgb(var(--merek-aksen) / <alpha-value>)',
       },
     },
   },

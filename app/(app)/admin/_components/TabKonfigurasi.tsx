@@ -8,10 +8,13 @@ import { KerangkaKartu, PanelGalat, useToast } from '@/components/shared/Feedbac
 import { BentoGrid, BentoCard } from '@/components/shared/Bento';
 
 interface KategoriJadwal { name: string; requires_attendance: boolean }
-interface KartuDashboard { key: string; label: string; aktif: boolean }
 
 /**
- * Konfigurasi nilai bisnis dan tampilan dashboard (§21, §47).
+ * Konfigurasi nilai bisnis (§21, §47).
+ *
+ * Yang menyangkut RUPA platform — logo, nama, warna, kartu dashboard — pindah
+ * ke Administrasi → Dashboard Setting. Di sini hanya nilai yang mengubah
+ * PERILAKU sistem.
  *
  * Semua yang ada di sini tinggal di sm_settings, bukan di kode — itulah yang
  * membuat kategori bisa ditambah dan radius bawaan bisa diubah tanpa deploy
@@ -31,7 +34,6 @@ export function TabKonfigurasi() {
   const [aktivitas, setAktivitas] = useState<string[]>([]);
   const [radius, setRadius] = useState(50);
   const [akurasi, setAkurasi] = useState(100);
-  const [kartu, setKartu] = useState<KartuDashboard[]>([]);
 
   const [memuat, setMemuat] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
@@ -52,7 +54,6 @@ export function TabKonfigurasi() {
     setAktivitas((peta.activity_categories ?? []) as string[]);
     setRadius(Number(peta.default_gps_radius_m ?? 50));
     setAkurasi(Number(peta.gps_accuracy_threshold_m ?? 100));
-    setKartu((peta.dashboard_widgets ?? []) as KartuDashboard[]);
     setMemuat(false);
   }, []);
 
@@ -135,38 +136,6 @@ export function TabKonfigurasi() {
             Simpan
           </Tombol>
         </div>
-      </BentoCard>
-
-      {/* ── Tampilan dashboard ── */}
-      <BentoCard rentang={6} tinggi="auto" judul="Tampilan Dashboard">
-        <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
-          Kartu yang dimatikan tidak akan tampil di Dashboard bagi siapa pun. Angkanya
-          tetap dihitung — yang disembunyikan hanya kartunya.
-        </p>
-
-        <ul className="flex flex-col gap-1 mb-3">
-          {kartu.map((k, i) => (
-            <li key={k.key}>
-              <label className="flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-kontrol hover:bg-slate-50 cursor-pointer select-none transition-colors">
-                <input
-                  type="checkbox" checked={k.aktif}
-                  onChange={(e) => setKartu((d) =>
-                    d.map((x, j) => (j === i ? { ...x, aktif: e.target.checked } : x)))}
-                  className="w-4 h-4 accent-aksen-700 flex-shrink-0"
-                />
-                <span className={`text-[13px] font-semibold ${k.aktif ? 'text-slate-700' : 'text-slate-400'}`}>
-                  {k.label}
-                </span>
-              </label>
-            </li>
-          ))}
-        </ul>
-
-        <Tombol className="text-[12px] py-2"
-          memuat={menyimpan === 'dashboard_widgets'}
-          onClick={() => simpan('dashboard_widgets', kartu, 'Tampilan dashboard')}>
-          Simpan
-        </Tombol>
       </BentoCard>
 
       {/* ── GPS ── */}

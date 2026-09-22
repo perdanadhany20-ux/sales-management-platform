@@ -18,7 +18,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 const COOKIE_SESI = 'smp_session';
 
 /** Rute yang boleh dibuka tanpa sesi. */
-const TERBUKA = ['/', '/api/auth/login', '/api/auth/session', '/api/auth/logout'];
+const TERBUKA = [
+  '/', '/api/auth/login', '/api/auth/session', '/api/auth/logout',
+  // Identitas visual dibaca halaman masuk, yang menurut definisinya belum
+  // punya sesi. Isinya memang untuk dilihat umum — nama, logo, dan warna.
+  '/api/branding',
+];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

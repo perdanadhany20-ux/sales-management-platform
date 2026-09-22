@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { keluar, usePenggunaAktif, type PenggunaAktif } from '@/lib/auth';
 import { LayarMemuat } from './Feedback';
 import { isPengawas, LABEL_PERAN, type Peran } from '@/lib/constants';
+import { useBranding, type Branding } from '@/lib/branding';
 
 /**
  * components/shared/Shell.tsx — kerangka navigasi seluruh aplikasi.
@@ -23,7 +24,7 @@ import { isPengawas, LABEL_PERAN, type Peran } from '@/lib/constants';
  * baris pun yang boleh ia baca.
  */
 
-interface Menu {
+export interface Menu {
   href: string;
   label: string;
   ikon: React.ReactNode;
@@ -39,7 +40,7 @@ const I = (d: string) => (
   </svg>
 );
 
-const MENU: Menu[] = [
+export const MENU_APLIKASI: Menu[] = [
   { href: '/dashboard',    label: 'Dashboard',    utama: true,  ikon: I('M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z') },
   { href: '/daily-report', label: 'Daily Report', utama: true,  ikon: I('M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4') },
   { href: '/pipeline',     label: 'Pipeline',     utama: true,  ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
@@ -51,6 +52,7 @@ const MENU: Menu[] = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { pengguna, memuat } = usePenggunaAktif();
+  const { branding } = useBranding();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -63,15 +65,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return <LayarMemuat pesan="Mengalihkan…" />;
   }
 
-  const menu = MENU.filter((m) => !m.untuk || m.untuk(pengguna.role));
+  const menu = MENU_APLIKASI.filter((m) => !m.untuk || m.untuk(pengguna.role));
   const menuPonsel = menu.filter((m) => m.utama).slice(0, 5);
 
   return (
     <div className="min-h-[100dvh] flex">
-      <SidebarLebar menu={menu} pathname={pathname} pengguna={pengguna} />
+      <SidebarLebar menu={menu} pathname={pathname} pengguna={pengguna} branding={branding} />
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <HeaderPonsel pengguna={pengguna} />
+        <HeaderPonsel pengguna={pengguna} branding={branding} />
 
         {/* Ruang bawah menghindari bilah navigasi ponsel menutupi isi
             halaman — termasuk tombol simpan di dasar formulir. */}
@@ -85,20 +87,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SidebarLebar({ menu, pathname, pengguna }: {
-  menu: Menu[]; pathname: string; pengguna: PenggunaAktif;
+function SidebarLebar({ menu, pathname, pengguna, branding }: {
+  menu: Menu[]; pathname: string; pengguna: PenggunaAktif; branding: Branding;
 }) {
   return (
     <aside className="hidden lg:flex w-[228px] flex-shrink-0 flex-col bg-white border-r border-slate-200 sticky top-0 h-[100dvh]">
       <div className="px-4 py-5 flex items-center gap-2.5 border-b border-slate-100">
-        <div className="w-9 h-9 rounded-kontrol bg-gradient-to-br from-aksen-700 to-aksen-500 grid place-items-center flex-shrink-0">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 19V10M10 19V5M16 19v-6M22 19H2" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
-          </svg>
-        </div>
+        <LogoMerek branding={branding} ukuran={36} />
         <div className="min-w-0">
-          <p className="text-[13px] font-black text-slate-900 leading-tight">Sales</p>
-          <p className="text-[10px] text-slate-400 leading-tight">Management Platform</p>
+          <p className="text-[13px] font-black text-slate-900 leading-tight truncate">
+            {branding.nama_platform}
+          </p>
+          <p className="text-[10px] text-slate-400 leading-tight truncate">
+            {branding.nama_portal || branding.nama_perusahaan || 'Platform internal'}
+          </p>
         </div>
       </div>
 
@@ -172,15 +174,42 @@ function Inisial({ nama }: { nama: string }) {
   );
 }
 
-function HeaderPonsel({ pengguna }: { pengguna: PenggunaAktif }) {
+/**
+ * Logo merek. Kalau admin sudah mengunggah berkas, itu yang dipakai; kalau
+ * belum, lencana gradien bawaan — bukan kotak kosong yang terlihat seperti
+ * gambar gagal dimuat.
+ */
+function LogoMerek({ branding, ukuran }: { branding: Branding; ukuran: number }) {
+  if (branding.logo_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={branding.logo_url} alt={branding.nama_platform}
+        width={ukuran} height={ukuran}
+        className="rounded-kontrol object-contain flex-shrink-0 bg-white"
+        style={{ width: ukuran, height: ukuran }}
+      />
+    );
+  }
+  return (
+    <div
+      className="rounded-kontrol bg-gradient-to-br from-aksen-700 to-aksen-500 grid place-items-center flex-shrink-0"
+      style={{ width: ukuran, height: ukuran }}
+    >
+      <svg width={ukuran * 0.47} height={ukuran * 0.47} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 19V10M10 19V5M16 19v-6M22 19H2" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
+
+function HeaderPonsel({ pengguna, branding }: { pengguna: PenggunaAktif; branding: Branding }) {
   return (
     <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-4 py-3 flex items-center gap-3">
-      <div className="w-8 h-8 rounded-kontrol bg-gradient-to-br from-aksen-700 to-aksen-500 grid place-items-center flex-shrink-0">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M4 19V10M10 19V5M16 19v-6M22 19H2" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
-        </svg>
-      </div>
-      <p className="flex-1 text-[13px] font-black text-slate-900 truncate">Sales Management</p>
+      <LogoMerek branding={branding} ukuran={32} />
+      <p className="flex-1 text-[13px] font-black text-slate-900 truncate">
+        {branding.nama_pendek || branding.nama_platform}
+      </p>
       {/*
         Menuju Profil, BUKAN langsung keluar. Sebelumnya avatar ini memanggil
         logout seketika — satu sentuhan tak sengaja di pojok layar, yang di
