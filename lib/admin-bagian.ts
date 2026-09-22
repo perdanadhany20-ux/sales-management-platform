@@ -9,7 +9,8 @@
  * dituju siapa pun.
  */
 
-export type KunciBagian = 'pengguna' | 'lokasi' | 'tampilan' | 'konfigurasi' | 'audit';
+export type KunciBagian =
+  | 'pengguna' | 'persetujuan' | 'lokasi' | 'tampilan' | 'konfigurasi' | 'audit';
 
 export type KelompokBagian = 'ORGANISASI' | 'TAMPILAN' | 'SISTEM';
 
@@ -29,6 +30,11 @@ export const BAGIAN_ADMIN: Bagian[] = [
     kunci: 'pengguna', label: 'Pengguna', kelompok: 'ORGANISASI', ikon: '👥', adminSaja: true,
     judul: 'Manajemen Pengguna',
     keterangan: 'Akun, peran, status aktif, dan pengaturan ulang kata sandi.',
+  },
+  {
+    kunci: 'persetujuan', label: 'Persetujuan Akun', kelompok: 'ORGANISASI', ikon: '✅', adminSaja: true,
+    judul: 'Persetujuan Pendaftaran Akun',
+    keterangan: 'Akun yang mendaftar sendiri dan menunggu diverifikasi sebelum bisa dipakai masuk.',
   },
   {
     kunci: 'lokasi', label: 'Lokasi Meeting', kelompok: 'ORGANISASI', ikon: '📍',

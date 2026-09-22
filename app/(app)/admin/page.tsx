@@ -6,6 +6,7 @@ import { bagianUntuk } from '@/lib/admin-bagian';
 import { LayarMemuat, Kosong } from '@/components/shared/Feedback';
 import { useBagianAdmin } from '@/components/shared/Shell';
 import { TabPengguna } from './_components/TabPengguna';
+import { TabPersetujuan } from './_components/TabPersetujuan';
 import { TabLokasi } from './_components/TabLokasi';
 import { TabKonfigurasi } from './_components/TabKonfigurasi';
 import { TabTampilan } from './_components/TabTampilan';
@@ -90,6 +91,7 @@ export default function HalamanAdmin() {
 
       <div>
         {aktif.kunci === 'pengguna' && <TabPengguna pemanggilId={pengguna.id} />}
+        {aktif.kunci === 'persetujuan' && <TabPersetujuan />}
         {aktif.kunci === 'lokasi' && <TabLokasi />}
         {aktif.kunci === 'tampilan' && <TabTampilan />}
         {aktif.kunci === 'konfigurasi' && <TabKonfigurasi />}

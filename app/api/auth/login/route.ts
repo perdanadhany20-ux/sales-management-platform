@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
   const { data: user } = await db
     .from('users')
-    .select('id, username, full_name, role, active')
+    .select('id, username, full_name, role, active, approval_status')
     .eq('username', username)
     .maybeSingle();
 
@@ -55,9 +55,28 @@ export async function POST(request: NextRequest) {
 
   await db.from('login_attempts').insert({ username, ip, success: Boolean(cocok && user?.active) });
 
-  // Satu pesan yang sama untuk semua kegagalan: user tidak ada, sandi salah,
-  // atau akun dinonaktifkan. Membedakannya berarti memberi tahu penyerang
-  // username mana yang benar.
+  // Akun yang menunggu persetujuan DIBEDAKAN pesannya — tapi hanya sesudah
+  // sandinya terbukti benar. Orang yang baru mendaftar dan tidak bisa masuk
+  // tanpa penjelasan akan mengira pendaftarannya gagal lalu mendaftar lagi
+  // berulang kali; sedangkan penyerang yang belum tahu sandinya tetap tidak
+  // memperoleh petunjuk apa pun dari cabang ini.
+  if (user && cocok && user.approval_status === 'MENUNGGU') {
+    return NextResponse.json(
+      { error: 'Akun Anda masih menunggu verifikasi admin. Anda akan bisa masuk setelah disetujui.' },
+      { status: 403 },
+    );
+  }
+
+  if (user && cocok && user.approval_status === 'DITOLAK') {
+    return NextResponse.json(
+      { error: 'Pendaftaran akun ini ditolak admin. Hubungi admin untuk keterangan lebih lanjut.' },
+      { status: 403 },
+    );
+  }
+
+  // Satu pesan yang sama untuk semua kegagalan lain: user tidak ada, sandi
+  // salah, atau akun dinonaktifkan. Membedakannya berarti memberi tahu
+  // penyerang username mana yang benar.
   if (!user || !user.active || !cocok) {
     return NextResponse.json({ error: 'Username atau kata sandi salah.' }, { status: 401 });
   }

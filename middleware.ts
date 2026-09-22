@@ -23,6 +23,11 @@ const TERBUKA = [
   // Identitas visual dibaca halaman masuk, yang menurut definisinya belum
   // punya sesi. Isinya memang untuk dilihat umum — nama, logo, dan warna.
   '/api/branding',
+  // Pendaftaran mandiri, beserta daftar pilihan divisi/jabatan yang
+  // formulirnya butuhkan. Keduanya menurut definisinya dibuka orang yang
+  // belum punya akun.
+  '/api/auth/register',
+  '/api/opsi-pendaftaran',
 ];
 
 export function middleware(request: NextRequest) {

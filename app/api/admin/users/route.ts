@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
  * Peran yang dikirim klien tidak pernah dipercaya.
  */
 
-const PERAN_SAH = ['SALES', 'MANAGER', 'ADMIN'];
+const PERAN_SAH = ['SALES', 'MANAGER', 'ADMIN', 'DIRECTOR', 'FINANCE'];
 
 /** Aturan sandi minimum — ditegakkan di sini, bukan hanya di formulir. */
 function sandiLemah(sandi: string): string | null {
@@ -45,7 +45,9 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await getAdminClient()
     .from('users')
-    .select('id, username, full_name, email, phone, role, active, created_at')
+    .select(`id, username, full_name, email, phone, role, active, created_at,
+             division, sales_division, position, event_code, joined_at,
+             approval_status, approved_by, approved_at, rejection_reason`)
     .order('full_name');
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -134,6 +136,47 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.full_name === 'string') perubahan.full_name = body.full_name.trim();
   if (typeof body.email === 'string') perubahan.email = body.email.trim() || null;
   if (typeof body.phone === 'string') perubahan.phone = body.phone.trim() || null;
+  if (typeof body.division === 'string') perubahan.division = body.division.trim() || null;
+  if (typeof body.sales_division === 'string') perubahan.sales_division = body.sales_division.trim() || null;
+  if (typeof body.position === 'string') perubahan.position = body.position.trim() || null;
+
+  /**
+   * Persetujuan pendaftaran.
+   *
+   * `approval_status` dan `active` digerakkan BERSAMAAN di sini, dan itu
+   * disengaja: akun yang disetujui tapi lupa diaktifkan akan menolak
+   * pemiliknya masuk tanpa satu pun pesan yang menjelaskan kenapa, dan admin
+   * yang sudah menekan "Setujui" tidak akan mengira masih ada langkah kedua.
+   *
+   * Yang TIDAK digabungkan: menonaktifkan akun (body.active) tidak menyentuh
+   * approval_status. Menonaktifkan seseorang yang sedang cuti panjang tidak
+   * boleh menghapus fakta bahwa akunnya dulu sudah diperiksa dan disetujui.
+   */
+  if (typeof body.approval_status === 'string') {
+    const keputusan = body.approval_status.toUpperCase();
+    if (!['MENUNGGU', 'DISETUJUI', 'DITOLAK'].includes(keputusan)) {
+      return NextResponse.json({ error: 'Status persetujuan tidak dikenal.' }, { status: 400 });
+    }
+
+    if (keputusan === 'DITOLAK') {
+      const alasan = String(body.rejection_reason ?? '').trim();
+      if (alasan.length < 10) {
+        return NextResponse.json(
+          { error: 'Alasan penolakan wajib diisi minimal 10 karakter.' },
+          { status: 400 },
+        );
+      }
+      perubahan.rejection_reason = alasan;
+      perubahan.active = false;
+    } else if (keputusan === 'DISETUJUI') {
+      perubahan.rejection_reason = null;
+      perubahan.active = true;
+    }
+
+    perubahan.approval_status = keputusan;
+    perubahan.approved_by = pemanggil!.id;
+    perubahan.approved_at = new Date().toISOString();
+  }
 
   if (typeof body.role === 'string') {
     const role = body.role.toUpperCase();
@@ -197,7 +240,11 @@ export async function PATCH(request: NextRequest) {
   if (Object.keys(perubahan).length > 0) {
     await db.from('audit_trail').insert({
       actor_id: pemanggil!.id, actor_name: pemanggil!.full_name,
-      action: 'USER_UPDATED', entity: 'users', entity_id: id, detail: perubahan,
+      action: typeof body.approval_status === 'string'
+        ? (String(body.approval_status).toUpperCase() === 'DISETUJUI'
+            ? 'AKUN_DISETUJUI' : 'AKUN_DITOLAK')
+        : 'USER_UPDATED',
+      entity: 'users', entity_id: id, detail: perubahan,
     });
   }
 

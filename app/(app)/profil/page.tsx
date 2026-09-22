@@ -12,6 +12,7 @@ import {
   statusPengingat, nyalakanPengingat, matikanPengingat, type StatusPengingat,
 } from '@/lib/notifikasi';
 import { Kolom, KataSandi, Teks, Tombol } from '@/components/shared/FormParts';
+import { PilihCari } from '@/components/shared/PilihCari';
 import { PanelGalat, LayarMemuat, useToast } from '@/components/shared/Feedback';
 
 /**
@@ -39,6 +40,12 @@ interface Profil {
   role: string;
   active: boolean;
   created_at: string;
+  division: string | null;
+  sales_division: string | null;
+  position: string | null;
+  event_code: string | null;
+  joined_at: string | null;
+  approval_status: string;
 }
 
 interface Rekan { id: string; full_name: string; role: string; active: boolean }
@@ -74,6 +81,12 @@ export default function HalamanProfil() {
   const [ubahKontak, setUbahKontak] = useState(false);
   const [email, setEmail] = useState('');
   const [telepon, setTelepon] = useState('');
+  const [divisi, setDivisi] = useState('');
+  const [salesDivisi, setSalesDivisi] = useState('');
+  const [jabatan, setJabatan] = useState('');
+  const [opsi, setOpsi] = useState<{ divisions: string[]; sales_divisions: string[]; positions: string[] }>(
+    { divisions: [], sales_divisions: [], positions: [] },
+  );
   const [simpanKontak, setSimpanKontak] = useState(false);
 
   const [bukaSandi, setBukaSandi] = useState(false);
@@ -101,9 +114,27 @@ export default function HalamanProfil() {
     setSesiIni(data.sesi_ini ?? null);
     setEmail(data.profil?.email ?? '');
     setTelepon(data.profil?.phone ?? '');
+    setDivisi(data.profil?.division ?? '');
+    setSalesDivisi(data.profil?.sales_division ?? '');
+    setJabatan(data.profil?.position ?? '');
   }, []);
 
   useEffect(() => { void muatProfil(); }, [muatProfil]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/opsi-pendaftaran');
+        if (!res.ok) return;
+        const data = await res.json();
+        setOpsi({
+          divisions: data.opsi?.divisions ?? [],
+          sales_divisions: data.opsi?.sales_divisions ?? [],
+          positions: data.opsi?.positions ?? [],
+        });
+      } catch { /* pilihan kosong — kolomnya tetap bisa dikosongkan */ }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!pengguna) return;
@@ -158,7 +189,10 @@ export default function HalamanProfil() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, phone: telepon }),
+        body: JSON.stringify({
+          email, phone: telepon,
+          division: divisi, sales_division: salesDivisi, position: jabatan,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { toast('galat', data?.error ?? 'Gagal menyimpan kontak.'); return; }
@@ -265,11 +299,38 @@ export default function HalamanProfil() {
                       onChange={(e) => setTelepon(e.target.value)} placeholder="08xxxxxxxxxx" />
                   )}
                 </Kolom>
+                <div className="grid grid-cols-1 formulir:grid-cols-3 gap-3">
+                  <Kolom label="Divisi">
+                    {(id) => (
+                      <PilihCari id={id} nilai={divisi} onUbah={setDivisi}
+                        disabled={simpanKontak} bolehKosong labelKosong="— belum diisi —"
+                        opsi={opsi.divisions.map((d) => ({ value: d, label: d }))} />
+                    )}
+                  </Kolom>
+                  <Kolom label="Sales Division">
+                    {(id) => (
+                      <PilihCari id={id} nilai={salesDivisi} onUbah={setSalesDivisi}
+                        disabled={simpanKontak || divisi.toLowerCase() !== 'sales'}
+                        bolehKosong labelKosong="— belum diisi —"
+                        opsi={opsi.sales_divisions.map((d) => ({ value: d, label: d }))} />
+                    )}
+                  </Kolom>
+                  <Kolom label="Jabatan / Posisi">
+                    {(id) => (
+                      <PilihCari id={id} nilai={jabatan} onUbah={setJabatan}
+                        disabled={simpanKontak} bolehKosong labelKosong="— belum diisi —"
+                        opsi={opsi.positions.map((d) => ({ value: d, label: d }))} />
+                    )}
+                  </Kolom>
+                </div>
                 <div className="flex justify-end gap-2">
                   <Tombol rupa="kedua" className="text-[12px] py-2" onClick={() => {
                     setUbahKontak(false);
                     setEmail(profil?.email ?? '');
                     setTelepon(profil?.phone ?? '');
+                    setDivisi(profil?.division ?? '');
+                    setSalesDivisi(profil?.sales_division ?? '');
+                    setJabatan(profil?.position ?? '');
                   }}>Batal</Tombol>
                   <Tombol type="submit" className="text-[12px] py-2" memuat={simpanKontak}>Simpan</Tombol>
                 </div>
@@ -280,9 +341,18 @@ export default function HalamanProfil() {
                 <Baris ikon="🧾" label="Nama Lengkap" nilai={pengguna.full_name} />
                 <Baris ikon="✉️" label="Email" nilai={profil?.email} />
                 <Baris ikon="📱" label="No. Telepon / WA" nilai={profil?.phone} />
+                <Baris ikon="🏢" label="Divisi" nilai={profil?.division} />
+                <Baris ikon="🎯" label="Sales Division" nilai={profil?.sales_division} />
+                <Baris ikon="💼" label="Jabatan / Posisi" nilai={profil?.position} />
                 <Baris ikon="⭐" label="Peran" nilai={LABEL_PERAN[peran] ?? pengguna.role} />
+                <Baris ikon="🎫" label="Kode Acara" nilai={profil?.event_code} />
                 <Baris ikon="📅" label="Bergabung Sejak"
-                  nilai={profil ? tanggalPendek(profil.created_at) : null} />
+                  nilai={profil ? tanggalPendek(profil.joined_at ?? profil.created_at) : null} />
+                <Baris ikon="✅" label="Status Akun"
+                  nilai={profil ? (profil.approval_status === 'DISETUJUI'
+                    ? (profil.active ? 'Aktif & terverifikasi' : 'Terverifikasi, sedang nonaktif')
+                    : profil.approval_status === 'MENUNGGU'
+                      ? 'Menunggu verifikasi admin' : 'Pendaftaran ditolak') : null} />
                 <Baris ikon="🔑" label="Sandi Diperbarui"
                   nilai={sandiDiperbarui ? tanggalPendek(sandiDiperbarui) : 'Belum pernah diganti'} />
               </dl>

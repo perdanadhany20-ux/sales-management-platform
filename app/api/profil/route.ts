@@ -18,7 +18,9 @@ export const dynamic = 'force-dynamic';
  * menitipkan kolom lain lewat badan permintaan.
  */
 
-const KOLOM_PROFIL = 'id, username, full_name, email, phone, role, active, created_at';
+const KOLOM_PROFIL = `id, username, full_name, email, phone, role, active, created_at,
+                      division, sales_division, position, event_code, joined_at,
+                      approval_status`;
 
 export async function GET(request: NextRequest) {
   const pengguna = await getSessionUser(request);
@@ -70,6 +72,10 @@ export async function PATCH(request: NextRequest) {
   const badan = await request.json().catch(() => ({}));
   const email = typeof badan.email === 'string' ? badan.email.trim() : null;
   const phone = typeof badan.phone === 'string' ? badan.phone.trim() : null;
+  const division = typeof badan.division === 'string' ? badan.division.trim().slice(0, 60) : null;
+  const salesDivision = typeof badan.sales_division === 'string'
+    ? badan.sales_division.trim().slice(0, 60) : null;
+  const position = typeof badan.position === 'string' ? badan.position.trim().slice(0, 60) : null;
 
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: 'Format email tidak sah.' }, { status: 400 });
@@ -85,8 +91,15 @@ export async function PATCH(request: NextRequest) {
 
   const { data, error } = await db.from('users')
     .update({
+      // Daftar kolom ditulis eksplisit. Menyebarkan isi badan permintaan
+      // dengan spread akan membuat `role`, `active`, dan `approval_status`
+      // bisa dititipkan dari klien — yaitu menaikkan diri sendiri jadi ADMIN
+      // lewat satu permintaan.
       email: email || null,
       phone: phone || null,
+      division: division || null,
+      sales_division: salesDivision || null,
+      position: position || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', pengguna.id)
@@ -100,7 +113,11 @@ export async function PATCH(request: NextRequest) {
     action: 'PROFIL_KONTAK_DIUBAH',
     entity: 'users',
     entity_id: pengguna.id,
-    detail: { email: email || null, phone: phone || null },
+    detail: {
+      email: email || null, phone: phone || null,
+      division: division || null, sales_division: salesDivision || null,
+      position: position || null,
+    },
   });
 
   return NextResponse.json({ profil: data });

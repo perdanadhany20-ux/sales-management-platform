@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { masuk } from '@/lib/auth';
 import { KataSandi } from '@/components/shared/FormParts';
 import { useBranding, type Branding } from '@/lib/branding';
+import { FormDaftar } from './_components/FormDaftar';
 
 /**
  * Halaman masuk — tata letak dua sisi mengikuti pola Work Management (§60):
@@ -28,6 +29,8 @@ export default function HalamanMasuk() {
   const [galat, setGalat] = useState('');
   const [memproses, setMemproses] = useState(false);
   const [berhasil, setBerhasil] = useState(false);
+  const [mode, setMode] = useState<'masuk' | 'daftar'>('masuk');
+  const [pesanDaftar, setPesanDaftar] = useState('');
 
   useEffect(() => {
     let batal = false;
@@ -134,8 +137,9 @@ export default function HalamanMasuk() {
       {/* ── KANAN: kartu formulir ── */}
       <section className="relative flex-1 flex items-center justify-center p-4 sm:p-8
                           bg-gradient-to-br from-slate-100 via-white to-aksen-50">
-        <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-panel shadow-kartu
-                        border border-white p-6 sm:p-8">
+        <div className={`w-full bg-white/95 backdrop-blur-xl rounded-panel shadow-kartu
+                         border border-white p-6 sm:p-8 transition-[max-width] duration-300
+                         ${mode === 'daftar' ? 'max-w-2xl' : 'max-w-md'}`}>
 
           {/* Identitas untuk ponsel — di desktop sudah ada di panel kiri. */}
           <div className="flex lg:hidden items-center gap-2.5 mb-6">
@@ -145,6 +149,24 @@ export default function HalamanMasuk() {
             </span>
           </div>
 
+          {pesanDaftar && (
+            <div role="status"
+              className="mb-5 px-4 py-3 rounded-kontrol text-[13px] leading-relaxed
+                         text-[#1a6b1a] bg-[#e0f2e0] border border-[#008300]/30">
+              <b className="font-bold block mb-0.5">Pendaftaran terkirim</b>
+              {pesanDaftar}
+            </div>
+          )}
+
+          {mode === 'daftar' ? (
+            <FormDaftar
+              warnaUtama={branding.warna_utama}
+              warnaUtama2={branding.warna_utama_2}
+              onKembali={() => setMode('masuk')}
+              onSelesai={(pesan) => { setPesanDaftar(pesan); setMode('masuk'); }}
+            />
+          ) : (
+          <>
           <header className="mb-7">
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               Selamat Datang
@@ -221,12 +243,23 @@ export default function HalamanMasuk() {
             </button>
           </form>
 
-          <p className="text-center text-[11px] text-slate-400 mt-6">
+          <p className="text-center text-[12px] text-slate-500 mt-6">
+            Belum punya akun?{' '}
+            <button type="button" onClick={() => { setMode('daftar'); setPesanDaftar(''); }}
+              className="font-bold underline underline-offset-2"
+              style={{ color: branding.warna_utama }}>
+              Daftar di sini
+            </button>
+          </p>
+
+          <p className="text-center text-[11px] text-slate-400 mt-2">
             Lupa kata sandi? Hubungi admin untuk mengatur ulang.
             {branding.kontak_bantuan && (
               <><br /><span className="font-semibold text-slate-500">{branding.kontak_bantuan}</span></>
             )}
           </p>
+          </>
+          )}
         </div>
       </section>
     </main>
