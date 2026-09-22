@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased;
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  /* Angka pada kartu KPI dan tabel dibuat selebar sama satu sama lain.
+     Tanpa ini, angka yang berubah saat data disegarkan menggeser lebar
+     teksnya sendiri dan kartunya terlihat bergoyang. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Cincin fokus hanya untuk navigasi papan tombol, bukan untuk klik tetikus.
+     Ini yang dilakukan :focus-visible — sedangkan :focus polos membuat setiap
+     tombol yang diklik meninggalkan cincin yang mengganggu. */
+  :focus-visible {
+    outline: 2px solid theme('colors.aksen.600');
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  @keyframes masuk {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes naik {
+    from { opacity: 0; transform: translateY(16px) scale(.98); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);   }
+  }
+
+  /* Pengguna yang menyetel "kurangi animasi" di sistemnya biasanya melakukannya
+     karena gerakan memicu pusing atau mual. Seluruh transisi dimatikan, bukan
+     diperlambat. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+  }
+}
