@@ -387,7 +387,7 @@ export default function HalamanMeeting() {
                 ),
               },
               {
-                label: 'Customer',
+                label: 'Customer', className: 'w-[36%]',
                 render: (m) => (
                   <div className="min-w-0">
                     <p className="font-bold text-slate-900 truncate">{m.customer_name}</p>

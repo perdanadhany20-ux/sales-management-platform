@@ -33,7 +33,16 @@ export function Tabel<T>({
 }) {
   return (
     <div className="bg-white rounded-kartu border border-slate-200 overflow-x-auto">
-      <table className="w-full border-collapse min-w-[760px]">
+      {/*
+        table-fixed: tanpa ini, browser memberi SISA lebar penuh ke kolom
+        yang tidak diberi lebar eksplisit (biasanya kolom nama/deskripsi),
+        sehingga selnya jauh lebih lebar daripada isinya dan sisanya tampak
+        seperti area kosong di tengah tabel. Dengan table-fixed, lebar tiap
+        kolom murni mengikuti className yang diberikan di pemanggil —
+        karena itu kolom utama SETIAP tabel di sini selalu diberi w-[n%],
+        bukan dibiarkan tanpa lebar.
+      */}
+      <table className="w-full table-fixed border-collapse min-w-[760px]">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-200">
             <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wide w-10">

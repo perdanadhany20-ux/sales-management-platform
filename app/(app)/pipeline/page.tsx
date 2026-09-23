@@ -370,7 +370,7 @@ export default function HalamanPipeline() {
             kunci={(p) => p.id}
             kolom={[
               {
-                label: 'Customer',
+                label: 'Customer', className: 'w-[36%]',
                 render: (p) => {
                   const stage = GAYA_STAGE[p.stage] ?? GAYA_STAGE.OPEN;
                   return (

@@ -386,7 +386,7 @@ export default function HalamanGp() {
             kunci={(g) => g.id}
             kolom={[
               {
-                label: 'Dokumen',
+                label: 'Dokumen', className: 'w-[42%]',
                 render: (g) => {
                   const gaya = STATUS_GP[g.status as StatusGp] ?? STATUS_GP.DRAFT;
                   const mutu = MUTU_MARGIN[g.mutu_margin] ?? MUTU_MARGIN['TANPA NILAI'];

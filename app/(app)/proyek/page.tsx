@@ -310,7 +310,7 @@ export default function HalamanProyek() {
             kunci={(p) => p.id}
             kolom={[
               {
-                label: 'Proyek',
+                label: 'Proyek', className: 'w-[30%]',
                 render: (p) => {
                   const gaya = STATUS_PROYEK[p.status as StatusProyek] ?? STATUS_PROYEK.AKTIF;
                   const langkah = tahapProyek(p);
@@ -326,7 +326,7 @@ export default function HalamanProyek() {
                       <p className="text-[11px] text-slate-500 truncate">
                         {p.customer_name} <span className="text-slate-400">· {p.kode}</span>
                       </p>
-                      <div className="mt-1 max-w-[220px]">
+                      <div className="mt-1">
                         <Meter nilai={langkah.tahap} maksimum={langkah.total} label={langkah.label} />
                       </div>
                     </div>
@@ -334,7 +334,7 @@ export default function HalamanProyek() {
                 },
               },
               {
-                label: 'Catatan', className: 'w-56',
+                label: 'Catatan', className: 'w-[26%]',
                 render: (p) => (
                   <span className="text-[11px] text-slate-500">
                     {angka(p.jumlah_pipeline)} peluang · {angka(p.jumlah_jadwal)} jadwal ·{' '}

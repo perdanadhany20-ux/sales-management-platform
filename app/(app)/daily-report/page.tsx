@@ -393,7 +393,7 @@ export default function HalamanDailyReport() {
                 render: (l) => tanggalPendek(l.report_date),
               },
               {
-                label: 'Customer',
+                label: 'Customer', className: 'w-[30%]',
                 render: (l) => (
                   <div className="min-w-0">
                     <p className="font-bold text-slate-900 truncate">{l.customer_name}</p>
@@ -404,7 +404,7 @@ export default function HalamanDailyReport() {
                 ),
               },
               {
-                label: 'Aktivitas', className: 'max-w-[280px]',
+                label: 'Aktivitas', className: 'w-[36%]',
                 render: (l) => <p className="line-clamp-2">{l.activity}</p>,
               },
               ...(pengawas ? [{
