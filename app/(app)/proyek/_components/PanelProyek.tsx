@@ -46,6 +46,16 @@ interface BarisGp {
   total_selling: number; net_profit: number; net_margin: number; mutu_margin: string;
 }
 
+interface Lokasi {
+  id: string; name: string; address: string | null; approval_status: string; rejection_reason: string | null;
+}
+
+const GAYA_LOKASI: Record<string, { label: string; color: string; bg: string }> = {
+  MENUNGGU:  { label: 'Menunggu persetujuan admin', color: '#eda100', bg: '#fef3d9' },
+  DISETUJUI: { label: 'Disetujui — siap dipakai check-in', color: '#008300', bg: '#e0f2e0' },
+  DITOLAK:   { label: 'Ditolak', color: '#e34948', bg: '#fce3e3' },
+};
+
 export function PanelProyek({ buka, onTutup, proyek, namaOrang, onSunting }: {
   buka: boolean;
   onTutup: () => void;
@@ -57,15 +67,16 @@ export function PanelProyek({ buka, onTutup, proyek, namaOrang, onSunting }: {
   const [jadwal, setJadwal] = useState<BarisJadwal[]>([]);
   const [laporan, setLaporan] = useState<BarisLaporan[]>([]);
   const [gp, setGp] = useState<BarisGp[]>([]);
+  const [lokasi, setLokasi] = useState<Lokasi | null>(null);
   const [memuat, setMemuat] = useState(true);
 
   const muat = useCallback(async () => {
     setMemuat(true);
 
-    // Empat query paralel, bukan berurutan. Panel ini dibuka untuk melihat
+    // Lima query paralel, bukan berurutan. Panel ini dibuka untuk melihat
     // seluruh gambaran sekaligus; memuatnya satu per satu berarti isinya
     // menetes selama beberapa detik.
-    const [pl, sc, dr, g] = await Promise.all([
+    const [pl, sc, dr, g, lk] = await Promise.all([
       supabase.from('sm_pipeline')
         .select('id, customer_name, project_detail, project_value, gp_percentage, probability, estimated_closing, stage')
         .eq('project_id', proyek.id).order('estimated_closing', { ascending: true }).limit(20),
@@ -78,12 +89,16 @@ export function PanelProyek({ buka, onTutup, proyek, namaOrang, onSunting }: {
       supabase.from('sm_gp_ringkasan')
         .select('id, nomor, project_name, status, total_selling, net_profit, net_margin, mutu_margin')
         .eq('project_id', proyek.id).order('calc_date', { ascending: false }).limit(20),
+      supabase.from('sm_locations')
+        .select('id, name, address, approval_status, rejection_reason')
+        .eq('project_id', proyek.id).maybeSingle(),
     ]);
 
     setPipeline((pl.data ?? []) as BarisPipeline[]);
     setJadwal((sc.data ?? []) as BarisJadwal[]);
     setLaporan((dr.data ?? []) as BarisLaporan[]);
     setGp((g.data ?? []) as BarisGp[]);
+    setLokasi((lk.data ?? null) as Lokasi | null);
     setMemuat(false);
   }, [proyek.id]);
 
@@ -148,6 +163,20 @@ export function PanelProyek({ buka, onTutup, proyek, namaOrang, onSunting }: {
             GP disusun, GP disetujui — bukan dari persentase yang diketik sendiri.
           </p>
         </section>
+
+        {lokasi && (
+          <section className="rounded-kartu border border-slate-200 p-3">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Lokasi</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[13px] font-bold text-slate-800">{lokasi.name}</p>
+              <Lencana {...(GAYA_LOKASI[lokasi.approval_status] ?? GAYA_LOKASI.MENUNGGU)} />
+            </div>
+            {lokasi.address && <p className="text-[11px] text-slate-500 mt-0.5">{lokasi.address}</p>}
+            {lokasi.approval_status === 'DITOLAK' && lokasi.rejection_reason && (
+              <p className="text-[11px] text-[#8f2c2b] mt-1">{lokasi.rejection_reason}</p>
+            )}
+          </section>
+        )}
 
         {proyek.description && (
           <p className="text-[12px] text-slate-600 leading-relaxed whitespace-pre-wrap
