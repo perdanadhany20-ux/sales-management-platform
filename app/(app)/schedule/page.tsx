@@ -66,6 +66,8 @@ export default function HalamanSchedule() {
   const [akanSelesai, setAkanSelesai] = useState<Jadwal | null>(null);
   const [memproses, setMemproses] = useState(false);
   const [dilihat, setDilihat] = useState<Jadwal | null>(null);
+  const [akanHapus, setAkanHapus] = useState<Jadwal | null>(null);
+  const [menghapus, setMenghapus] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => { setCariTertunda(cari); setHalaman(0); }, 350);
@@ -174,6 +176,17 @@ export default function HalamanSchedule() {
 
     toast('sukses', 'Jadwal ditandai selesai.');
     setAkanSelesai(null);
+    void muat();
+  }
+
+  async function hapus() {
+    if (!akanHapus) return;
+    setMenghapus(true);
+    const { error } = await supabase.from('sm_schedules').delete().eq('id', akanHapus.id);
+    setMenghapus(false);
+    if (error) { toast('galat', `Gagal menghapus: ${error.message}`); return; }
+    toast('sukses', 'Jadwal dihapus.');
+    setAkanHapus(null);
     void muat();
   }
 
@@ -437,6 +450,9 @@ export default function HalamanSchedule() {
                     <TombolIkon rupa="sunting" label={j.assigned_to ? 'Sunting' : 'Tugaskan/Sunting'}
                       onClick={() => { setSedangSunting(j); setFormBuka(true); }} />
                   )}
+                  {pengawas && (
+                    <TombolIkon rupa="hapus" label="Hapus" onClick={() => setAkanHapus(j)} />
+                  )}
                 </>
               );
             }}
@@ -465,6 +481,17 @@ export default function HalamanSchedule() {
         judul="Tandai jadwal selesai?"
         pesan={`Jadwal ${akanSelesai?.customer_name ?? ''} pada ${tanggalPendek(akanSelesai?.schedule_date)} akan ditandai selesai. Syaratnya diperiksa ulang oleh database.`}
         labelSetuju="Tandai Selesai"
+      />
+
+      <Konfirmasi
+        buka={Boolean(akanHapus)}
+        onTutup={() => setAkanHapus(null)}
+        onSetuju={hapus}
+        memproses={menghapus}
+        bahaya
+        judul="Hapus jadwal ini?"
+        pesan={`Jadwal ${akanHapus?.customer_name ?? ''} pada ${tanggalPendek(akanHapus?.schedule_date)} akan dihapus permanen.`}
+        labelSetuju="Hapus"
       />
 
       {dilihat && (

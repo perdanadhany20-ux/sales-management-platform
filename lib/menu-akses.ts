@@ -43,6 +43,38 @@ export async function ambilMenuEfektif(userId: string, role: string): Promise<st
   return (bawaan ?? []).map((r: { menu_key: string }) => r.menu_key);
 }
 
+const HREF_MENU: Record<MenuKey, string> = {
+  dashboard: '/dashboard',
+  'daily-report': '/daily-report',
+  proyek: '/proyek',
+  pipeline: '/pipeline',
+  schedule: '/schedule',
+  meeting: '/meeting',
+  gp: '/gp',
+  activity: '/activity',
+  admin: '/admin',
+};
+
+/**
+ * Halaman pertama yang dibuka akun ini setelah masuk.
+ *
+ * Sebelum §023, halaman masuk selalu mengarahkan ke /dashboard tanpa
+ * syarat — aman selama semua orang memang boleh melihat Dashboard. Begitu
+ * hak akses menu bisa dikustomisasi, akun yang justru tidak diberi
+ * Dashboard akan mendarat langsung di layar "tidak tersedia" sesudah masuk,
+ * kesan pertama yang buruk padahal akunnya valid. Fungsi ini mencari menu
+ * PERTAMA (mengikuti urutan MENU_KEYS) yang benar tersedia untuk akun itu,
+ * dan /profil sebagai jaring pengaman terakhir karena selalu terbuka untuk
+ * siapa pun yang sudah masuk.
+ */
+export async function halamanAwal(userId: string, role: string): Promise<string> {
+  const menu = await ambilMenuEfektif(userId, role);
+  for (const kunci of MENU_KEYS) {
+    if (menu.includes(kunci)) return HREF_MENU[kunci];
+  }
+  return '/profil';
+}
+
 /** null berarti masih memuat — pemanggil menahan render sampai ini terisi,
  *  supaya tidak sekilas menampilkan menu yang seharusnya terkunci. */
 export function useMenuSaya(userId: string | undefined, role: string | undefined) {

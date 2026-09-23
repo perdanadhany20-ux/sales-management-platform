@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { masuk } from '@/lib/auth';
+import { halamanAwal } from '@/lib/menu-akses';
 import { KataSandi } from '@/components/shared/FormParts';
 import { useBranding, type Branding } from '@/lib/branding';
 import { FormDaftar } from './_components/FormDaftar';
@@ -36,7 +37,10 @@ export default function HalamanMasuk() {
     let batal = false;
     (async () => {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
-      if (!batal && res.ok) router.replace('/dashboard');
+      if (batal || !res.ok) return;
+      const data = await res.json();
+      const tujuan = data.user ? await halamanAwal(data.user.id, data.user.role) : '/dashboard';
+      if (!batal) router.replace(tujuan);
     })().catch(() => { /* belum ada sesi — tetap di halaman ini */ });
     return () => { batal = true; };
   }, [router]);
@@ -46,12 +50,13 @@ export default function HalamanMasuk() {
     setGalat('');
     setMemproses(true);
     try {
-      await masuk(username.trim(), sandi);
+      const pengguna = await masuk(username.trim(), sandi);
+      const tujuan = await halamanAwal(pengguna.id, pengguna.role);
       // Kepastian bahwa sandinya benar tampil lebih dulu, sebelum pengalihan.
       // Tanpa jeda singkat ini, layar berganti begitu cepat sehingga yang
       // terasa justru ragu — apakah tadi berhasil atau halamannya error.
       setBerhasil(true);
-      setTimeout(() => router.replace('/dashboard'), 450);
+      setTimeout(() => router.replace(tujuan), 450);
     } catch (err) {
       setGalat(err instanceof Error ? err.message : 'Gagal masuk.');
       setMemproses(false);
