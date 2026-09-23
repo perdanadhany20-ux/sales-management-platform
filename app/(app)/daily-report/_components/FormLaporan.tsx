@@ -98,7 +98,6 @@ export function FormLaporan({
       const customerId = await pastikanCustomer(draf.customer_name, draf.customer_id);
 
       const isi = {
-        sales_user_id: userId,
         report_date: draf.report_date,
         customer_id: customerId,
         customer_name: draf.customer_name.trim(),
@@ -112,20 +111,16 @@ export function FormLaporan({
         next_action: draf.next_action.trim(),
       };
 
+      // sales_user_id HANYA diisi saat membuat baris baru. Kalau ikut disetel
+      // saat update, Admin yang menyunting laporan orang lain (§022) diam-diam
+      // memindahkan kepemilikannya ke dirinya sendiri — kepemilikan laporan
+      // seharusnya tidak pernah berubah hanya karena disunting orang lain.
       const { error } = awal
         ? await supabase.from('sm_daily_reports').update(isi).eq('id', awal.id)
-        : await supabase.from('sm_daily_reports').insert(isi);
+        : await supabase.from('sm_daily_reports').insert({ ...isi, sales_user_id: userId });
 
       if (error) {
-        // 23505 = pelanggaran indeks unik. Satu-satunya yang ada di tabel ini
-        // adalah "satu laporan per Sales per hari" (§14), jadi pesannya bisa
-        // langsung menjelaskan apa yang terjadi alih-alih menampilkan galat
-        // Postgres mentah yang tidak berarti apa-apa bagi Sales.
-        if (error.code === '23505') {
-          setGalat('Anda sudah membuat laporan untuk tanggal ini. Sunting laporan yang sudah ada, atau pilih tanggal lain.');
-        } else {
-          setGalat(error.message);
-        }
+        setGalat(error.message);
         return;
       }
 
