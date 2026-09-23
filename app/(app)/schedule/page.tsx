@@ -13,7 +13,8 @@ import { DonutLegenda, Meter } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
-import { Konfirmasi } from '@/components/shared/Modal';
+import { Modal, Konfirmasi } from '@/components/shared/Modal';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { FormJadwal, type Jadwal } from './_components/FormJadwal';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
@@ -64,6 +65,7 @@ export default function HalamanSchedule() {
   const [sedangSunting, setSedangSunting] = useState<Jadwal | null>(null);
   const [akanSelesai, setAkanSelesai] = useState<Jadwal | null>(null);
   const [memproses, setMemproses] = useState(false);
+  const [dilihat, setDilihat] = useState<Jadwal | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => { setCariTertunda(cari); setHalaman(0); }, 350);
@@ -386,20 +388,59 @@ export default function HalamanSchedule() {
         </div>
       ) : (
         <>
-          <ul className="flex flex-col gap-2">
-            {daftar.map((j) => (
-              <li key={j.id} id={`baris-${j.id}`}>
-                <KartuJadwal
-                  jadwal={j}
-                  namaSales={j.assigned_to ? (namaSales[j.assigned_to] ?? 'Pengguna lain') : null}
-                  pengawas={pengawas}
-                  saya={pengguna?.id}
-                  onSunting={() => { setSedangSunting(j); setFormBuka(true); }}
-                  onSelesai={() => setAkanSelesai(j)}
-                />
-              </li>
-            ))}
-          </ul>
+          <Tabel
+            data={daftar}
+            kunci={(j) => j.id}
+            kolom={[
+              {
+                label: 'Tanggal', className: 'w-28 whitespace-nowrap',
+                render: (j) => (
+                  <>
+                    {tanggalPendek(j.schedule_date)}
+                    {j.schedule_time && <span className="text-slate-400"> · {j.schedule_time.slice(0, 5)}</span>}
+                  </>
+                ),
+              },
+              {
+                label: 'Customer',
+                render: (j) => (
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-slate-900 truncate">{j.customer_name}</span>
+                      {j.requires_attendance && <Lencana label="📍 Meeting" color="#1d4ed8" bg="#dbeafe" />}
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      {j.category}{j.project ? ` · ${j.project}` : ''}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                label: 'Ditugaskan', className: 'w-40',
+                render: (j) => (j.assigned_to
+                  ? <span className="text-slate-600">{namaSales[j.assigned_to] ?? 'Pengguna lain'}</span>
+                  : <span className="text-[#eda100] font-semibold text-[12px]">Belum ditugaskan</span>),
+              },
+              {
+                label: 'Status', className: 'w-32',
+                render: (j) => <Lencana {...(STATUS_JADWAL[j.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING)} />,
+              },
+            ]}
+            aksi={(j) => {
+              const ditugaskanKeSaya = j.assigned_to === pengguna?.id;
+              const bolehSunting = pengawas
+                || (j.created_by === pengguna?.id && !j.assigned_to && j.status === 'UPCOMING');
+              return (
+                <>
+                  <TombolIkon rupa="lihat" label="Lihat detail" onClick={() => setDilihat(j)} />
+                  {bolehSunting && (
+                    <TombolIkon rupa="sunting" label={j.assigned_to ? 'Sunting' : 'Tugaskan/Sunting'}
+                      onClick={() => { setSedangSunting(j); setFormBuka(true); }} />
+                  )}
+                </>
+              );
+            }}
+          />
 
           <Paginasi halaman={halaman} totalHalaman={totalHalaman} total={total} onPindah={setHalaman} />
         </>
@@ -425,100 +466,58 @@ export default function HalamanSchedule() {
         pesan={`Jadwal ${akanSelesai?.customer_name ?? ''} pada ${tanggalPendek(akanSelesai?.schedule_date)} akan ditandai selesai. Syaratnya diperiksa ulang oleh database.`}
         labelSetuju="Tandai Selesai"
       />
-    </div>
-  );
-}
 
-function KartuJadwal({
-  jadwal: j, namaSales, pengawas, saya, onSunting, onSelesai,
-}: {
-  jadwal: Jadwal;
-  namaSales: string | null;
-  pengawas: boolean;
-  saya: string | undefined;
-  onSunting: () => void;
-  onSelesai: () => void;
-}) {
-  const [buka, setBuka] = useState(false);
-  const gaya = STATUS_JADWAL[j.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING;
-  const ditugaskanKeSaya = j.assigned_to === saya;
-  const bisaSelesai = j.status !== 'COMPLETED' && j.status !== 'CANCELLED'
-    && (pengawas || ditugaskanKeSaya);
+      {dilihat && (
+        <Modal
+          buka={Boolean(dilihat)}
+          onTutup={() => setDilihat(null)}
+          judul={dilihat.customer_name}
+          keterangan={`${tanggalPendek(dilihat.schedule_date)}${dilihat.schedule_time ? ` · ${dilihat.schedule_time.slice(0, 5)}` : ''}`}
+          kaki={(() => {
+            const ditugaskanKeSaya = dilihat.assigned_to === pengguna?.id;
+            const bisaSelesai = dilihat.status !== 'COMPLETED' && dilihat.status !== 'CANCELLED'
+              && (pengawas || ditugaskanKeSaya);
+            return (
+              <>
+                <Tombol rupa="kedua" onClick={() => setDilihat(null)} className="text-[12px] py-2">Tutup</Tombol>
+                {bisaSelesai && !dilihat.requires_attendance && (
+                  <Tombol onClick={() => { setAkanSelesai(dilihat); setDilihat(null); }} className="text-[12px] py-2">
+                    Tandai Selesai
+                  </Tombol>
+                )}
+                {bisaSelesai && dilihat.requires_attendance && (
+                  <Link
+                    href="/meeting"
+                    className="inline-flex items-center rounded-kontrol bg-aksen-700 text-white px-4 py-2.5 text-sm font-semibold hover:bg-aksen-800 transition-colors"
+                  >
+                    Eksekusi Meeting →
+                  </Link>
+                )}
+              </>
+            );
+          })()}
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Lencana {...(STATUS_JADWAL[dilihat.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING)} />
+              {dilihat.requires_attendance && <Lencana label="📍 Meeting" color="#1d4ed8" bg="#dbeafe" />}
+            </div>
+            <Detail label="Kategori" nilai={`${dilihat.category}${dilihat.project ? ` · ${dilihat.project}` : ''}`} />
+            <Detail label="Ditugaskan" nilai={dilihat.assigned_to ? (namaSales[dilihat.assigned_to] ?? 'Pengguna lain') : 'Belum ditugaskan'} />
+            <Detail label="Detail" nilai={dilihat.detail} />
+            <Detail label="Catatan" nilai={dilihat.notes} />
 
-  return (
-    <article className="bg-white rounded-kartu border border-slate-200 overflow-hidden">
-      <button
-        type="button" onClick={() => setBuka((b) => !b)} aria-expanded={buka}
-        className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors"
-      >
-        <div className="flex-shrink-0 w-12 text-center">
-          <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">
-            {new Date(j.schedule_date).toLocaleDateString('id-ID', { month: 'short' })}
-          </p>
-          <p className="text-lg font-black text-slate-800 leading-tight tabular-nums">
-            {new Date(j.schedule_date).getDate()}
-          </p>
-          {j.schedule_time && (
-            <p className="text-[9px] text-slate-400 tabular-nums">{j.schedule_time.slice(0, 5)}</p>
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-bold text-slate-900 truncate">{j.customer_name}</p>
-            <Lencana {...gaya} />
-            {j.requires_attendance && <Lencana label="📍 Meeting" color="#1d4ed8" bg="#dbeafe" />}
-          </div>
-          <p className="text-[12px] text-slate-500 mt-0.5 truncate">
-            {j.category}{j.project ? ` · ${j.project}` : ''}
-          </p>
-          <p className="text-[11px] mt-0.5">
-            {namaSales
-              ? <span className="text-slate-400">Ditugaskan ke <span className="font-semibold text-slate-600">{namaSales}</span></span>
-              : <span className="font-semibold text-[#eda100]">Belum ditugaskan</span>}
-          </p>
-        </div>
-
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
-          className={`flex-shrink-0 mt-1 text-slate-400 transition-transform ${buka ? 'rotate-180' : ''}`}>
-          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {buka && (
-        <div className="px-4 pb-4 pt-1 border-t border-slate-100 flex flex-col gap-3">
-          <Detail label="Detail" nilai={j.detail} />
-          <Detail label="Catatan" nilai={j.notes} />
-
-          {j.requires_attendance && (
-            <p className="text-[11px] text-slate-500 bg-slate-50 rounded-kontrol px-3 py-2 leading-relaxed">
-              Jadwal ini menuntut check-in GPS di dalam radius lokasi dan foto bukti.
-              Eksekusinya dilakukan di halaman{' '}
-              <Link href="/meeting" className="font-bold text-aksen-700 underline underline-offset-2">Meeting</Link>.
-            </p>
-          )}
-
-          <div className="flex items-center gap-2 pt-1 flex-wrap">
-            {pengawas && (
-              <Tombol rupa="kedua" onClick={onSunting} className="text-[12px] py-2">
-                {j.assigned_to ? 'Sunting' : 'Tugaskan'}
-              </Tombol>
-            )}
-            {bisaSelesai && !j.requires_attendance && (
-              <Tombol onClick={onSelesai} className="text-[12px] py-2">Tandai Selesai</Tombol>
-            )}
-            {bisaSelesai && j.requires_attendance && (
-              <Link
-                href="/meeting"
-                className="inline-flex items-center rounded-kontrol bg-aksen-700 text-white px-4 py-2 text-[12px] font-semibold hover:bg-aksen-800 transition-colors"
-              >
-                Eksekusi Meeting →
-              </Link>
+            {dilihat.requires_attendance && (
+              <p className="text-[11px] text-slate-500 bg-slate-50 rounded-kontrol px-3 py-2 leading-relaxed">
+                Jadwal ini menuntut check-in GPS di dalam radius lokasi dan foto bukti.
+                Eksekusinya dilakukan di halaman{' '}
+                <Link href="/meeting" className="font-bold text-aksen-700 underline underline-offset-2">Meeting</Link>.
+              </p>
             )}
           </div>
-        </div>
+        </Modal>
       )}
-    </article>
+    </div>
   );
 }
 

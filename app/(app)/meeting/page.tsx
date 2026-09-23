@@ -15,6 +15,7 @@ import { Meter } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { PanelMeeting, type Meeting, type Lokasi } from './_components/PanelMeeting';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
@@ -372,17 +373,66 @@ export default function HalamanMeeting() {
         </div>
       ) : (
         <>
-          <ul className="flex flex-col gap-2">
-            {daftar.map((m) => (
-              <li key={m.id} id={`baris-${m.id}`}>
-                <KartuMeeting
-                  meeting={m}
-                  namaSales={m.assigned_to ? (namaSales[m.assigned_to] ?? null) : null}
-                  onBuka={() => setDibuka(m)}
-                />
-              </li>
-            ))}
-          </ul>
+          <Tabel
+            data={daftar}
+            kunci={(m) => m.id}
+            kolom={[
+              {
+                label: 'Tanggal', className: 'w-28 whitespace-nowrap',
+                render: (m) => (
+                  <>
+                    {tanggalPendek(m.schedule_date)}
+                    {m.schedule_time && <span className="text-slate-400"> · {m.schedule_time.slice(0, 5)}</span>}
+                  </>
+                ),
+              },
+              {
+                label: 'Customer',
+                render: (m) => (
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900 truncate">{m.customer_name}</p>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      📍 {m.sm_locations?.name ?? 'Lokasi belum diatur'}{m.project ? ` · ${m.project}` : ''}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                label: 'Status', className: 'w-56',
+                render: (m) => {
+                  const state = (m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran;
+                  return (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Lencana {...(STATUS_JADWAL[m.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING)} />
+                      <Lencana {...(STATE_KEHADIRAN[state] ?? STATE_KEHADIRAN.NOT_STARTED)} />
+                      {m.sm_evidence.length > 0 && (
+                        <Lencana label={`${m.sm_evidence.length} foto`} color="#1d4ed8" bg="#dbeafe" />
+                      )}
+                    </div>
+                  );
+                },
+              },
+              ...(pengawas ? [{
+                label: 'Sales', className: 'w-36',
+                render: (m: BarisMeeting) => (
+                  <span className="text-slate-600">
+                    {m.assigned_to ? (namaSales[m.assigned_to] ?? 'Pengguna lain') : '—'}
+                  </span>
+                ),
+              }] : []),
+            ]}
+            aksi={(m) => {
+              const selesai = m.status === 'COMPLETED';
+              const label = selesai
+                ? 'Lihat Bukti'
+                : !m.sm_attendance?.gps_verified
+                  ? 'Mulai Check-in'
+                  : m.sm_evidence.length === 0
+                    ? 'Unggah Foto'
+                    : 'Selesaikan';
+              return <TombolIkon rupa="lihat" label={label} onClick={() => setDibuka(m)} />;
+            }}
+          />
 
           {totalHalaman > 1 ? (
             <nav className="flex items-center justify-between gap-3 py-1" aria-label="Paginasi">
@@ -432,72 +482,3 @@ function ChipRentang({ aktif, onClick, children }: {
   );
 }
 
-function KartuMeeting({ meeting: m, namaSales, onBuka }: {
-  meeting: BarisMeeting;
-  namaSales: string | null;
-  onBuka: () => void;
-}) {
-  const gaya = STATUS_JADWAL[m.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING;
-  const state = (m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran;
-  const gayaState = STATE_KEHADIRAN[state] ?? STATE_KEHADIRAN.NOT_STARTED;
-  const selesai = m.status === 'COMPLETED';
-
-  const aksi = selesai
-    ? 'Lihat Bukti'
-    : !m.sm_attendance?.gps_verified
-      ? 'Mulai Check-in'
-      : m.sm_evidence.length === 0
-        ? 'Unggah Foto'
-        : 'Selesaikan';
-
-  return (
-    <article className="bg-white rounded-kartu border border-slate-200 p-3 sm:p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-12 text-center">
-          <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">
-            {new Date(m.schedule_date).toLocaleDateString('id-ID', { month: 'short' })}
-          </p>
-          <p className="text-lg font-black text-slate-800 leading-tight tabular-nums">
-            {new Date(m.schedule_date).getDate()}
-          </p>
-          {m.schedule_time && (
-            <p className="text-[9px] text-slate-400 tabular-nums">{m.schedule_time.slice(0, 5)}</p>
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-900 truncate">{m.customer_name}</p>
-          <p className="text-[12px] text-slate-500 mt-0.5 truncate">
-            📍 {m.sm_locations?.name ?? 'Lokasi belum diatur'}
-            {m.project ? ` · ${m.project}` : ''}
-          </p>
-          <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-            <Lencana {...gaya} />
-            <Lencana {...gayaState} />
-            {m.sm_evidence.length > 0 && (
-              <Lencana label={`${m.sm_evidence.length} foto`} color="#1d4ed8" bg="#dbeafe" />
-            )}
-          </div>
-          {namaSales && (
-            <p className="text-[11px] text-slate-400 mt-1">
-              Ditugaskan ke <span className="font-semibold text-slate-600">{namaSales}</span>
-            </p>
-          )}
-          {selesai && m.completed_at && (
-            <p className="text-[11px] text-slate-400 mt-1">
-              Selesai {tanggalPendek(m.completed_at)}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <Tombol
-        rupa={selesai ? 'kedua' : 'utama'}
-        onClick={onBuka}
-        className="w-full mt-3 text-[12px] py-2.5"
-      >
-        {aksi}
-      </Tombol>
-    </article>
-  );
-}

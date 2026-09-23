@@ -12,7 +12,8 @@ import { CorongTingkat, DonutLegenda, Meter } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
-import { Konfirmasi } from '@/components/shared/Modal';
+import { Modal, Konfirmasi } from '@/components/shared/Modal';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { FormPipeline, type Peluang } from './_components/FormPipeline';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
@@ -66,6 +67,7 @@ export default function HalamanPipeline() {
   const [sedangSunting, setSedangSunting] = useState<Peluang | null>(null);
   const [akanHapus, setAkanHapus] = useState<Peluang | null>(null);
   const [menghapus, setMenghapus] = useState(false);
+  const [dilihat, setDilihat] = useState<Peluang | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => { setCariTertunda(cari); setHalaman(0); }, 350);
@@ -363,20 +365,90 @@ export default function HalamanPipeline() {
         </div>
       ) : (
         <>
-          <ul className="flex flex-col gap-2">
-            {daftar.map((p) => (
-              <li key={p.id} id={`baris-${p.id}`}>
-                <KartuPeluang
-                  peluang={p}
-                  namaSales={pengawas ? (namaSales[p.sales_user_id] ?? 'Pengguna lain') : null}
-                  milikSendiri={p.sales_user_id === pengguna?.id}
-                  admin={admin}
-                  onSunting={() => { setSedangSunting(p); setFormBuka(true); }}
-                  onHapus={() => setAkanHapus(p)}
-                />
-              </li>
-            ))}
-          </ul>
+          <Tabel
+            data={daftar}
+            kunci={(p) => p.id}
+            kolom={[
+              {
+                label: 'Customer',
+                render: (p) => {
+                  const stage = GAYA_STAGE[p.stage] ?? GAYA_STAGE.OPEN;
+                  return (
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-900 truncate">{p.customer_name}</span>
+                        <Lencana {...stage} />
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate">{p.project_detail}</p>
+                    </div>
+                  );
+                },
+              },
+              {
+                label: 'Probability', className: 'w-24',
+                render: (p) => (
+                  <span
+                    className="inline-flex px-2 py-0.5 rounded-full text-[12px] font-black tabular-nums"
+                    style={{
+                      background: `${WARNA_PROBABILITY[p.probability] ?? '#1d4ed8'}1a`,
+                      color: WARNA_PROBABILITY[p.probability] ?? '#1d4ed8',
+                    }}
+                  >
+                    {p.probability}%
+                  </span>
+                ),
+              },
+              {
+                label: 'Nilai / GP', className: 'w-40 text-right',
+                render: (p) => {
+                  const gp = Number(p.project_gp);
+                  return (
+                    <div className="text-right">
+                      <p className="font-bold text-slate-900 tabular-nums">{rupiahRingkas(p.project_value)}</p>
+                      <p className={`text-[11px] font-bold tabular-nums ${gp < 0 ? 'text-[#c93c3b]' : 'text-[#008300]'}`}>
+                        GP {rupiahRingkas(gp)} · {persen(Number(p.gp_percentage), 1)}
+                      </p>
+                    </div>
+                  );
+                },
+              },
+              {
+                label: 'Closing', className: 'w-32 whitespace-nowrap',
+                render: (p) => {
+                  const sisaHari = Math.ceil(
+                    (new Date(p.estimated_closing).getTime() - new Date(tanggalISO()).getTime()) / 86400000,
+                  );
+                  const lewat = sisaHari < 0 && !['WON', 'LOST'].includes(p.stage);
+                  return (
+                    <span className={lewat ? 'text-[#c93c3b] font-semibold' : ''}>
+                      {tanggalPendek(p.estimated_closing)}
+                    </span>
+                  );
+                },
+              },
+              ...(pengawas ? [{
+                label: 'Sales', className: 'w-36',
+                render: (p: Peluang) => (
+                  <Lencana label={namaSales[p.sales_user_id] ?? 'Pengguna lain'} color="#1d4ed8" bg="#dbeafe" />
+                ),
+              }] : []),
+            ]}
+            aksi={(p) => {
+              const milikSendiri = p.sales_user_id === pengguna?.id;
+              return (
+                <>
+                  <TombolIkon rupa="lihat" label="Lihat detail" onClick={() => setDilihat(p)} />
+                  {(milikSendiri || admin) && (
+                    <TombolIkon rupa="sunting" label="Sunting"
+                      onClick={() => { setSedangSunting(p); setFormBuka(true); }} />
+                  )}
+                  {admin && (
+                    <TombolIkon rupa="hapus" label="Hapus" onClick={() => setAkanHapus(p)} />
+                  )}
+                </>
+              );
+            }}
+          />
 
           <Paginasi halaman={halaman} totalHalaman={totalHalaman} total={total} onPindah={setHalaman} />
         </>
@@ -402,102 +474,39 @@ export default function HalamanPipeline() {
         pesan={`Peluang ${akanHapus?.customer_name ?? ''} senilai ${rupiah(akanHapus?.project_value ?? 0)} akan dihapus permanen.`}
         labelSetuju="Hapus"
       />
-    </div>
-  );
-}
 
-function KartuPeluang({
-  peluang: p, namaSales, milikSendiri, admin, onSunting, onHapus,
-}: {
-  peluang: Peluang;
-  namaSales: string | null;
-  milikSendiri: boolean;
-  admin: boolean;
-  onSunting: () => void;
-  onHapus: () => void;
-}) {
-  const [buka, setBuka] = useState(false);
-  const gp = Number(p.project_gp);
-  const gpNegatif = gp < 0;
-  const stage = GAYA_STAGE[p.stage] ?? GAYA_STAGE.OPEN;
-
-  // Hari menuju perkiraan closing. Yang sudah lewat tanpa ditutup adalah
-  // sinyal paling berguna di halaman ini — itulah peluang yang perlu disentuh.
-  const sisaHari = Math.ceil(
-    (new Date(p.estimated_closing).getTime() - new Date(tanggalISO()).getTime()) / 86400000,
-  );
-  const lewat = sisaHari < 0 && !['WON', 'LOST'].includes(p.stage);
-
-  return (
-    <article className={`bg-white rounded-kartu border overflow-hidden
-                         ${lewat ? 'border-[#e34948]/40' : 'border-slate-200'}`}>
-      <button
-        type="button" onClick={() => setBuka((b) => !b)} aria-expanded={buka}
-        className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors"
-      >
-        <span
-          className="flex-shrink-0 w-11 h-11 rounded-kontrol grid place-items-center text-[13px] font-black tabular-nums"
-          style={{
-            background: `${WARNA_PROBABILITY[p.probability] ?? '#1d4ed8'}1a`,
-            color: WARNA_PROBABILITY[p.probability] ?? '#1d4ed8',
-          }}
+      {dilihat && (
+        <Modal
+          buka={Boolean(dilihat)}
+          onTutup={() => setDilihat(null)}
+          judul={dilihat.customer_name}
+          keterangan={`Closing ${tanggalPendek(dilihat.estimated_closing)}`}
+          kaki={<Tombol rupa="kedua" onClick={() => setDilihat(null)} className="text-[12px] py-2">Tutup</Tombol>}
         >
-          {p.probability}%
-        </span>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-bold text-slate-900 truncate">{p.customer_name}</p>
-            <Lencana {...stage} />
-            {namaSales && <Lencana label={namaSales} color="#1d4ed8" bg="#dbeafe" />}
-          </div>
-          <p className="text-[12px] text-slate-500 line-clamp-1 mt-0.5">{p.project_detail}</p>
-          <p className={`text-[11px] font-semibold mt-0.5 ${lewat ? 'text-[#c93c3b]' : 'text-slate-400'}`}>
-            {lewat
-              ? `Perkiraan closing lewat ${Math.abs(sisaHari)} hari — ${tanggalPendek(p.estimated_closing)}`
-              : `Closing ${tanggalPendek(p.estimated_closing)}`}
-          </p>
-        </div>
-
-        <div className="flex-shrink-0 text-right">
-          <p className="text-sm font-black text-slate-900 tabular-nums">{rupiahRingkas(p.project_value)}</p>
-          <p className={`text-[11px] font-bold tabular-nums ${gpNegatif ? 'text-[#c93c3b]' : 'text-[#008300]'}`}>
-            GP {rupiahRingkas(gp)} · {persen(Number(p.gp_percentage), 1)}
-          </p>
-        </div>
-      </button>
-
-      {buka && (
-        <div className="px-4 pb-4 pt-1 border-t border-slate-100 flex flex-col gap-3">
-          <div className="grid grid-cols-2 formulir:grid-cols-4 gap-3">
-            <Detail label="Qty" nilai={`${angka(p.quantity)} ${p.unit}`} />
-            <Detail label="Nilai Proyek" nilai={rupiah(p.project_value)} />
-            <Detail label="HPP" nilai={rupiah(p.project_hpp)} />
-            <Detail label="Gross Profit" nilai={`${rupiah(gp)} (${persen(Number(p.gp_percentage), 2)})`} sorot={!gpNegatif} bahaya={gpNegatif} />
-          </div>
-          <Detail label="Contact Person" nilai={p.contact_person} />
-          <Detail label="Detail Proyek" nilai={p.project_detail} />
-          <Detail label="Next Action" nilai={p.next_action} sorot />
-
-          <div className="pt-1">
-            <Meter
-              nilai={p.probability} maksimum={100}
-              warna={WARNA_PROBABILITY[p.probability] ?? '#1d4ed8'}
-              label="Tingkat keyakinan"
-            />
-          </div>
-
-          {(milikSendiri || admin) && (
-            <div className="flex items-center gap-2 pt-1">
-              <Tombol rupa="kedua" onClick={onSunting} className="text-[12px] py-2">Sunting</Tombol>
-              {admin && (
-                <Tombol rupa="hantu" onClick={onHapus} className="text-[12px] py-2 text-[#e34948]">Hapus</Tombol>
-              )}
+          <div className="flex flex-col gap-3">
+            {pengawas && <Detail label="Sales" nilai={namaSales[dilihat.sales_user_id] ?? 'Pengguna lain'} />}
+            <div className="grid grid-cols-2 formulir:grid-cols-4 gap-3">
+              <Detail label="Qty" nilai={`${angka(dilihat.quantity)} ${dilihat.unit}`} />
+              <Detail label="Nilai Proyek" nilai={rupiah(dilihat.project_value)} />
+              <Detail label="HPP" nilai={rupiah(dilihat.project_hpp)} />
+              <Detail label="Gross Profit"
+                nilai={`${rupiah(dilihat.project_gp)} (${persen(Number(dilihat.gp_percentage), 2)})`}
+                sorot={Number(dilihat.project_gp) >= 0} bahaya={Number(dilihat.project_gp) < 0} />
             </div>
-          )}
-        </div>
+            <Detail label="Contact Person" nilai={dilihat.contact_person} />
+            <Detail label="Detail Proyek" nilai={dilihat.project_detail} />
+            <Detail label="Next Action" nilai={dilihat.next_action} sorot />
+            <div className="pt-1">
+              <Meter
+                nilai={dilihat.probability} maksimum={100}
+                warna={WARNA_PROBABILITY[dilihat.probability] ?? '#1d4ed8'}
+                label="Tingkat keyakinan"
+              />
+            </div>
+          </div>
+        </Modal>
       )}
-    </article>
+    </div>
   );
 }
 

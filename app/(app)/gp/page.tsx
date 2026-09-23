@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
-import { isPengawas } from '@/lib/constants';
+import { isPengawas, isAdmin } from '@/lib/constants';
 import { tanggalISO, tanggalPendek, rupiah, rupiahRingkas, persen, angka } from '@/lib/format';
 import {
   STATUS_GP, MUTU_MARGIN, menungguPeran, bolehMenyetujui,
@@ -14,7 +14,9 @@ import { BentoGrid, BentoCard, AngkaJangkar, BarisBento } from '@/components/sha
 import { DonutLegenda } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
-import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
+import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
+import { Konfirmasi } from '@/components/shared/Modal';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { FormGp } from './_components/FormGp';
@@ -37,7 +39,9 @@ const PER_HALAMAN = 20;
 
 export default function HalamanGp() {
   const { pengguna } = usePenggunaAktif();
+  const toast = useToast();
   const pengawas = isPengawas(pengguna?.role);
+  const admin = isAdmin(pengguna?.role);
   const peran = (pengguna?.role ?? '').toUpperCase();
 
   const [daftar, setDaftar] = useState<GpRingkasan[]>([]);
@@ -66,6 +70,9 @@ export default function HalamanGp() {
 
   const [dibuka, setDibuka] = useState<GpRingkasan | null>(null);
   const [itemDibuka, setItemDibuka] = useState<GpItem[]>([]);
+
+  const [akanHapus, setAkanHapus] = useState<GpRingkasan | null>(null);
+  const [menghapus, setMenghapus] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => { setCariTertunda(cari); setHalaman(0); }, 350);
@@ -174,6 +181,17 @@ export default function HalamanGp() {
       diBawahTarget: daftar.filter((g) => g.mutu_margin === 'DIRECTOR APPROVAL').length,
     };
   }, [daftar, peran]);
+
+  async function hapus() {
+    if (!akanHapus) return;
+    setMenghapus(true);
+    const { error } = await supabase.from('sm_gp_calculations').delete().eq('id', akanHapus.id);
+    setMenghapus(false);
+    if (error) { toast('galat', `Gagal menghapus: ${error.message}`); return; }
+    toast('sukses', 'Perhitungan GP dihapus.');
+    setAkanHapus(null);
+    void muat();
+  }
 
   const totalHalaman = Math.max(1, Math.ceil(total / PER_HALAMAN));
   const dokumenTerbuka = useMemo(
@@ -363,19 +381,75 @@ export default function HalamanGp() {
         </div>
       ) : (
         <>
-          <ul className="flex flex-col gap-2">
-            {terlihat.map((g) => (
-              <li key={g.id} id={`baris-${g.id}`}>
-                <KartuGp
-                  gp={g}
-                  namaSales={namaOrang[g.sales_user_id] ?? null}
-                  tampilkanSales={pengawas}
-                  menungguSaya={bolehMenyetujui(g.status, peran)}
-                  onBuka={() => void bukaDokumen(g)}
-                />
-              </li>
-            ))}
-          </ul>
+          <Tabel
+            data={terlihat}
+            kunci={(g) => g.id}
+            kolom={[
+              {
+                label: 'Dokumen',
+                render: (g) => {
+                  const gaya = STATUS_GP[g.status as StatusGp] ?? STATUS_GP.DRAFT;
+                  const mutu = MUTU_MARGIN[g.mutu_margin] ?? MUTU_MARGIN['TANPA NILAI'];
+                  const ditunggu = menungguPeran(g.status);
+                  return (
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-900 truncate">{g.project_name}</span>
+                        <Lencana {...gaya} />
+                        <Lencana {...mutu} />
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {g.customer_name} <span className="text-slate-400">· {g.nomor}</span>
+                      </p>
+                      {ditunggu && (
+                        <p className="text-[11px] text-[#eda100] font-semibold">
+                          Menunggu {ditunggu === 'MANAGER' ? 'Manager' : ditunggu === 'DIRECTOR' ? 'Director' : 'Finance'}
+                        </p>
+                      )}
+                    </div>
+                  );
+                },
+              },
+              {
+                label: 'Tanggal', className: 'w-24 whitespace-nowrap',
+                render: (g) => tanggalPendek(g.calc_date),
+              },
+              {
+                label: 'Selling / Margin', className: 'w-40 text-right',
+                render: (g) => {
+                  const mutu = MUTU_MARGIN[g.mutu_margin] ?? MUTU_MARGIN['TANPA NILAI'];
+                  return (
+                    <div className="text-right">
+                      <p className="font-bold text-slate-900 tabular-nums">{rupiah(g.total_selling)}</p>
+                      <p className="text-[11px] font-semibold tabular-nums" style={{ color: mutu.color }}>
+                        margin {persen(Number(g.net_margin) * 100)}
+                      </p>
+                    </div>
+                  );
+                },
+              },
+              ...(pengawas ? [{
+                label: 'Sales', className: 'w-36',
+                render: (g: GpRingkasan) => (
+                  <Lencana label={namaOrang[g.sales_user_id] ?? '—'} color="#1d4ed8" bg="#dbeafe" />
+                ),
+              }] : []),
+            ]}
+            aksi={(g) => {
+              const milikSendiri = g.sales_user_id === pengguna?.id;
+              return (
+                <>
+                  <TombolIkon rupa="lihat" label="Lihat detail" onClick={() => void bukaDokumen(g)} />
+                  {(g.status === 'DRAFT' && milikSendiri || admin) && (
+                    <TombolIkon rupa="sunting" label="Sunting" onClick={() => void suntingDokumen(g)} />
+                  )}
+                  {admin && (
+                    <TombolIkon rupa="hapus" label="Hapus" onClick={() => setAkanHapus(g)} />
+                  )}
+                </>
+              );
+            }}
+          />
 
           {totalHalaman > 1 ? (
             <nav className="flex items-center justify-between gap-3 py-1" aria-label="Paginasi">
@@ -419,64 +493,18 @@ export default function HalamanGp() {
           onSunting={() => void suntingDokumen(dokumenTerbuka)}
         />
       )}
+
+      <Konfirmasi
+        buka={Boolean(akanHapus)}
+        onTutup={() => setAkanHapus(null)}
+        onSetuju={hapus}
+        memproses={menghapus}
+        bahaya
+        judul="Hapus perhitungan GP ini?"
+        pesan={`Dokumen ${akanHapus?.nomor ?? ''} (${akanHapus?.project_name ?? ''}) akan dihapus permanen, beserta seluruh itemnya.`}
+        labelSetuju="Hapus"
+      />
     </div>
   );
 }
 
-function KartuGp({ gp, namaSales, tampilkanSales, menungguSaya, onBuka }: {
-  gp: GpRingkasan;
-  namaSales: string | null;
-  tampilkanSales: boolean;
-  menungguSaya: boolean;
-  onBuka: () => void;
-}) {
-  const gaya = STATUS_GP[gp.status as StatusGp] ?? STATUS_GP.DRAFT;
-  const mutu = MUTU_MARGIN[gp.mutu_margin] ?? MUTU_MARGIN['TANPA NILAI'];
-  const ditunggu = menungguPeran(gp.status);
-
-  return (
-    <article
-      className={`bg-white rounded-kartu border p-3 sm:p-4
-                  ${menungguSaya ? 'border-aksen-300 ring-1 ring-aksen-100' : 'border-slate-200'}`}
-    >
-      <button type="button" onClick={onBuka} className="w-full text-left">
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm font-bold text-slate-900 truncate">{gp.project_name}</p>
-              <Lencana {...gaya} />
-              <Lencana {...mutu} />
-            </div>
-            <p className="text-[12px] text-slate-500 mt-0.5 truncate">
-              {gp.customer_name}
-              <span className="text-slate-400"> · {gp.nomor}</span>
-              {gp.po_spk_no && <span className="text-slate-400"> · {gp.po_spk_no}</span>}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              {tanggalPendek(gp.calc_date)}
-              {tampilkanSales && namaSales && <span> · {namaSales}</span>}
-              <span> · {angka(gp.jumlah_item)} item</span>
-              {ditunggu && (
-                <span className="text-[#eda100] font-semibold">
-                  {' '}· menunggu {ditunggu === 'MANAGER' ? 'Manager' : ditunggu === 'DIRECTOR' ? 'Director' : 'Finance'}
-                </span>
-              )}
-            </p>
-          </div>
-
-          <div className="text-right flex-shrink-0">
-            <p className="text-[13px] font-black text-slate-900 tabular-nums">
-              {rupiah(gp.total_selling)}
-            </p>
-            <p className="text-[11px] tabular-nums font-semibold" style={{ color: mutu.color }}>
-              margin {persen(Number(gp.net_margin) * 100)}
-            </p>
-            <p className="text-[10px] text-slate-400 tabular-nums">
-              target {persen(Number(gp.gp_target) * 100, 0)}
-            </p>
-          </div>
-        </div>
-      </button>
-    </article>
-  );
-}

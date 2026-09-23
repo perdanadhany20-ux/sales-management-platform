@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
-import { isPengawas } from '@/lib/constants';
+import { isPengawas, isAdmin } from '@/lib/constants';
 import { tanggalPendek, rupiah, rupiahRingkas, persen, angka } from '@/lib/format';
 import {
   STATUS_PROYEK, tahapProyek, type ProyekRingkasan, type StatusProyek,
@@ -13,7 +13,9 @@ import { BentoGrid, BentoCard, AngkaJangkar, BarisBento } from '@/components/sha
 import { DonutLegenda, Meter } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
-import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
+import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
+import { Konfirmasi } from '@/components/shared/Modal';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { FormProyek } from './_components/FormProyek';
@@ -38,7 +40,9 @@ const PER_HALAMAN = 20;
 
 export default function HalamanProyek() {
   const { pengguna } = usePenggunaAktif();
+  const toast = useToast();
   const pengawas = isPengawas(pengguna?.role);
+  const admin = isAdmin(pengguna?.role);
 
   const [daftar, setDaftar] = useState<ProyekRingkasan[]>([]);
   const [namaOrang, setNamaOrang] = useState<Record<string, string>>({});
@@ -56,6 +60,8 @@ export default function HalamanProyek() {
   const [formBuka, setFormBuka] = useState(false);
   const [sedangSunting, setSedangSunting] = useState<ProyekRingkasan | null>(null);
   const [dibuka, setDibuka] = useState<ProyekRingkasan | null>(null);
+  const [akanHapus, setAkanHapus] = useState<ProyekRingkasan | null>(null);
+  const [menghapus, setMenghapus] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => { setCariTertunda(cari); setHalaman(0); }, 350);
@@ -127,6 +133,17 @@ export default function HalamanProyek() {
       tanpaCatatan: daftar.filter((p) => tahapProyek(p).tahap === 0).length,
     };
   }, [daftar]);
+
+  async function hapus() {
+    if (!akanHapus) return;
+    setMenghapus(true);
+    const { error } = await supabase.from('sm_projects').delete().eq('id', akanHapus.id);
+    setMenghapus(false);
+    if (error) { toast('galat', `Gagal menghapus: ${error.message}`); return; }
+    toast('sukses', 'Proyek dihapus.');
+    setAkanHapus(null);
+    void muat();
+  }
 
   const totalHalaman = Math.max(1, Math.ceil(total / PER_HALAMAN));
   const proyekTerbuka = useMemo(
@@ -288,18 +305,81 @@ export default function HalamanProyek() {
         </div>
       ) : (
         <>
-          <ul className="flex flex-col gap-2">
-            {daftar.map((p) => (
-              <li key={p.id} id={`baris-${p.id}`}>
-                <KartuProyek
-                  proyek={p}
-                  namaPemilik={namaOrang[p.owner_user_id] ?? null}
-                  tampilkanPemilik={pengawas}
-                  onBuka={() => setDibuka(p)}
-                />
-              </li>
-            ))}
-          </ul>
+          <Tabel
+            data={daftar}
+            kunci={(p) => p.id}
+            kolom={[
+              {
+                label: 'Proyek',
+                render: (p) => {
+                  const gaya = STATUS_PROYEK[p.status as StatusProyek] ?? STATUS_PROYEK.AKTIF;
+                  const langkah = tahapProyek(p);
+                  return (
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-900 truncate">{p.name}</span>
+                        <Lencana {...gaya} />
+                        {p.gp_menunggu > 0 && (
+                          <Lencana label={`${p.gp_menunggu} GP menunggu`} color="#eda100" bg="#fef3d9" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {p.customer_name} <span className="text-slate-400">· {p.kode}</span>
+                      </p>
+                      <div className="mt-1 max-w-[220px]">
+                        <Meter nilai={langkah.tahap} maksimum={langkah.total} label={langkah.label} />
+                      </div>
+                    </div>
+                  );
+                },
+              },
+              {
+                label: 'Catatan', className: 'w-56',
+                render: (p) => (
+                  <span className="text-[11px] text-slate-500">
+                    {angka(p.jumlah_pipeline)} peluang · {angka(p.jumlah_jadwal)} jadwal ·{' '}
+                    {angka(p.meeting_selesai)}/{angka(p.jumlah_meeting)} meeting ·{' '}
+                    {angka(p.jumlah_laporan)} laporan · {angka(p.jumlah_gp)} GP
+                  </span>
+                ),
+              },
+              {
+                label: 'Pipeline / Profit', className: 'w-40 text-right',
+                render: (p) => (
+                  <div className="text-right">
+                    <p className="font-bold text-slate-900 tabular-nums">{rupiah(p.nilai_pipeline)}</p>
+                    {Number(p.jumlah_gp) > 0 && (
+                      <p className="text-[11px] font-semibold tabular-nums"
+                        style={{ color: Number(p.profit_gp) >= 0 ? '#008300' : '#e34948' }}>
+                        profit {rupiahRingkas(p.profit_gp)}
+                      </p>
+                    )}
+                  </div>
+                ),
+              },
+              ...(pengawas ? [{
+                label: 'Pemilik', className: 'w-36',
+                render: (p: ProyekRingkasan) => (
+                  <Lencana label={namaOrang[p.owner_user_id] ?? '—'} color="#1d4ed8" bg="#dbeafe" />
+                ),
+              }] : []),
+            ]}
+            aksi={(p) => {
+              const milikSendiri = p.owner_user_id === pengguna?.id;
+              return (
+                <>
+                  <TombolIkon rupa="lihat" label="Lihat detail" onClick={() => setDibuka(p)} />
+                  {(milikSendiri || pengawas) && (
+                    <TombolIkon rupa="sunting" label="Sunting"
+                      onClick={() => { setSedangSunting(p); setFormBuka(true); }} />
+                  )}
+                  {admin && (
+                    <TombolIkon rupa="hapus" label="Hapus" onClick={() => setAkanHapus(p)} />
+                  )}
+                </>
+              );
+            }}
+          />
 
           {totalHalaman > 1 ? (
             <nav className="flex items-center justify-between gap-3 py-1" aria-label="Paginasi">
@@ -339,65 +419,17 @@ export default function HalamanProyek() {
           onSunting={() => { setSedangSunting(proyekTerbuka); setDibuka(null); setFormBuka(true); }}
         />
       )}
+
+      <Konfirmasi
+        buka={Boolean(akanHapus)}
+        onTutup={() => setAkanHapus(null)}
+        onSetuju={hapus}
+        memproses={menghapus}
+        bahaya
+        judul="Hapus proyek ini?"
+        pesan={`Proyek ${akanHapus?.name ?? ''} (${akanHapus?.kode ?? ''}) akan dihapus permanen. Pipeline, jadwal, laporan, dan GP yang tertaut tidak ikut terhapus, hanya kehilangan tautannya.`}
+        labelSetuju="Hapus"
+      />
     </div>
-  );
-}
-
-function KartuProyek({ proyek: p, namaPemilik, tampilkanPemilik, onBuka }: {
-  proyek: ProyekRingkasan;
-  namaPemilik: string | null;
-  tampilkanPemilik: boolean;
-  onBuka: () => void;
-}) {
-  const gaya = STATUS_PROYEK[p.status as StatusProyek] ?? STATUS_PROYEK.AKTIF;
-  const langkah = tahapProyek(p);
-
-  return (
-    <article className="bg-white rounded-kartu border border-slate-200 p-3 sm:p-4">
-      <button type="button" onClick={onBuka} className="w-full text-left">
-        <div className="flex items-start gap-3 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm font-bold text-slate-900 truncate">{p.name}</p>
-              <Lencana {...gaya} />
-              {p.gp_menunggu > 0 && (
-                <Lencana label={`${p.gp_menunggu} GP menunggu`} color="#eda100" bg="#fef3d9" />
-              )}
-            </div>
-            <p className="text-[12px] text-slate-500 mt-0.5 truncate">
-              {p.customer_name}
-              <span className="text-slate-400"> · {p.kode}</span>
-            </p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              {tampilkanPemilik && namaPemilik && <span>{namaPemilik} · </span>}
-              {angka(p.jumlah_pipeline)} peluang · {angka(p.jumlah_jadwal)} jadwal ·{' '}
-              {angka(p.meeting_selesai)}/{angka(p.jumlah_meeting)} meeting ·{' '}
-              {angka(p.jumlah_laporan)} laporan · {angka(p.jumlah_gp)} GP
-            </p>
-          </div>
-
-          <div className="text-right flex-shrink-0">
-            <p className="text-[13px] font-black text-slate-900 tabular-nums">
-              {rupiah(p.nilai_pipeline)}
-            </p>
-            {Number(p.jumlah_gp) > 0 && (
-              <p className="text-[11px] tabular-nums font-semibold"
-                style={{ color: Number(p.profit_gp) >= 0 ? '#008300' : '#e34948' }}>
-                profit {rupiahRingkas(p.profit_gp)}
-              </p>
-            )}
-            {p.laporan_terakhir && (
-              <p className="text-[10px] text-slate-400 tabular-nums">
-                laporan {tanggalPendek(p.laporan_terakhir)}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-2.5">
-          <Meter nilai={langkah.tahap} maksimum={langkah.total} label={langkah.label} />
-        </div>
-      </button>
-    </article>
   );
 }
