@@ -17,6 +17,7 @@ interface Pengguna {
   role: string;
   active: boolean;
   created_at: string;
+  manager_id: string | null;
 }
 
 const GAYA_PERAN: Record<string, { color: string; bg: string }> = {
@@ -180,6 +181,7 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
           onTutup={() => setFormBuka(false)}
           onTersimpan={muat}
           awal={sunting}
+          calonAtasan={daftar}
         />
       )}
 
@@ -209,9 +211,10 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
 }
 
 function FormPengguna({
-  buka, onTutup, onTersimpan, awal,
+  buka, onTutup, onTersimpan, awal, calonAtasan,
 }: {
   buka: boolean; onTutup: () => void; onTersimpan: () => void; awal: Pengguna | null;
+  calonAtasan: Pengguna[];
 }) {
   const toast = useToast();
   const [fullName, setFullName] = useState(awal?.full_name ?? '');
@@ -219,6 +222,7 @@ function FormPengguna({
   const [email, setEmail] = useState(awal?.email ?? '');
   const [phone, setPhone] = useState(awal?.phone ?? '');
   const [role, setRole] = useState(awal?.role ?? 'SALES');
+  const [managerId, setManagerId] = useState(awal?.manager_id ?? '');
   const [sandi, setSandi] = useState('');
   const [galat, setGalat] = useState<string | null>(null);
   const [memproses, setMemproses] = useState(false);
@@ -234,7 +238,7 @@ function FormPengguna({
         credentials: 'include',
         body: JSON.stringify(
           awal
-            ? { id: awal.id, full_name: fullName, email, phone, role }
+            ? { id: awal.id, full_name: fullName, email, phone, role, manager_id: managerId || null }
             : { username, full_name: fullName, email, phone, role, password: sandi },
         ),
       });
@@ -295,6 +299,20 @@ function FormPengguna({
         <Kolom label="Peran" wajib>
           {(id) => <PilihCari id={id} nilai={role} onUbah={setRole} opsi={OPSI_PERAN} disabled={memproses} />}
         </Kolom>
+
+        {awal && (
+          <Kolom label="Atasan" bantuan="Siapa yang membawahi akun ini secara struktural.">
+            {(id) => (
+              <PilihCari
+                id={id} nilai={managerId} onUbah={setManagerId} disabled={memproses}
+                bolehKosong labelKosong="— tidak ada —"
+                opsi={calonAtasan
+                  .filter((u) => u.id !== awal.id)
+                  .map((u) => ({ value: u.id, label: `${u.full_name} (${LABEL_PERAN[u.role as Peran] ?? u.role})` }))}
+              />
+            )}
+          </Kolom>
+        )}
 
         {!awal && (
           <Kolom label="Kata Sandi Awal" wajib

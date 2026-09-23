@@ -8,6 +8,7 @@ import { usePenggunaAktif, keluar } from '@/lib/auth';
 import { isPengawas, LABEL_PERAN, type Peran } from '@/lib/constants';
 import { tanggalPendek, waktuPendek, angka, rupiahRingkas } from '@/lib/format';
 import { MENU_APLIKASI } from '@/components/shared/Shell';
+import { useMenuSaya } from '@/lib/menu-akses';
 import {
   statusPengingat, nyalakanPengingat, matikanPengingat, type StatusPengingat,
 } from '@/lib/notifikasi';
@@ -46,9 +47,12 @@ interface Profil {
   event_code: string | null;
   joined_at: string | null;
   approval_status: string;
+  address: string | null;
+  manager_id: string | null;
 }
 
 interface Rekan { id: string; full_name: string; role: string; active: boolean }
+interface OrangRingkas { id: string; full_name: string; role: string }
 
 interface Ringkasan { laporan: number; pipeline: number; nilai: number; meeting: number }
 
@@ -77,6 +81,8 @@ export default function HalamanProfil() {
   const [sesiIni, setSesiIni] = useState<{ created_at: string; expires_at: string } | null>(null);
   const [rekan, setRekan] = useState<Rekan[]>([]);
   const [ringkas, setRingkas] = useState<Ringkasan>({ laporan: 0, pipeline: 0, nilai: 0, meeting: 0 });
+  const [atasan, setAtasan] = useState<OrangRingkas | null>(null);
+  const [bawahan, setBawahan] = useState<OrangRingkas[]>([]);
 
   const [ubahKontak, setUbahKontak] = useState(false);
   const [email, setEmail] = useState('');
@@ -84,6 +90,7 @@ export default function HalamanProfil() {
   const [divisi, setDivisi] = useState('');
   const [salesDivisi, setSalesDivisi] = useState('');
   const [jabatan, setJabatan] = useState('');
+  const [alamat, setAlamat] = useState('');
   const [opsi, setOpsi] = useState<{ divisions: string[]; sales_divisions: string[]; positions: string[] }>(
     { divisions: [], sales_divisions: [], positions: [] },
   );
@@ -117,6 +124,9 @@ export default function HalamanProfil() {
     setDivisi(data.profil?.division ?? '');
     setSalesDivisi(data.profil?.sales_division ?? '');
     setJabatan(data.profil?.position ?? '');
+    setAlamat(data.profil?.address ?? '');
+    setAtasan(data.atasan ?? null);
+    setBawahan(data.bawahan ?? []);
   }, []);
 
   useEffect(() => { void muatProfil(); }, [muatProfil]);
@@ -160,15 +170,15 @@ export default function HalamanProfil() {
     })();
   }, [pengguna]);
 
+  const menuSaya = useMenuSaya(pengguna?.id, pengguna?.role);
   const modul = useMemo(() => {
-    const peran = pengguna?.role ?? '';
-    const daftar = MENU_APLIKASI.filter((m) => !m.untuk || m.untuk(peran));
+    const daftar = menuSaya ? MENU_APLIKASI.filter((m) => menuSaya.includes(m.kunci)) : [];
     const k = cariModul.trim().toLowerCase();
     return {
       semua: daftar,
       tersaring: k ? daftar.filter((m) => m.label.toLowerCase().includes(k)) : daftar,
     };
-  }, [pengguna?.role, cariModul]);
+  }, [menuSaya, cariModul]);
 
   if (memuat) return <LayarMemuat />;
   if (!pengguna) return null;
@@ -192,6 +202,7 @@ export default function HalamanProfil() {
         body: JSON.stringify({
           email, phone: telepon,
           division: divisi, sales_division: salesDivisi, position: jabatan,
+          address: alamat,
         }),
       });
       const data = await res.json();
@@ -323,6 +334,14 @@ export default function HalamanProfil() {
                     )}
                   </Kolom>
                 </div>
+
+                <Kolom label="Alamat Lengkap">
+                  {(id) => (
+                    <Teks id={id} value={alamat} disabled={simpanKontak}
+                      onChange={(e) => setAlamat(e.target.value)} placeholder="Sesuai domisili" />
+                  )}
+                </Kolom>
+
                 <div className="flex justify-end gap-2">
                   <Tombol rupa="kedua" className="text-[12px] py-2" onClick={() => {
                     setUbahKontak(false);
@@ -331,6 +350,7 @@ export default function HalamanProfil() {
                     setDivisi(profil?.division ?? '');
                     setSalesDivisi(profil?.sales_division ?? '');
                     setJabatan(profil?.position ?? '');
+                    setAlamat(profil?.address ?? '');
                   }}>Batal</Tombol>
                   <Tombol type="submit" className="text-[12px] py-2" memuat={simpanKontak}>Simpan</Tombol>
                 </div>
@@ -345,6 +365,7 @@ export default function HalamanProfil() {
                 <Baris ikon="🎯" label="Sales Division" nilai={profil?.sales_division} />
                 <Baris ikon="💼" label="Jabatan / Posisi" nilai={profil?.position} />
                 <Baris ikon="⭐" label="Peran" nilai={LABEL_PERAN[peran] ?? pengguna.role} />
+                <Baris ikon="🏠" label="Alamat" nilai={profil?.address} />
                 <Baris ikon="🎫" label="Kode Acara" nilai={profil?.event_code} />
                 <Baris ikon="📅" label="Bergabung Sejak"
                   nilai={profil ? tanggalPendek(profil.joined_at ?? profil.created_at) : null} />
@@ -361,6 +382,19 @@ export default function HalamanProfil() {
 
           <Panel ikon="🏢" judul="Struktur Organisasi">
             <div className="flex flex-col gap-3">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Atasan</p>
+                {atasan ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-kecil bg-slate-100 px-2.5 py-1.5 text-[12px] font-semibold text-slate-700">
+                    👤 {atasan.full_name}
+                  </span>
+                ) : (
+                  <p className="text-[11px] text-slate-400">Belum ada atasan terdaftar.</p>
+                )}
+              </div>
+              {bawahan.length > 0 && (
+                <Kelompok label="Bawahan" kosong="" orang={bawahan} />
+              )}
               <Kelompok
                 label="Pengawas (Manager & Admin)"
                 kosong="Belum ada pengawas lain terdaftar."
@@ -491,8 +525,9 @@ export default function HalamanProfil() {
               </ul>
             )}
             <p className="text-[10px] text-slate-400 mt-3 leading-relaxed">
-              Daftar ini mengikuti peran Anda. Penyembunyian menu hanya merapikan tampilan —
-              yang benar-benar menolak akses adalah aturan di database.
+              Daftar ini ditentukan admin lewat Admin Panel — bisa mengikuti default peran Anda,
+              atau daftar kustom khusus akun ini. Mengetik URL modul yang tidak ada di sini
+              langsung akan tetap ditolak, bukan cuma disembunyikan dari menu.
             </p>
           </Panel>
 

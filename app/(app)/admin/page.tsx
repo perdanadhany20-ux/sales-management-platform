@@ -7,6 +7,7 @@ import { LayarMemuat, Kosong } from '@/components/shared/Feedback';
 import { useBagianAdmin } from '@/components/shared/Shell';
 import { TabPengguna } from './_components/TabPengguna';
 import { TabPersetujuan } from './_components/TabPersetujuan';
+import { TabHakAkses } from './_components/TabHakAkses';
 import { TabLokasi } from './_components/TabLokasi';
 import { TabKonfigurasi } from './_components/TabKonfigurasi';
 import { TabTampilan } from './_components/TabTampilan';
@@ -92,6 +93,7 @@ export default function HalamanAdmin() {
       <div>
         {aktif.kunci === 'pengguna' && <TabPengguna pemanggilId={pengguna.id} />}
         {aktif.kunci === 'persetujuan' && <TabPersetujuan />}
+        {aktif.kunci === 'hak_akses' && <TabHakAkses />}
         {aktif.kunci === 'lokasi' && <TabLokasi />}
         {aktif.kunci === 'tampilan' && <TabTampilan />}
         {aktif.kunci === 'konfigurasi' && <TabKonfigurasi />}

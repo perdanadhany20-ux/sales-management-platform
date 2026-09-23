@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useMemo, useState } from 'react';
 import { keluar, usePenggunaAktif, type PenggunaAktif } from '@/lib/auth';
-import { LayarMemuat } from './Feedback';
-import { isPengawas, LABEL_PERAN, type Peran } from '@/lib/constants';
+import { LayarMemuat, Kosong } from './Feedback';
+import { LABEL_PERAN, type Peran } from '@/lib/constants';
+import { useMenuSaya, type MenuKey } from '@/lib/menu-akses';
 import { useBranding } from '@/lib/branding';
 import { HeaderAtas } from './HeaderAtas';
 import {
@@ -48,9 +49,9 @@ export function useBagianAdmin() {
 export interface Menu {
   href: string;
   label: string;
+  /** Kunci di sm_role_menu / sm_user_menu (§023) — menentukan siapa boleh melihat menu ini. */
+  kunci: MenuKey;
   ikon: React.ReactNode;
-  /** Tampil untuk siapa. Tanpa ini berarti semua peran. */
-  untuk?: (peran: string) => boolean;
   /** Muncul di bilah bawah ponsel (maksimal 5 supaya tetap bisa disentuh). */
   utama?: boolean;
 }
@@ -62,15 +63,15 @@ const I = (d: string) => (
 );
 
 export const MENU_APLIKASI: Menu[] = [
-  { href: '/dashboard',    label: 'Dashboard',    utama: true,  ikon: I('M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z') },
-  { href: '/daily-report', label: 'Daily Report', utama: true,  ikon: I('M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4') },
-  { href: '/proyek',       label: 'Proyek',       utama: true,  ikon: I('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
-  { href: '/pipeline',     label: 'Pipeline',     ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
-  { href: '/schedule',     label: 'Schedule',     utama: true,  ikon: I('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z') },
-  { href: '/meeting',      label: 'Meeting',      utama: true,  ikon: I('M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
-  { href: '/gp',           label: 'GP Calculation', ikon: I('M9 7h6M9 11h6M9 15h3M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z') },
-  { href: '/activity',     label: 'Activity',     ikon: I('M3 12h4l3 8 4-16 3 8h4') },
-  { href: '/admin',        label: 'Admin Panel',  untuk: isPengawas, ikon: I('M10.3 4.3a1.9 1.9 0 013.4 0l.5 1a1.9 1.9 0 002.3 1l1-.3a1.9 1.9 0 012.1 2.9l-.6.9a1.9 1.9 0 000 2.4l.6.9a1.9 1.9 0 01-2.1 2.9l-1-.3a1.9 1.9 0 00-2.3 1l-.5 1a1.9 1.9 0 01-3.4 0l-.5-1a1.9 1.9 0 00-2.3-1l-1 .3a1.9 1.9 0 01-2.1-2.9l.6-.9a1.9 1.9 0 000-2.4l-.6-.9a1.9 1.9 0 012.1-2.9l1 .3a1.9 1.9 0 002.3-1l.5-1z M12 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
+  { href: '/dashboard',    label: 'Dashboard',    kunci: 'dashboard',     utama: true,  ikon: I('M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z') },
+  { href: '/daily-report', label: 'Daily Report', kunci: 'daily-report',  utama: true,  ikon: I('M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4') },
+  { href: '/proyek',       label: 'Proyek',       kunci: 'proyek',        utama: true,  ikon: I('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
+  { href: '/pipeline',     label: 'Pipeline',     kunci: 'pipeline',      ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
+  { href: '/schedule',     label: 'Schedule',     kunci: 'schedule',      utama: true,  ikon: I('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z') },
+  { href: '/meeting',      label: 'Meeting',      kunci: 'meeting',       utama: true,  ikon: I('M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
+  { href: '/gp',           label: 'GP Calculation', kunci: 'gp',          ikon: I('M9 7h6M9 11h6M9 15h3M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z') },
+  { href: '/activity',     label: 'Activity',     kunci: 'activity',      ikon: I('M3 12h4l3 8 4-16 3 8h4') },
+  { href: '/admin',        label: 'Admin Panel',  kunci: 'admin',         ikon: I('M10.3 4.3a1.9 1.9 0 013.4 0l.5 1a1.9 1.9 0 002.3 1l1-.3a1.9 1.9 0 012.1 2.9l-.6.9a1.9 1.9 0 000 2.4l.6.9a1.9 1.9 0 01-2.1 2.9l-1-.3a1.9 1.9 0 00-2.3 1l-.5 1a1.9 1.9 0 01-3.4 0l-.5-1a1.9 1.9 0 00-2.3-1l-1 .3a1.9 1.9 0 01-2.1-2.9l.6-.9a1.9 1.9 0 000-2.4l-.6-.9a1.9 1.9 0 012.1-2.9l1 .3a1.9 1.9 0 002.3-1l.5-1z M12 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -81,7 +82,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [bagian, setBagian] = useState<KunciBagian>('pengguna');
   const konteks = useMemo(() => ({ bagian, setBagian }), [bagian]);
 
-  if (memuat) return <LayarMemuat pesan="Memulihkan sesi…" />;
+  const menuSaya = useMenuSaya(pengguna?.id, pengguna?.role);
+
+  if (memuat || (pengguna && menuSaya === null)) return <LayarMemuat pesan="Memulihkan sesi…" />;
 
   if (!pengguna) {
     // Middleware biasanya sudah mengalihkan sebelum sampai sini. Ini jaring
@@ -90,8 +93,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return <LayarMemuat pesan="Mengalihkan…" />;
   }
 
-  const menu = MENU_APLIKASI.filter((m) => !m.untuk || m.untuk(pengguna.role));
+  const menu = MENU_APLIKASI.filter((m) => menuSaya!.includes(m.kunci));
   const menuPonsel = menu.filter((m) => m.utama).slice(0, 5);
+
+  // Menu yang menyusun URL saat ini — dicari dari daftar LENGKAP, bukan yang
+  // sudah disaring, supaya modul yang justru sedang dikunci ikut ketemu.
+  // Halaman yang tidak terdaftar sebagai menu (mis. /profil) selalu terbuka.
+  const menuHalamanIni = MENU_APLIKASI.find((m) => pathname.startsWith(m.href));
+  const diblokir = Boolean(menuHalamanIni && !menuSaya!.includes(menuHalamanIni.kunci));
 
   return (
     <KonteksBagian.Provider value={konteks}>
@@ -108,7 +117,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {/* Ruang bawah menghindari bilah navigasi ponsel menutupi isi
               halaman — termasuk tombol simpan di dasar formulir. */}
           <main className="flex-1 px-3 sm:px-5 py-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sidebar:pb-6 max-w-[1500px] w-full mx-auto">
-            {children}
+            {diblokir ? <ModulTidakTersedia label={menuHalamanIni!.label} /> : children}
           </main>
         </div>
       </div>
@@ -116,6 +125,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <BilahBawah menu={menuPonsel} pathname={pathname} />
     </div>
     </KonteksBagian.Provider>
+  );
+}
+
+/**
+ * Ditampilkan sebagai pengganti isi halaman ketika menunya tidak ada dalam
+ * hak akses akun ini — baik karena disembunyikan admin per akun/peran,
+ * maupun karena tier lisensi platform ini tidak mencakupnya. Mengetik URL-nya
+ * langsung tidak membuka apa pun; ini BUKAN sekadar tautan sidebar yang
+ * disembunyikan (lihat §023).
+ */
+function ModulTidakTersedia({ label }: { label: string }) {
+  return (
+    <div className="bg-white rounded-kartu border border-slate-200 max-w-lg mx-auto mt-8">
+      <Kosong
+        judul={`${label} tidak tersedia`}
+        keterangan="Modul ini tidak termasuk dalam hak akses akun Anda. Hubungi Admin kalau menurut Anda ini keliru."
+      />
+    </div>
   );
 }
 

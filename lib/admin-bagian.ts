@@ -10,7 +10,7 @@
  */
 
 export type KunciBagian =
-  | 'pengguna' | 'persetujuan' | 'lokasi' | 'tampilan' | 'konfigurasi' | 'audit';
+  | 'pengguna' | 'persetujuan' | 'hak_akses' | 'lokasi' | 'tampilan' | 'konfigurasi' | 'audit';
 
 export type KelompokBagian = 'ORGANISASI' | 'TAMPILAN' | 'SISTEM';
 
@@ -35,6 +35,11 @@ export const BAGIAN_ADMIN: Bagian[] = [
     kunci: 'persetujuan', label: 'Persetujuan Akun', kelompok: 'ORGANISASI', ikon: '✅', adminSaja: true,
     judul: 'Persetujuan Pendaftaran Akun',
     keterangan: 'Akun yang mendaftar sendiri dan menunggu diverifikasi sebelum bisa dipakai masuk.',
+  },
+  {
+    kunci: 'hak_akses', label: 'Hak Akses Menu', kelompok: 'ORGANISASI', ikon: '🔐', adminSaja: true,
+    judul: 'Hak Akses Menu',
+    keterangan: 'Menu mana yang tersedia untuk tiap peran, dan pengecualian per akun bila perlu.',
   },
   {
     kunci: 'lokasi', label: 'Lokasi Meeting', kelompok: 'ORGANISASI', ikon: '📍',
