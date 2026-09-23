@@ -23,13 +23,16 @@ export interface KolomTabel<T> {
 }
 
 export function Tabel<T>({
-  kolom, data, kunci, aksi,
+  kolom, data, kunci, aksi, lebarAksi = 'w-24',
 }: {
   kolom: KolomTabel<T>[];
   data: T[];
   kunci: (baris: T) => string;
   /** Ikon-ikon aksi per baris (lihat TombolIkon), dirender rata kanan. */
   aksi?: (baris: T) => React.ReactNode;
+  /** Lebar kolom Aksi — perbesar (mis. "w-64") kalau isinya bukan cuma ikon,
+   *  ada juga tombol berlabel seperti "Reset Sandi". */
+  lebarAksi?: string;
 }) {
   return (
     <div className="bg-white rounded-kartu border border-slate-200 overflow-x-auto">
@@ -55,7 +58,7 @@ export function Tabel<T>({
               </th>
             ))}
             {aksi && (
-              <th className="px-3 py-2.5 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wide w-24">
+              <th className={`px-3 py-2.5 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wide ${lebarAksi}`}>
                 Aksi
               </th>
             )}

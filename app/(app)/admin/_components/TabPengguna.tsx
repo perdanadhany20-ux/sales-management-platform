@@ -7,6 +7,7 @@ import { Modal, Konfirmasi } from '@/components/shared/Modal';
 import { Kolom, Teks, KataSandi, Tombol, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 
 interface Pengguna {
   id: string;
@@ -130,49 +131,64 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
             keterangan={cari || filterPeran ? 'Tidak ada yang cocok dengan penyaring.' : 'Tambahkan akun pertama.'} />
         </div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {tersaring.map((u) => {
-            const gaya = GAYA_PERAN[u.role] ?? GAYA_PERAN.SALES;
+        <Tabel
+          data={tersaring}
+          kunci={(u) => u.id}
+          lebarAksi="w-64"
+          kolom={[
+            {
+              label: 'Pengguna', className: 'w-[38%]',
+              render: (u) => {
+                const sendiri = u.id === pemanggilId;
+                return (
+                  <div className={`flex items-center gap-2.5 ${u.active ? '' : 'opacity-60'}`}>
+                    <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 grid place-items-center text-[11px] font-black flex-shrink-0">
+                      {u.full_name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-900 truncate">{u.full_name}</span>
+                        {sendiri && <Lencana label="Anda" color="#64748b" bg="#f1f5f9" />}
+                        {!u.active && <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />}
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate">@{u.username}</p>
+                    </div>
+                  </div>
+                );
+              },
+            },
+            {
+              label: 'Peran', className: 'w-32',
+              render: (u) => <Lencana label={LABEL_PERAN[u.role as Peran] ?? u.role} {...(GAYA_PERAN[u.role] ?? GAYA_PERAN.SALES)} />,
+            },
+            {
+              label: 'Kontak', className: 'w-[22%]',
+              render: (u) => <span className="text-slate-600">{u.email || '—'}</span>,
+            },
+            {
+              label: 'Dibuat', className: 'w-28 whitespace-nowrap',
+              render: (u) => tanggalPendek(u.created_at),
+            },
+          ]}
+          aksi={(u) => {
             const sendiri = u.id === pemanggilId;
             return (
-              <li key={u.id}
-                className={`bg-white rounded-kartu border px-4 py-3 flex items-center gap-3 flex-wrap
-                            ${u.active ? 'border-slate-200' : 'border-slate-200 opacity-60'}`}>
-                <span className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 grid place-items-center text-[11px] font-black flex-shrink-0">
-                  {u.full_name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
-                </span>
-
-                <div className="flex-1 min-w-[160px]">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-bold text-slate-900">{u.full_name}</p>
-                    <Lencana label={LABEL_PERAN[u.role as Peran] ?? u.role} {...gaya} />
-                    {sendiri && <Lencana label="Anda" color="#64748b" bg="#f1f5f9" />}
-                    {!u.active && <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />}
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    @{u.username}
-                    {u.email ? ` · ${u.email}` : ''}
-                    <span className="text-slate-400"> · dibuat {tanggalPendek(u.created_at)}</span>
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <Tombol rupa="kedua" className="text-[12px] py-2"
-                    onClick={() => { setSunting(u); setFormBuka(true); }}>Sunting</Tombol>
-                  <Tombol rupa="kedua" className="text-[12px] py-2"
-                    onClick={() => setResetUntuk(u)}>Reset Sandi</Tombol>
-                  {!sendiri && (
-                    <Tombol rupa="hantu"
-                      className={`text-[12px] py-2 ${u.active ? 'text-[#e34948]' : 'text-[#008300]'}`}
-                      onClick={() => setAkanUbahAktif(u)}>
-                      {u.active ? 'Nonaktifkan' : 'Aktifkan'}
-                    </Tombol>
-                  )}
-                </div>
-              </li>
+              <>
+                <TombolIkon rupa="sunting" label="Sunting"
+                  onClick={() => { setSunting(u); setFormBuka(true); }} />
+                <Tombol rupa="kedua" className="text-[11px] py-1.5 px-2"
+                  onClick={() => setResetUntuk(u)}>Reset Sandi</Tombol>
+                {!sendiri && (
+                  <Tombol rupa="hantu"
+                    className={`text-[11px] py-1.5 px-2 ${u.active ? 'text-[#e34948]' : 'text-[#008300]'}`}
+                    onClick={() => setAkanUbahAktif(u)}>
+                    {u.active ? 'Nonaktifkan' : 'Aktifkan'}
+                  </Tombol>
+                )}
+              </>
             );
-          })}
-        </ul>
+          }}
+        />
       )}
 
       {formBuka && (
