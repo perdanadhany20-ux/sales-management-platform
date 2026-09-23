@@ -161,7 +161,6 @@ export function FormPipeline({
       // project_gp dan gp_percentage SENGAJA tidak ikut: keduanya kolom
       // GENERATED, dan mengirimnya akan ditolak Postgres.
       const isi = {
-        sales_user_id: userId,
         pipeline_date: draf.pipeline_date,
         project_id: draf.project_id,
         customer_id: customerId,
@@ -178,9 +177,11 @@ export function FormPipeline({
         stage: draf.stage,
       };
 
+      // sales_user_id HANYA diisi saat membuat baris baru — lihat catatan yang
+      // sama di FormLaporan.tsx.
       const { error } = awal
         ? await supabase.from('sm_pipeline').update(isi).eq('id', awal.id)
-        : await supabase.from('sm_pipeline').insert(isi);
+        : await supabase.from('sm_pipeline').insert({ ...isi, sales_user_id: userId });
 
       if (error) { setGalat(error.message); return; }
 

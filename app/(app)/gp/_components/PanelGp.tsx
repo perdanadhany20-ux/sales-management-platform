@@ -7,6 +7,7 @@ import {
   STATUS_GP, MUTU_MARGIN, LANGKAH_GP, bolehMenyetujui, menungguPeran,
   type GpRingkasan, type GpItem, type StatusGp,
 } from '@/lib/gp';
+import { isAdmin } from '@/lib/constants';
 import { eksporGpExcel } from '@/lib/gp-excel';
 import { Modal } from '@/components/shared/Modal';
 import { Tombol, Lencana, AreaTeks, Kolom } from '@/components/shared/FormParts';
@@ -101,9 +102,14 @@ export function PanelGp({ buka, onTutup, gp, item, peran, namaOrang, onBerubah, 
             🖨 PDF
           </Tombol>
 
+          {/* Admin boleh menyunting apa pun statusnya (§022) — Ajukan tetap
+              hanya masuk akal selagi statusnya DRAFT, siapa pun perannya. */}
+          {(gp.status === 'DRAFT' || isAdmin(peran)) && (
+            <Tombol rupa="kedua" className="text-[12px] py-2" onClick={onSunting}>Sunting</Tombol>
+          )}
+
           {gp.status === 'DRAFT' && (
             <>
-              <Tombol rupa="kedua" className="text-[12px] py-2" onClick={onSunting}>Sunting</Tombol>
               <Tombol className="text-[12px] py-2" memuat={sibuk === 'sm_gp_ajukan'}
                 onClick={() => panggil('sm_gp_ajukan', { p_id: gp.id }, 'Perhitungan diajukan')}>
                 Ajukan

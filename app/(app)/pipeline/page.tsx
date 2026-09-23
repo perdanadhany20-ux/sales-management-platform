@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
 import { usePengaturan } from '@/lib/use-settings';
-import { isPengawas, WARNA_PROBABILITY } from '@/lib/constants';
+import { isPengawas, isAdmin, WARNA_PROBABILITY } from '@/lib/constants';
 import { tanggalISO, tanggalPendek, rupiah, rupiahRingkas, angka, persen } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar } from '@/components/shared/Bento';
 import { CorongTingkat, DonutLegenda, Meter } from '@/components/shared/Charts';
@@ -40,6 +40,7 @@ export default function HalamanPipeline() {
   const { pengaturan } = usePengaturan();
   const toast = useToast();
   const pengawas = isPengawas(pengguna?.role);
+  const admin = isAdmin(pengguna?.role);
 
   const [daftar, setDaftar] = useState<Peluang[]>([]);
   const [namaSales, setNamaSales] = useState<Record<string, string>>({});
@@ -369,6 +370,7 @@ export default function HalamanPipeline() {
                   peluang={p}
                   namaSales={pengawas ? (namaSales[p.sales_user_id] ?? 'Pengguna lain') : null}
                   milikSendiri={p.sales_user_id === pengguna?.id}
+                  admin={admin}
                   onSunting={() => { setSedangSunting(p); setFormBuka(true); }}
                   onHapus={() => setAkanHapus(p)}
                 />
@@ -405,11 +407,12 @@ export default function HalamanPipeline() {
 }
 
 function KartuPeluang({
-  peluang: p, namaSales, milikSendiri, onSunting, onHapus,
+  peluang: p, namaSales, milikSendiri, admin, onSunting, onHapus,
 }: {
   peluang: Peluang;
   namaSales: string | null;
   milikSendiri: boolean;
+  admin: boolean;
   onSunting: () => void;
   onHapus: () => void;
 }) {
@@ -484,10 +487,12 @@ function KartuPeluang({
             />
           </div>
 
-          {milikSendiri && (
+          {(milikSendiri || admin) && (
             <div className="flex items-center gap-2 pt-1">
               <Tombol rupa="kedua" onClick={onSunting} className="text-[12px] py-2">Sunting</Tombol>
-              <Tombol rupa="hantu" onClick={onHapus} className="text-[12px] py-2 text-[#e34948]">Hapus</Tombol>
+              {admin && (
+                <Tombol rupa="hantu" onClick={onHapus} className="text-[12px] py-2 text-[#e34948]">Hapus</Tombol>
+              )}
             </div>
           )}
         </div>
