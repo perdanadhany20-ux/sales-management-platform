@@ -10,6 +10,7 @@ import { useLonceng, totalPerluTindakan } from '@/lib/use-lonceng';
 import { usePengingat } from '@/lib/notifikasi';
 import { isPengawas } from '@/lib/constants';
 import { tanggalPendek, rupiahRingkas } from '@/lib/format';
+import { Melayang } from './Melayang';
 import {
   intipDailyReport, intipMeeting, intipJadwal, intipPipeline,
   intipTerlewat, intipBelumDitugaskan, intipGp, type ButirIntip,
@@ -38,6 +39,7 @@ export function HeaderAtas({ pengguna, branding }: {
   // Hanya satu jendela intip terbuka pada satu waktu. Dua panel melayang
   // bersamaan saling menutupi dan tidak ada yang bisa dibaca utuh.
   const [intip, setIntip] = useState<string | null>(null);
+  const loncengRef = useRef<HTMLButtonElement>(null);
   const pengawas = isPengawas(pengguna.role);
 
   // Pengingat peramban memakai angka yang sama dengan lencana di bawah ini,
@@ -122,8 +124,9 @@ export function HeaderAtas({ pengguna, branding }: {
             ambil={() => intipPipeline(pengguna.id, pengawas)} />
 
           {/* ── Lonceng ── */}
-          <div className="relative flex-shrink-0">
+          <div className="flex-shrink-0">
             <button
+              ref={loncengRef}
               type="button"
               onClick={() => { setIntip(null); setBukaNotif((b) => !b); void muatUlang(); }}
               aria-expanded={bukaNotif}
@@ -145,13 +148,16 @@ export function HeaderAtas({ pengguna, branding }: {
             </button>
 
             {bukaNotif && (
-              <PanelNotifikasi
-                lonceng={lonceng}
-                pengawas={pengawas}
-                peran={pengguna.role}
-                userId={pengguna.id}
-                onTutup={() => setBukaNotif(false)}
-              />
+              <Melayang pemicuRef={loncengRef} onTutup={() => setBukaNotif(false)}
+                lebar={330} label="Notifikasi">
+                <PanelNotifikasi
+                  lonceng={lonceng}
+                  pengawas={pengawas}
+                  peran={pengguna.role}
+                  userId={pengguna.id}
+                  onTutup={() => setBukaNotif(false)}
+                />
+              </Melayang>
             )}
           </div>
 
@@ -235,10 +241,12 @@ function Pintasan({
   tersembunyiDiPonsel?: boolean;
 }) {
   const menyala = jumlah === '!' || jumlah > 0;
+  const tombolRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div className={`relative flex-shrink-0 ${tersembunyiDiPonsel ? 'hidden sidebar:block' : ''}`}>
+    <div className={`flex-shrink-0 ${tersembunyiDiPonsel ? 'hidden sidebar:block' : ''}`}>
       <button
+        ref={tombolRef}
         type="button"
         aria-expanded={terbuka}
         aria-label={`${label}, ${jumlah} perlu dilihat`}
@@ -260,14 +268,16 @@ function Pintasan({
       </button>
 
       {terbuka && (
-        <PanelIntip
-          judul={judulPanel}
-          kosong={kosong}
-          hrefSemua={href}
-          labelSemua={`Buka ${label}`}
-          ambil={ambil}
-          onTutup={() => onToggle(null)}
-        />
+        <Melayang pemicuRef={tombolRef} onTutup={() => onToggle(null)} lebar={300} label={judulPanel}>
+          <PanelIntip
+            judul={judulPanel}
+            kosong={kosong}
+            hrefSemua={href}
+            labelSemua={`Buka ${label}`}
+            ambil={ambil}
+            onTutup={() => onToggle(null)}
+          />
+        </Melayang>
       )}
     </div>
   );
@@ -290,7 +300,6 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
   ambil: () => Promise<ButirIntip[]>;
   onTutup: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const [butir, setButir] = useState<ButirIntip[] | null>(null);
 
   useEffect(() => {
@@ -306,27 +315,10 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const klik = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onTutup();
-    };
-    const tombol = (e: KeyboardEvent) => { if (e.key === 'Escape') onTutup(); };
-    document.addEventListener('mousedown', klik);
-    document.addEventListener('keydown', tombol);
-    return () => {
-      document.removeEventListener('mousedown', klik);
-      document.removeEventListener('keydown', tombol);
-    };
-  }, [onTutup]);
-
+  // Klik di luar dan Escape ditangani Melayang, bukan di sini — menanganinya
+  // di dua tempat membuat panel berkedip tertutup lalu terbuka lagi.
   return (
-    <div
-      ref={panelRef}
-      role="dialog"
-      aria-label={judul}
-      className="absolute right-0 top-[calc(100%+8px)] w-[290px] max-w-[calc(100vw-24px)]
-                 bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden z-50"
-    >
+    <>
       <header className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70">
         <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">{judul}</h2>
       </header>
@@ -371,7 +363,7 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
           {labelSemua} →
         </Link>
       </footer>
-    </div>
+    </>
   );
 }
 
@@ -393,24 +385,7 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
   userId: string;
   onTutup: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const [kelompok, setKelompok] = useState<{ judul: string; butir: ButirIntip[] }[] | null>(null);
-
-  // Klik di luar dan tombol Escape menutup panel. Tanpa keduanya, satu-satunya
-  // cara menutupnya adalah menekan tombol loncengnya lagi — dan orang yang
-  // tidak menemukannya akan mengira halamannya macet.
-  useEffect(() => {
-    const klik = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onTutup();
-    };
-    const tombol = (e: KeyboardEvent) => { if (e.key === 'Escape') onTutup(); };
-    document.addEventListener('mousedown', klik);
-    document.addEventListener('keydown', tombol);
-    return () => {
-      document.removeEventListener('mousedown', klik);
-      document.removeEventListener('keydown', tombol);
-    };
-  }, [onTutup]);
 
   useEffect(() => {
     let batal = false;
@@ -466,13 +441,7 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
   const jumlah = (kelompok ?? []).reduce((t, k) => t + k.butir.length, 0);
 
   return (
-    <div
-      ref={panelRef}
-      role="dialog"
-      aria-label="Notifikasi"
-      className="absolute right-0 top-[calc(100%+8px)] w-[320px] max-w-[calc(100vw-24px)]
-                 bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden z-50"
-    >
+    <>
       <header className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center gap-2">
         <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex-1">
           Perlu Tindakan
@@ -535,7 +504,7 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
           Lihat seluruh riwayat aktivitas →
         </Link>
       </footer>
-    </div>
+    </>
   );
 }
 
