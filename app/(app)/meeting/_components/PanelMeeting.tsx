@@ -352,13 +352,17 @@ export function PanelMeeting({
               : 'Berdirilah di dalam area meeting, lalu baca lokasi Anda. Jaraknya diperiksa di server.'
           }
         >
-          {!terverifikasi && !selesai && (milikSaya || pengawas) && (
+          {!terverifikasi && !selesai && milikSaya && (
             <Tombol onClick={checkIn} memuat={sibuk === 'gps'} className="text-[12px] py-2 w-full sm:w-auto">
               {gagalGps ? 'Coba Check-in Lagi' : 'Mulai Check-in'}
             </Tombol>
           )}
-          {!milikSaya && !pengawas && (
-            <p className="text-[12px] text-slate-500">{PESAN_GPS.ASSIGNMENT_MISMATCH}</p>
+          {!milikSaya && (
+            <p className="text-[12px] text-slate-500">
+              {pengawas
+                ? 'Ini meeting milik sales lain — check-in hanya bisa dilakukan oleh yang ditugaskan. Gunakan Override bila perlu menyelesaikannya secara manual.'
+                : PESAN_GPS.ASSIGNMENT_MISMATCH}
+            </p>
           )}
 
           {gagalGps && (
