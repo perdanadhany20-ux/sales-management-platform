@@ -3,6 +3,7 @@
 import { usePenggunaAktif } from '@/lib/auth';
 import { isPengawas } from '@/lib/constants';
 import { bagianUntuk } from '@/lib/admin-bagian';
+import { mulaiNavigasi } from '@/lib/navigasi-muat';
 import { LayarMemuat, Kosong } from '@/components/shared/Feedback';
 import { useBagianAdmin } from '@/components/shared/Shell';
 import { TabPengguna } from './_components/TabPengguna';
@@ -64,7 +65,8 @@ export default function HalamanAdmin() {
           const ini = b.kunci === aktif.kunci;
           return (
             <button
-              key={b.kunci} type="button" onClick={() => setBagian(b.kunci)}
+              key={b.kunci} type="button"
+              onClick={() => { if (!ini) mulaiNavigasi(null); setBagian(b.kunci); }}
               aria-current={ini ? 'true' : undefined}
               className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-kontrol
                           text-[12px] font-semibold whitespace-nowrap transition-colors

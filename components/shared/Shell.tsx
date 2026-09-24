@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  pasangPenghitungFetch, usePantauKlikTautan, useSedangNavigasi, mulaiNavigasi,
+} from '@/lib/navigasi-muat';
 import { keluar, usePenggunaAktif, type PenggunaAktif } from '@/lib/auth';
 import { LayarMemuat, Kosong } from './Feedback';
 import { Kolom, KataSandi, Tombol } from './FormParts';
@@ -85,6 +88,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   const menuSaya = useMenuSaya(pengguna?.wajib_ganti_sandi ? undefined : pengguna?.id, pengguna?.role);
 
+  useEffect(() => { pasangPenghitungFetch(); }, []);
+  usePantauKlikTautan();
+  const sedangNavigasi = useSedangNavigasi();
+
   if (pengguna?.wajib_ganti_sandi) return <LayarGantiSandi nama={pengguna.full_name} onSelesai={muatUlang} />;
 
   if (memuat || (pengguna && menuSaya === null)) return <LayarMemuat pesan="Memulihkan sesi…" />;
@@ -113,6 +120,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <KonteksBagian.Provider value={konteks}>
     <div className="min-h-[100dvh] flex flex-col">
+      {sedangNavigasi && (
+        <div role="progressbar" aria-label="Memuat halaman"
+          className="fixed top-0 inset-x-0 z-[70] h-[3px] overflow-hidden bg-aksen-100">
+          <div className="progres-jalan h-full w-2/5 bg-aksen-600 rounded-full" />
+        </div>
+      )}
       {/* Bilah judul membentang penuh di atas sidebar, bukan di sampingnya:
           identitas platform dan lencana notifikasi harus terlihat sama di
           setiap halaman, termasuk saat sidebar disembunyikan di ponsel. */}
@@ -124,8 +137,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Ruang bawah menghindari bilah navigasi ponsel menutupi isi
               halaman — termasuk tombol simpan di dasar formulir. */}
-          <main className="flex-1 px-3 sm:px-5 py-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sidebar:pb-6 max-w-[1500px] w-full mx-auto">
-            {diblokir ? <ModulTidakTersedia label={menuHalamanIni!.label} /> : children}
+          <main aria-busy={sedangNavigasi}
+            className="relative flex-1 px-3 sm:px-5 py-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sidebar:pb-6 max-w-[1500px] w-full mx-auto">
+            <div className={`transition-opacity duration-150 ${sedangNavigasi ? 'opacity-40 pointer-events-none select-none' : ''}`}>
+              {diblokir ? <ModulTidakTersedia label={menuHalamanIni!.label} /> : children}
+            </div>
+            {sedangNavigasi && (
+              <div className="absolute inset-x-0 top-24 flex justify-center pointer-events-none">
+                <div className="flex items-center gap-2.5 bg-white rounded-full border border-slate-200 shadow-sm px-4 py-2">
+                  <span className="w-4 h-4 rounded-full border-2 border-aksen-200 border-t-aksen-700 animate-spin" aria-hidden="true" />
+                  <span className="text-[12px] font-semibold text-slate-600">Memuat data…</span>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>
@@ -283,7 +307,7 @@ function SubMenuAdmin({ peran }: { peran: string }) {
                   key={b.kunci}
                   type="button"
                   aria-current={ini ? 'true' : undefined}
-                  onClick={() => setBagian(b.kunci)}
+                  onClick={() => { if (!ini) mulaiNavigasi(null); setBagian(b.kunci); }}
                   className={`flex items-center gap-2 px-2.5 py-2 rounded-kontrol text-left text-[12px]
                               font-semibold transition-colors
                               ${ini

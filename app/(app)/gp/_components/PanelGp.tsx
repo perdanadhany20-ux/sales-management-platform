@@ -27,12 +27,13 @@ import { useToast } from '@/components/shared/Feedback';
  * ditolak.
  */
 
-export function PanelGp({ buka, onTutup, gp, item, peran, namaOrang, onBerubah, onSunting }: {
+export function PanelGp({ buka, onTutup, gp, item, peran, userId, namaOrang, onBerubah, onSunting }: {
   buka: boolean;
   onTutup: () => void;
   gp: GpRingkasan;
   item: GpItem[];
   peran: string;
+  userId: string;
   namaOrang: Record<string, string>;
   onBerubah: () => void;
   onSunting: () => void;
@@ -45,6 +46,12 @@ export function PanelGp({ buka, onTutup, gp, item, peran, namaOrang, onBerubah, 
   const gaya = STATUS_GP[gp.status as StatusGp] ?? STATUS_GP.DRAFT;
   const mutu = MUTU_MARGIN[gp.mutu_margin] ?? MUTU_MARGIN['TANPA NILAI'];
   const bisaSetujui = bolehMenyetujui(gp.status, peran);
+  // Cermin aturan pemisahan tugas di sm_gp_setujui() (migrasi 030).
+  const alasanTakBoleh = !bisaSetujui ? null
+    : gp.sales_user_id === userId ? 'Dokumen buatan Anda sendiri harus disetujui orang lain.'
+    : gp.status === 'DIPERIKSA' && gp.checked_by === userId ? 'Anda sudah memeriksa dokumen ini; persetujuan harus oleh orang lain.'
+    : gp.status === 'DISETUJUI' && gp.approved_by === userId ? 'Anda sudah menyetujui dokumen ini; verifikasi harus oleh orang lain.'
+    : null;
   const ditunggu = menungguPeran(gp.status);
 
   async function panggil(fungsi: string, args: Record<string, unknown>, label: string) {
@@ -130,10 +137,14 @@ export function PanelGp({ buka, onTutup, gp, item, peran, namaOrang, onBerubah, 
                 onClick={() => setFormTolak((f) => !f)}>
                 Tolak
               </Tombol>
-              <Tombol className="text-[12px] py-2" memuat={sibuk === 'sm_gp_setujui'}
-                onClick={() => panggil('sm_gp_setujui', { p_id: gp.id, p_catatan: null }, 'Disetujui')}>
-                Setujui
-              </Tombol>
+              {alasanTakBoleh ? (
+                <span className="text-[11px] text-slate-500 max-w-[220px] leading-snug">{alasanTakBoleh}</span>
+              ) : (
+                <Tombol className="text-[12px] py-2" memuat={sibuk === 'sm_gp_setujui'}
+                  onClick={() => panggil('sm_gp_setujui', { p_id: gp.id, p_catatan: null }, 'Disetujui')}>
+                  Setujui
+                </Tombol>
+              )}
             </>
           )}
         </>

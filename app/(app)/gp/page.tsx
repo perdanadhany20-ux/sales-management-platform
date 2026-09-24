@@ -488,6 +488,7 @@ export default function HalamanGp() {
           gp={dokumenTerbuka}
           item={itemDibuka}
           peran={peran}
+          userId={pengguna?.id ?? ''}
           namaOrang={namaOrang}
           onBerubah={muat}
           onSunting={() => void suntingDokumen(dokumenTerbuka)}
