@@ -18,6 +18,8 @@ export interface SessionUser {
   username: string;
   full_name: string;
   role: string;
+  /** Sandi dibuat/di-reset Admin dan belum diganti pemiliknya. */
+  wajib_ganti_sandi: boolean;
 }
 
 export function hashToken(token: string): string {
@@ -28,7 +30,14 @@ export function buatTokenSesi(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
-export async function getSessionUser(request: NextRequest): Promise<SessionUser | null> {
+/**
+ * Akun yang sandinya masih buatan Admin ditolak di semua rute, kecuali rute
+ * yang memang ia butuhkan untuk mengganti sandi (`izinkanSandiSementara`).
+ */
+export async function getSessionUser(
+  request: NextRequest,
+  { izinkanSandiSementara = false }: { izinkanSandiSementara?: boolean } = {},
+): Promise<SessionUser | null> {
   const token = request.cookies.get(COOKIE_SESI)?.value;
   if (!token) return null;
 
@@ -54,11 +63,16 @@ export async function getSessionUser(request: NextRequest): Promise<SessionUser 
   // baru benar-benar berlaku delapan jam kemudian.
   if (!user || !user.active) return null;
 
+  const { data: kredensial } = await supabase
+    .from('user_credentials').select('must_change').eq('user_id', user.id).maybeSingle();
+  if (kredensial?.must_change && !izinkanSandiSementara) return null;
+
   return {
     id: user.id,
     username: user.username,
     full_name: user.full_name,
     role: user.role,
+    wajib_ganti_sandi: Boolean(kredensial?.must_change),
   };
 }
 

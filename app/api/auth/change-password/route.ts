@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
  * mengunci pemiliknya keluar dari akunnya sendiri.
  */
 export async function POST(request: NextRequest) {
-  const pengguna = await getSessionUser(request);
+  const pengguna = await getSessionUser(request, { izinkanSandiSementara: true });
   if (!pengguna) {
     return NextResponse.json({ error: 'Sesi tidak ditemukan.' }, { status: 401 });
   }

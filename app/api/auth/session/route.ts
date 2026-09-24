@@ -13,10 +13,12 @@ export const dynamic = 'force-dynamic';
  * dinonaktifkan langsung berhenti mendapat token baru.
  */
 export async function GET(request: NextRequest) {
-  const user = await getSessionUser(request);
+  const user = await getSessionUser(request, { izinkanSandiSementara: true });
   if (!user) {
     return NextResponse.json({ error: 'Sesi tidak ditemukan.' }, { status: 401 });
   }
 
-  return NextResponse.json({ user, db_token: issueDbToken(user) });
+  // Sandi yang masih buatan Admin diketahui orang lain, jadi akunnya belum
+  // diberi akses data sama sekali sampai sandinya diganti pemiliknya.
+  return NextResponse.json({ user, db_token: user.wajib_ganti_sandi ? null : issueDbToken(user) });
 }

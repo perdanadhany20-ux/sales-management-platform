@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useMemo, useState } from 'react';
 import { keluar, usePenggunaAktif, type PenggunaAktif } from '@/lib/auth';
 import { LayarMemuat, Kosong } from './Feedback';
+import { Kolom, KataSandi, Tombol } from './FormParts';
 import { LABEL_PERAN, type Peran } from '@/lib/constants';
 import { useMenuSaya, type MenuKey } from '@/lib/menu-akses';
 import { useBranding } from '@/lib/branding';
@@ -65,7 +66,7 @@ const I = (d: string) => (
 export const MENU_APLIKASI: Menu[] = [
   { href: '/dashboard',    label: 'Dashboard',    kunci: 'dashboard',     utama: true,  ikon: I('M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z') },
   { href: '/daily-report', label: 'Daily Report', kunci: 'daily-report',  utama: true,  ikon: I('M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4') },
-  { href: '/proyek',       label: 'Proyek',       kunci: 'proyek',        utama: true,  ikon: I('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
+  { href: '/proyek',       label: 'Proyek',       kunci: 'proyek',        ikon: I('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
   { href: '/pipeline',     label: 'Pipeline',     kunci: 'pipeline',      ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
   { href: '/schedule',     label: 'Schedule',     kunci: 'schedule',      utama: true,  ikon: I('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z') },
   { href: '/meeting',      label: 'Meeting',      kunci: 'meeting',       utama: true,  ikon: I('M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
@@ -75,14 +76,16 @@ export const MENU_APLIKASI: Menu[] = [
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { pengguna, memuat } = usePenggunaAktif();
+  const { pengguna, memuat, muatUlang } = usePenggunaAktif();
   const { branding } = useBranding();
   const pathname = usePathname();
   const router = useRouter();
   const [bagian, setBagian] = useState<KunciBagian>('pengguna');
   const konteks = useMemo(() => ({ bagian, setBagian }), [bagian]);
 
-  const menuSaya = useMenuSaya(pengguna?.id, pengguna?.role);
+  const menuSaya = useMenuSaya(pengguna?.wajib_ganti_sandi ? undefined : pengguna?.id, pengguna?.role);
+
+  if (pengguna?.wajib_ganti_sandi) return <LayarGantiSandi nama={pengguna.full_name} onSelesai={muatUlang} />;
 
   if (memuat || (pengguna && menuSaya === null)) return <LayarMemuat pesan="Memulihkan sesi…" />;
 
@@ -94,7 +97,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }
 
   const menu = MENU_APLIKASI.filter((m) => menuSaya!.includes(m.kunci));
-  const menuPonsel = menu.filter((m) => m.utama).slice(0, 5);
+  // Bilah bawah memuat paling banyak 5 slot. Kalau menunya lebih, slot
+  // kelima menjadi "Lainnya" — tanpa itu menu di luar 5 utama (Pipeline, GP,
+  // Activity, Admin) sama sekali tidak terjangkau dari ponsel.
+  const utama = menu.filter((m) => m.utama);
+  const menuPonsel = menu.length > 5 ? utama.slice(0, 4) : menu.slice(0, 5);
+  const menuLainnya = menu.filter((m) => !menuPonsel.includes(m));
 
   // Menu yang menyusun URL saat ini — dicari dari daftar LENGKAP, bukan yang
   // sudah disaring, supaya modul yang justru sedang dikunci ikut ketemu.
@@ -122,7 +130,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      <BilahBawah menu={menuPonsel} pathname={pathname} />
+      <BilahBawah menu={menuPonsel} lainnya={menuLainnya} pathname={pathname} />
     </div>
     </KonteksBagian.Provider>
   );
@@ -142,6 +150,87 @@ function ModulTidakTersedia({ label }: { label: string }) {
         judul={`${label} tidak tersedia`}
         keterangan="Modul ini tidak termasuk dalam hak akses akun Anda. Hubungi Admin kalau menurut Anda ini keliru."
       />
+    </div>
+  );
+}
+
+/**
+ * Akun yang sandinya dibuat atau di-reset Admin wajib menggantinya dulu:
+ * sandi itu diketahui orang lain. Server tidak menerbitkan token data sama
+ * sekali selama keadaan ini, jadi layar ini bukan sekadar penghalang tampilan.
+ */
+function LayarGantiSandi({ nama, onSelesai }: { nama: string; onSelesai: () => Promise<void> }) {
+  const [lama, setLama] = useState('');
+  const [baru, setBaru] = useState('');
+  const [ulang, setUlang] = useState('');
+  const [galat, setGalat] = useState<string | null>(null);
+  const [memproses, setMemproses] = useState(false);
+  const router = useRouter();
+
+  const tidakCocok = ulang.length > 0 && ulang !== baru;
+
+  async function simpan(e: React.FormEvent) {
+    e.preventDefault();
+    if (tidakCocok) return;
+    setGalat(null);
+    setMemproses(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password_lama: lama, password_baru: baru }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(data?.error ?? 'Gagal mengganti kata sandi.'); return; }
+      await onSelesai();
+      router.replace('/');
+    } catch {
+      setGalat('Jaringan bermasalah. Coba lagi.');
+    } finally {
+      setMemproses(false);
+    }
+  }
+
+  async function batal() {
+    await keluar();
+    router.replace('/');
+  }
+
+  return (
+    <div className="min-h-[100dvh] grid place-items-center bg-slate-50 px-4">
+      <form onSubmit={simpan}
+        className="w-full max-w-sm bg-white rounded-kartu border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
+        <div>
+          <h1 className="text-lg font-black text-slate-900">Ganti kata sandi</h1>
+          <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">
+            Halo {nama}. Kata sandi akun Anda dibuat oleh Admin, jadi wajib diganti dengan
+            sandi pribadi sebelum Anda bisa memakai platform.
+          </p>
+        </div>
+
+        <Kolom label="Kata sandi saat ini" wajib>
+          {(id) => <KataSandi id={id} nilai={lama} onUbah={setLama} />}
+        </Kolom>
+        <Kolom label="Kata sandi baru" wajib bantuan="Minimal 8 karakter, memuat huruf dan angka.">
+          {(id) => <KataSandi id={id} nilai={baru} onUbah={setBaru} autoComplete="new-password" />}
+        </Kolom>
+        <Kolom label="Ulangi kata sandi baru" wajib galat={tidakCocok ? 'Tidak sama dengan sandi baru.' : null}>
+          {(id, invalid) => <KataSandi id={id} nilai={ulang} onUbah={setUlang} invalid={invalid} autoComplete="new-password" />}
+        </Kolom>
+
+        {galat && (
+          <p className="text-[12px] text-[#8f2c2b] bg-[#fce3e3] rounded-kontrol px-3 py-2" role="alert">{galat}</p>
+        )}
+
+        <div className="flex items-center justify-between gap-2">
+          <button type="button" onClick={batal}
+            className="text-[12px] font-semibold text-slate-500 hover:text-slate-800">Keluar</button>
+          <Tombol type="submit" memuat={memproses} disabled={!lama || !baru || !ulang || tidakCocok}>
+            Simpan & Lanjutkan
+          </Tombol>
+        </div>
+      </form>
     </div>
   );
 }
@@ -272,8 +361,33 @@ function Inisial({ nama }: { nama: string }) {
   );
 }
 
-function BilahBawah({ menu, pathname }: { menu: Menu[]; pathname: string }) {
+function BilahBawah({ menu, lainnya, pathname }: { menu: Menu[]; lainnya: Menu[]; pathname: string }) {
+  const [buka, setBuka] = useState(false);
+  const lainnyaAktif = lainnya.some((m) => pathname.startsWith(m.href));
+
   return (
+    <>
+    {buka && (
+      <div className="sidebar:hidden fixed inset-0 z-40" onClick={() => setBuka(false)}>
+        <div className="absolute inset-0 bg-slate-900/30" aria-hidden="true" />
+        <div role="dialog" aria-label="Menu lainnya"
+          className="absolute inset-x-3 bottom-[calc(64px+env(safe-area-inset-bottom))] bg-white rounded-kartu border border-slate-200 shadow-modal p-2 grid grid-cols-3 gap-1"
+          onClick={(e) => e.stopPropagation()}>
+          {lainnya.map((m) => {
+            const aktif = pathname.startsWith(m.href);
+            return (
+              <Link key={m.href} href={m.href} onClick={() => setBuka(false)}
+                aria-current={aktif ? 'page' : undefined}
+                className={`min-h-[64px] rounded-kontrol flex flex-col items-center justify-center gap-1 px-1
+                            ${aktif ? 'bg-aksen-50 text-aksen-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+                {m.ikon}
+                <span className="text-[11px] font-bold text-center leading-tight">{m.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    )}
     <nav className="sidebar:hidden fixed bottom-0 inset-x-0 z-30 bg-white/97 backdrop-blur border-t border-slate-200
                     pb-[env(safe-area-inset-bottom)]">
       <div className="flex">
@@ -293,7 +407,16 @@ function BilahBawah({ menu, pathname }: { menu: Menu[]; pathname: string }) {
             </Link>
           );
         })}
+        {lainnya.length > 0 && (
+          <button type="button" onClick={() => setBuka((b) => !b)} aria-expanded={buka}
+            className={`flex-1 min-h-[56px] flex flex-col items-center justify-center gap-0.5 py-2
+                        ${buka || lainnyaAktif ? 'text-aksen-700' : 'text-slate-400'}`}>
+            {I('M5 12h.01M12 12h.01M19 12h.01')}
+            <span className="text-[9.5px] font-bold leading-none">Lainnya</span>
+          </button>
+        )}
       </div>
     </nav>
+    </>
   );
 }

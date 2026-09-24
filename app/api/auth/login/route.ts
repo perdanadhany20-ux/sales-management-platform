@@ -9,12 +9,19 @@ export const dynamic = 'force-dynamic';
 /** Percobaan gagal maksimum dalam satu jendela sebelum akun dikunci sementara. */
 const BATAS_GAGAL = 8;
 const JENDELA_MENIT = 15;
+/** Lebih longgar dari batas per-username: satu kantor bisa berbagi satu IP. */
+const BATAS_GAGAL_IP = 30;
 
 export async function POST(request: NextRequest) {
   const { username, password } = await request.json().catch(() => ({}));
 
   if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
     return NextResponse.json({ error: 'Username dan kata sandi wajib diisi.' }, { status: 400 });
+  }
+  // bcrypt hanya membaca 72 byte pertama; batas ini juga mencegah username
+  // raksasa tercatat utuh di login_attempts.
+  if (username.length > 64 || password.length > 128) {
+    return NextResponse.json({ error: 'Username atau kata sandi salah.' }, { status: 401 });
   }
 
   const db = getAdminClient();
@@ -28,7 +35,15 @@ export async function POST(request: NextRequest) {
     .eq('success', false)
     .gte('attempted_at', sejak);
 
-  if ((gagalTerakhir ?? 0) >= BATAS_GAGAL) {
+  // Batas per-IP menutup "password spraying": satu sandi umum dicoba ke
+  // banyak username, yang tidak pernah menyentuh batas per-username di atas.
+  const { count: gagalDariIp } = ip
+    ? await db.from('login_attempts')
+        .select('id', { count: 'exact', head: true })
+        .eq('ip', ip).eq('success', false).gte('attempted_at', sejak)
+    : { count: 0 };
+
+  if ((gagalTerakhir ?? 0) >= BATAS_GAGAL || (gagalDariIp ?? 0) >= BATAS_GAGAL_IP) {
     return NextResponse.json(
       { error: `Terlalu banyak percobaan gagal. Coba lagi dalam ${JENDELA_MENIT} menit.` },
       { status: 429 },
@@ -42,8 +57,9 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   const { data: kredensial } = user
-    ? await db.from('user_credentials').select('password_hash').eq('user_id', user.id).maybeSingle()
+    ? await db.from('user_credentials').select('password_hash, must_change').eq('user_id', user.id).maybeSingle()
     : { data: null };
+  const wajibGantiSandi = Boolean(kredensial?.must_change);
 
   const cocok = kredensial
     ? await bcrypt.compare(password, kredensial.password_hash)
@@ -92,8 +108,11 @@ export async function POST(request: NextRequest) {
   });
 
   const res = NextResponse.json({
-    user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role },
-    db_token: issueDbToken(user),
+    user: {
+      id: user.id, username: user.username, full_name: user.full_name, role: user.role,
+      wajib_ganti_sandi: wajibGantiSandi,
+    },
+    db_token: wajibGantiSandi ? null : issueDbToken(user),
   });
 
   res.cookies.set(COOKIE_SESI, token, {

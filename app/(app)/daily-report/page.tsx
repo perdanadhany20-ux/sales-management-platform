@@ -271,7 +271,7 @@ export default function HalamanDailyReport() {
       {/* ── Analitik ringkas (§16) ── */}
       <BentoGrid>
         {!pengawas ? (
-          <BentoCard rentang={4} tinggi="pendek" rupa={laporanHariIni ? 'polos' : 'sorot'} judul="Status Hari Ini">
+          <BentoCard rentang={6} tinggi="pendek" rupa={laporanHariIni ? 'polos' : 'sorot'} judul="Status Hari Ini">
             {laporanHariIni ? (
               <div className="flex items-center gap-3">
                 <span className="w-11 h-11 rounded-full bg-[#e0f2e0] text-[#008300] grid place-items-center text-lg font-black flex-shrink-0">✓</span>
@@ -323,7 +323,7 @@ export default function HalamanDailyReport() {
           </BentoCard>
         )}
 
-        <BentoCard rentang={4} tinggi={pengawas ? 'sedang' : 'pendek'} judul="Jumlah Laporan">
+        <BentoCard rentang={pengawas ? 4 : 6} tinggi={pengawas ? 'sedang' : 'pendek'} judul="Jumlah Laporan">
           <AngkaJangkar
             nilai={angka(total)}
             satuan="laporan"

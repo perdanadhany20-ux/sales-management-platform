@@ -70,6 +70,13 @@ export function refreshDbToken(): Promise<void> {
   pembaruanBerjalan = (async () => {
     try {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
+      if (res.status === 401) {
+        // Sesi dicabut (logout di tab lain, akun dinonaktifkan, atau habis):
+        // token lama dibuang saat itu juga, bukan dibiarkan berlaku sampai exp.
+        setDbToken(null);
+        if (typeof window !== 'undefined' && window.location.pathname !== '/') window.location.href = '/';
+        return;
+      }
       if (!res.ok) return;
       const { db_token } = await res.json();
       if (db_token) setDbToken(db_token);

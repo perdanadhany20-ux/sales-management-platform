@@ -13,6 +13,7 @@ export interface PenggunaAktif {
   username: string;
   full_name: string;
   role: string;
+  wajib_ganti_sandi?: boolean;
 }
 
 export async function masuk(username: string, password: string): Promise<PenggunaAktif> {

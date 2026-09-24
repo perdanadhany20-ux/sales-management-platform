@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { masuk } from '@/lib/auth';
 import { halamanAwal } from '@/lib/menu-akses';
+import { setDbToken } from '@/lib/supabase';
 import { KataSandi } from '@/components/shared/FormParts';
 import { useBranding, type Branding } from '@/lib/branding';
 import { FormDaftar } from './_components/FormDaftar';
@@ -39,6 +40,9 @@ export default function HalamanMasuk() {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
       if (batal || !res.ok) return;
       const data = await res.json();
+      // Token dipasang dulu: halamanAwal membaca hak menu lewat PostgREST, dan
+      // tanpa token hasilnya kosong sehingga semua orang mendarat di /profil.
+      setDbToken(data.db_token ?? null);
       const tujuan = data.user ? await halamanAwal(data.user.id, data.user.role) : '/dashboard';
       if (!batal) router.replace(tujuan);
     })().catch(() => { /* belum ada sesi — tetap di halaman ini */ });

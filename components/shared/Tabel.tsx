@@ -58,7 +58,7 @@ export function Tabel<T>({
               </th>
             ))}
             {aksi && (
-              <th className={`px-3 py-2.5 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wide ${lebarAksi}`}>
+              <th className={`sticky right-0 bg-slate-50 px-3 py-2.5 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wide ${lebarAksi}`}>
                 Aksi
               </th>
             )}
@@ -75,7 +75,9 @@ export function Tabel<T>({
                 </td>
               ))}
               {aksi && (
-                <td className="px-3 py-3 align-top">
+                // Menempel di kanan: di ponsel tabel digulir ke samping, dan
+                // tombol Sunting/Hapus tidak boleh ikut tersembunyi di ujung.
+                <td className="sticky right-0 bg-white px-3 py-3 align-top shadow-[-8px_0_8px_-8px_rgba(15,23,42,0.12)]">
                   <div className="flex items-center justify-end gap-1">{aksi(baris)}</div>
                 </td>
               )}
