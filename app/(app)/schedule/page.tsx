@@ -419,6 +419,7 @@ export default function HalamanSchedule() {
             kolom={[
               {
                 label: 'Tanggal', className: 'w-28 whitespace-nowrap',
+                urut: (j) => `${j.schedule_date} ${j.schedule_time ?? ''}`,
                 render: (j) => (
                   <>
                     {tanggalPendek(j.schedule_date)}
@@ -428,6 +429,7 @@ export default function HalamanSchedule() {
               },
               {
                 label: 'Customer', className: 'w-[38%]',
+                urut: (j) => j.customer_name,
                 render: (j) => (
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -442,12 +444,14 @@ export default function HalamanSchedule() {
               },
               {
                 label: 'Ditugaskan', className: 'w-40',
+                urut: (j) => (j.assigned_to ? namaSales[j.assigned_to] : null),
                 render: (j) => (j.assigned_to
                   ? <span className="text-slate-600">{namaSales[j.assigned_to] ?? 'Pengguna lain'}</span>
                   : <span className="text-[#eda100] font-semibold text-[12px]">Belum ditugaskan</span>),
               },
               {
                 label: 'Status', className: 'w-32',
+                urut: (j) => STATUS_JADWAL[statusEfektif(j)]?.label,
                 render: (j) => <Lencana {...(STATUS_JADWAL[statusEfektif(j)] ?? STATUS_JADWAL.UPCOMING)} />,
               },
             ]}

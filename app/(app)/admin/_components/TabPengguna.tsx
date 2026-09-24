@@ -143,6 +143,7 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
           kolom={[
             {
               label: 'Pengguna', className: 'w-[28%]',
+              urut: (u) => u.full_name,
               render: (u) => {
                 const sendiri = u.id === pemanggilId;
                 return (
@@ -163,10 +164,12 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
             },
             {
               label: 'Peran', className: 'w-28',
+              urut: (u) => LABEL_PERAN[u.role as Peran] ?? u.role,
               render: (u) => <Lencana label={LABEL_PERAN[u.role as Peran] ?? u.role} {...(GAYA_PERAN[u.role] ?? GAYA_PERAN.SALES)} />,
             },
             {
               label: 'Kontak', className: 'w-[22%]',
+              urut: (u) => u.email,
               render: (u) => (
                 <div className="min-w-0">
                   <p className="text-slate-600 truncate">{u.email || '—'}</p>
@@ -176,18 +179,21 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
             },
             {
               label: 'Atasan', className: 'w-[16%]',
+              urut: (u) => (u.manager_id ? namaPengguna[u.manager_id] : null),
               render: (u) => (u.manager_id && namaPengguna[u.manager_id]
                 ? <span className="text-slate-600 truncate block">{namaPengguna[u.manager_id]}</span>
                 : <span className="text-slate-400">—</span>),
             },
             {
               label: 'Status', className: 'w-24',
+              urut: (u) => (u.active ? 'Aktif' : 'Nonaktif'),
               render: (u) => (u.active
                 ? <Lencana label="Aktif" color="#008300" bg="#e0f2e0" />
                 : <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />),
             },
             {
               label: 'Dibuat', className: 'w-28 whitespace-nowrap',
+              urut: (u) => u.created_at,
               render: (u) => tanggalPendek(u.created_at),
             },
           ]}

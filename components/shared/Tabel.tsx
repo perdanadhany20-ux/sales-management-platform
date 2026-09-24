@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo, useState } from 'react';
+
 /**
  * components/shared/Tabel.tsx — daftar sebagai baris tabel, bukan kartu yang
  * ditumpuk vertikal.
@@ -20,6 +22,8 @@ export interface KolomTabel<T> {
   /** Kelas lebar/alignment untuk <th> dan <td>, mis. "w-32" atau "text-right". */
   className?: string;
   render: (baris: T) => React.ReactNode;
+  /** Nilai pembanding; bila diisi, judul kolomnya bisa diklik untuk mengurutkan. */
+  urut?: (baris: T) => string | number | null | undefined;
 }
 
 export function Tabel<T>({
@@ -34,6 +38,28 @@ export function Tabel<T>({
    *  ada juga tombol berlabel seperti "Reset Sandi". */
   lebarAksi?: string;
 }) {
+  // Klik judul: naik → turun → kembali ke urutan asal dari server.
+  const [urutan, setUrutan] = useState<{ kolom: number; arah: 1 | -1 } | null>(null);
+
+  const tampil = useMemo(() => {
+    const fn = urutan ? kolom[urutan.kolom]?.urut : undefined;
+    if (!urutan || !fn) return data;
+    return [...data].sort((a, b) => {
+      const x = fn(a), y = fn(b);
+      // Nilai kosong selalu di bawah, apa pun arahnya.
+      if (x == null || x === '') return (y == null || y === '') ? 0 : 1;
+      if (y == null || y === '') return -1;
+      const beda = typeof x === 'number' && typeof y === 'number'
+        ? x - y
+        : String(x).localeCompare(String(y), 'id', { numeric: true, sensitivity: 'base' });
+      return beda * urutan.arah;
+    });
+  }, [data, kolom, urutan]);
+
+  function klikJudul(i: number) {
+    setUrutan((u) => (!u || u.kolom !== i ? { kolom: i, arah: 1 } : u.arah === 1 ? { kolom: i, arah: -1 } : null));
+  }
+
   return (
     <div className="bg-white rounded-kartu border border-slate-200 overflow-x-auto">
       {/*
@@ -51,12 +77,26 @@ export function Tabel<T>({
             <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wide w-10">
               No
             </th>
-            {kolom.map((k, i) => (
-              <th key={i}
-                className={`px-3 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wide ${k.className ?? ''}`}>
-                {k.label}
-              </th>
-            ))}
+            {kolom.map((k, i) => {
+              const aktif = urutan?.kolom === i;
+              return (
+                <th key={i}
+                  aria-sort={aktif ? (urutan!.arah === 1 ? 'ascending' : 'descending') : undefined}
+                  className={`px-3 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wide ${k.className ?? ''}`}>
+                  {k.urut ? (
+                    <button type="button" onClick={() => klikJudul(i)}
+                      title="Klik untuk mengurutkan"
+                      className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-800 transition-colors
+                                  ${aktif ? 'text-aksen-700' : ''}`}>
+                      {k.label}
+                      <span aria-hidden="true" className={`text-[9px] ${aktif ? '' : 'text-slate-300'}`}>
+                        {aktif ? (urutan!.arah === 1 ? '▲' : '▼') : '↕'}
+                      </span>
+                    </button>
+                  ) : k.label}
+                </th>
+              );
+            })}
             {aksi && (
               <th className={`sticky right-0 bg-slate-50 px-3 py-2.5 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wide ${lebarAksi}`}>
                 Aksi
@@ -65,7 +105,7 @@ export function Tabel<T>({
           </tr>
         </thead>
         <tbody>
-          {data.map((baris, i) => (
+          {tampil.map((baris, i) => (
             <tr key={kunci(baris)} id={`baris-${kunci(baris)}`}
               className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 transition-colors">
               <td className="px-3 py-3 text-[12px] text-slate-400 tabular-nums align-top">{i + 1}</td>

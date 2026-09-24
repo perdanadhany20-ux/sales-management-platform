@@ -344,6 +344,7 @@ export default function HalamanActivity() {
             kolom={[
               {
                 label: 'Waktu', className: 'w-32 whitespace-nowrap',
+                urut: (a) => a.terjadi_pada,
                 render: (a) => (
                   <span className="tabular-nums">
                     {tanggalPendek(tanggalISO(new Date(a.terjadi_pada)))}
@@ -353,6 +354,7 @@ export default function HalamanActivity() {
               },
               {
                 label: 'Jenis', className: 'w-36',
+                urut: (a) => (JENIS[a.jenis] ?? JENIS_BAWAAN).label,
                 render: (a) => {
                   const gaya = JENIS[a.jenis] ?? JENIS_BAWAAN;
                   return (
@@ -365,6 +367,7 @@ export default function HalamanActivity() {
               },
               {
                 label: 'Customer', className: 'w-[20%]',
+                urut: (a) => a.judul,
                 render: (a) => <span className="font-bold text-slate-900 truncate block">{a.judul || '—'}</span>,
               },
               {
@@ -385,6 +388,7 @@ export default function HalamanActivity() {
               },
               ...(pengawas ? [{
                 label: 'Pengguna', className: 'w-[14%]',
+                urut: (a: Aktivitas) => (a.user_id ? namaOrang[a.user_id] : null),
                 render: (a: Aktivitas) => (
                   <span className="text-slate-600 truncate block">
                     {a.user_id ? (namaOrang[a.user_id] ?? '—') : '—'}
@@ -393,6 +397,7 @@ export default function HalamanActivity() {
               }] : []),
               {
                 label: 'Nilai', className: 'w-28 text-right',
+                urut: (a) => (a.jenis === 'PIPELINE' ? Number(a.nilai ?? 0) : null),
                 render: (a) => (a.jenis === 'PIPELINE' && a.nilai != null
                   ? <span className="font-semibold tabular-nums">{rupiahRingkas(a.nilai)}</span>
                   : <span className="text-slate-300">—</span>),

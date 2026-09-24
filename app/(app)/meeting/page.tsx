@@ -454,6 +454,7 @@ export default function HalamanMeeting() {
             kolom={[
               {
                 label: 'Tanggal', className: 'w-28 whitespace-nowrap',
+                urut: (m) => `${m.schedule_date} ${m.schedule_time ?? ''}`,
                 render: (m) => (
                   <>
                     {tanggalPendek(m.schedule_date)}
@@ -463,6 +464,7 @@ export default function HalamanMeeting() {
               },
               {
                 label: 'Customer', className: 'w-[36%]',
+                urut: (m) => m.customer_name,
                 render: (m) => (
                   <div className="min-w-0">
                     <p className="font-bold text-slate-900 truncate">{m.customer_name}</p>
@@ -474,6 +476,7 @@ export default function HalamanMeeting() {
               },
               {
                 label: 'Status', className: 'w-56',
+                urut: (m) => STATUS_JADWAL[statusEfektif(m)]?.label,
                 render: (m) => {
                   const state = (m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran;
                   return (
@@ -489,6 +492,7 @@ export default function HalamanMeeting() {
               },
               ...(pengawas ? [{
                 label: 'Sales', className: 'w-36',
+                urut: (m: BarisMeeting) => (m.assigned_to ? namaSales[m.assigned_to] : null),
                 render: (m: BarisMeeting) => (
                   <span className="text-slate-600">
                     {m.assigned_to ? (namaSales[m.assigned_to] ?? 'Pengguna lain') : '—'}

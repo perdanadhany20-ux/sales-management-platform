@@ -237,6 +237,7 @@ export function TabAudit() {
             kolom={[
               {
                 label: 'Waktu', className: 'w-32 whitespace-nowrap',
+                urut: (j) => j.created_at,
                 render: (j) => (
                   <span className="tabular-nums">
                     {tanggalPendek(j.created_at)}
@@ -247,6 +248,7 @@ export function TabAudit() {
               { label: 'Tindakan', className: 'w-40', render: (j) => <Lencana {...gayaAksi(j.action)} /> },
               {
                 label: 'Pelaku', className: 'w-[16%]',
+                urut: (j) => j.actor_name ?? (j.actor_id ? namaPengguna[j.actor_id] : null),
                 render: (j) => (
                   <span className="font-semibold text-slate-800 truncate block">
                     {j.actor_name ?? (j.actor_id ? namaPengguna[j.actor_id] : null) ?? 'Sistem'}
@@ -255,6 +257,7 @@ export function TabAudit() {
               },
               {
                 label: 'Objek', className: 'w-28',
+                urut: (j) => LABEL_ENTITAS[j.entity] ?? j.entity,
                 render: (j) => <span className="text-slate-500">{LABEL_ENTITAS[j.entity] ?? j.entity}</span>,
               },
               {

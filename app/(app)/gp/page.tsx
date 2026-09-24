@@ -387,6 +387,7 @@ export default function HalamanGp() {
             kolom={[
               {
                 label: 'Dokumen', className: 'w-[42%]',
+                urut: (g) => g.nomor,
                 render: (g) => {
                   const gaya = STATUS_GP[g.status as StatusGp] ?? STATUS_GP.DRAFT;
                   const mutu = MUTU_MARGIN[g.mutu_margin] ?? MUTU_MARGIN['TANPA NILAI'];
@@ -412,10 +413,12 @@ export default function HalamanGp() {
               },
               {
                 label: 'Tanggal', className: 'w-24 whitespace-nowrap',
+                urut: (g) => g.calc_date,
                 render: (g) => tanggalPendek(g.calc_date),
               },
               {
                 label: 'Selling / Margin', className: 'w-40 text-right',
+                urut: (g) => Number(g.total_selling),
                 render: (g) => {
                   const mutu = MUTU_MARGIN[g.mutu_margin] ?? MUTU_MARGIN['TANPA NILAI'];
                   return (
@@ -430,6 +433,7 @@ export default function HalamanGp() {
               },
               ...(pengawas ? [{
                 label: 'Sales', className: 'w-36',
+                urut: (g: GpRingkasan) => namaOrang[g.sales_user_id],
                 render: (g: GpRingkasan) => (
                   <Lencana label={namaOrang[g.sales_user_id] ?? '—'} color="#1d4ed8" bg="#dbeafe" />
                 ),

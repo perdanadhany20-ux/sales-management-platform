@@ -311,6 +311,7 @@ export default function HalamanProyek() {
             kolom={[
               {
                 label: 'Proyek', className: 'w-[30%]',
+                urut: (p) => p.name,
                 render: (p) => {
                   const gaya = STATUS_PROYEK[p.status as StatusProyek] ?? STATUS_PROYEK.AKTIF;
                   const langkah = tahapProyek(p);
@@ -345,6 +346,7 @@ export default function HalamanProyek() {
               },
               {
                 label: 'Pipeline / Profit', className: 'w-40 text-right',
+                urut: (p) => Number(p.nilai_pipeline),
                 render: (p) => (
                   <div className="text-right">
                     <p className="font-bold text-slate-900 tabular-nums">{rupiah(p.nilai_pipeline)}</p>
@@ -359,6 +361,7 @@ export default function HalamanProyek() {
               },
               ...(pengawas ? [{
                 label: 'Pemilik', className: 'w-36',
+                urut: (p: ProyekRingkasan) => namaOrang[p.owner_user_id],
                 render: (p: ProyekRingkasan) => (
                   <Lencana label={namaOrang[p.owner_user_id] ?? '—'} color="#1d4ed8" bg="#dbeafe" />
                 ),

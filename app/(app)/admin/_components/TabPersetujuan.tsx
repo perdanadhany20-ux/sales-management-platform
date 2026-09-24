@@ -184,6 +184,7 @@ export function TabPersetujuan() {
             kolom={[
               {
                 label: 'Pengguna', className: 'w-[32%]',
+                urut: (a) => a.full_name,
                 render: (a) => (
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -200,6 +201,7 @@ export function TabPersetujuan() {
               },
               {
                 label: 'Divisi / Jabatan', className: 'w-[22%]',
+                urut: (a) => a.division,
                 render: (a) => (
                   <span className="text-slate-600">
                     {[a.division, a.position].filter(Boolean).join(' · ') || '—'}
@@ -208,6 +210,7 @@ export function TabPersetujuan() {
               },
               {
                 label: 'Diputuskan', className: 'w-32',
+                urut: (a) => a.approved_at,
                 render: (a) => (a.approved_at
                   ? tanggalPendek(a.approved_at)
                   : <span className="text-slate-400">—</span>),

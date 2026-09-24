@@ -371,6 +371,7 @@ export default function HalamanPipeline() {
             kolom={[
               {
                 label: 'Customer', className: 'w-[36%]',
+                urut: (p) => p.customer_name,
                 render: (p) => {
                   const stage = GAYA_STAGE[p.stage] ?? GAYA_STAGE.OPEN;
                   return (
@@ -386,6 +387,7 @@ export default function HalamanPipeline() {
               },
               {
                 label: 'Probability', className: 'w-24',
+                urut: (p) => Number(p.probability),
                 render: (p) => (
                   <span
                     className="inline-flex px-2 py-0.5 rounded-full text-[12px] font-black tabular-nums"
@@ -400,6 +402,7 @@ export default function HalamanPipeline() {
               },
               {
                 label: 'Nilai / GP', className: 'w-40 text-right',
+                urut: (p) => Number(p.project_value),
                 render: (p) => {
                   const gp = Number(p.project_gp);
                   return (
@@ -414,6 +417,7 @@ export default function HalamanPipeline() {
               },
               {
                 label: 'Closing', className: 'w-32 whitespace-nowrap',
+                urut: (p) => p.estimated_closing,
                 render: (p) => {
                   const sisaHari = Math.ceil(
                     (new Date(p.estimated_closing).getTime() - new Date(tanggalISO()).getTime()) / 86400000,
@@ -428,6 +432,7 @@ export default function HalamanPipeline() {
               },
               ...(pengawas ? [{
                 label: 'Sales', className: 'w-36',
+                urut: (p: Peluang) => namaSales[p.sales_user_id],
                 render: (p: Peluang) => (
                   <Lencana label={namaSales[p.sales_user_id] ?? 'Pengguna lain'} color="#1d4ed8" bg="#dbeafe" />
                 ),

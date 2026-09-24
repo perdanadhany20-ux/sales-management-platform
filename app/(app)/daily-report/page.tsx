@@ -411,10 +411,12 @@ export default function HalamanDailyReport() {
             kolom={[
               {
                 label: 'Tanggal', className: 'w-24 whitespace-nowrap',
+                urut: (l) => l.report_date,
                 render: (l) => tanggalPendek(l.report_date),
               },
               {
                 label: 'Customer', className: 'w-[30%]',
+                urut: (l) => l.customer_name,
                 render: (l) => (
                   <div className="min-w-0">
                     <p className="font-bold text-slate-900 truncate">{l.customer_name}</p>
@@ -430,6 +432,7 @@ export default function HalamanDailyReport() {
               },
               ...(pengawas ? [{
                 label: 'Sales', className: 'w-36',
+                urut: (l: Laporan) => namaSales[l.sales_user_id],
                 render: (l: Laporan) => (
                   <Lencana label={namaSales[l.sales_user_id] ?? '—'} color="#1d4ed8" bg="#dbeafe" />
                 ),

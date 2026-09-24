@@ -158,6 +158,7 @@ export function TabTarget({ pemanggilId }: { pemanggilId: string }) {
           kolom={[
             {
               label: 'Sales', className: 'w-[18%]',
+              urut: (p) => p.full_name,
               render: (p) => (
                 <div className="min-w-0">
                   <p className="font-bold text-slate-900 truncate">{p.full_name}</p>
@@ -169,6 +170,7 @@ export function TabTarget({ pemanggilId }: { pemanggilId: string }) {
             },
             {
               label: 'Target Nilai Penjualan', className: 'w-[19%]',
+              urut: (p) => isian[p.sales_user_id]?.nilai ?? 0,
               render: (p) => (
                 <Uang aria-label={`Target nilai ${p.full_name}`} nilai={isian[p.sales_user_id]?.nilai ?? 0}
                   onUbah={(n) => ubah(p.sales_user_id, 'nilai', n)} placeholder="0" />
@@ -176,6 +178,7 @@ export function TabTarget({ pemanggilId }: { pemanggilId: string }) {
             },
             {
               label: 'Target GP (opsional)', className: 'w-[17%]',
+              urut: (p) => isian[p.sales_user_id]?.gp ?? 0,
               render: (p) => (
                 <Uang aria-label={`Target GP ${p.full_name}`} nilai={isian[p.sales_user_id]?.gp ?? 0}
                   onUbah={(n) => ubah(p.sales_user_id, 'gp', n)} placeholder="—" />
@@ -183,6 +186,7 @@ export function TabTarget({ pemanggilId }: { pemanggilId: string }) {
             },
             {
               label: 'Realisasi', className: 'w-[14%]',
+              urut: (p) => p.realisasi_nilai,
               render: (p) => (
                 <div className="tabular-nums">
                   <p className="font-semibold text-slate-800">{rupiahRingkas(p.realisasi_nilai)}</p>
@@ -192,6 +196,7 @@ export function TabTarget({ pemanggilId }: { pemanggilId: string }) {
             },
             {
               label: 'Capaian Nilai', className: 'w-[24%]',
+              urut: (p) => { const t = isian[p.sales_user_id]?.nilai ?? 0; return t > 0 ? p.realisasi_nilai / t : null; },
               render: (p) => {
                 const t = isian[p.sales_user_id]?.nilai ?? 0;
                 const r = t > 0 ? p.realisasi_nilai / t : null;

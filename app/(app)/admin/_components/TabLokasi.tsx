@@ -207,6 +207,7 @@ export function TabLokasi() {
             kolom={[
               {
                 label: 'Lokasi', className: 'w-[34%]',
+                urut: (l) => l.name,
                 render: (l) => (
                   <div className={`flex items-center gap-2.5 ${l.active ? '' : 'opacity-60'}`}>
                     <span className="w-8 h-8 rounded-kontrol bg-aksen-50 text-aksen-700 grid place-items-center flex-shrink-0">
@@ -235,16 +236,19 @@ export function TabLokasi() {
               },
               {
                 label: 'Sumber', className: 'w-28',
+                urut: (l) => (l.project_id ? 'Dari Proyek' : 'Manual'),
                 render: (l) => (l.project_id
                   ? <Lencana label="Dari Proyek" color="#7c3aed" bg="#ede9fe" />
                   : <Lencana label="Manual" color="#64748b" bg="#f1f5f9" />),
               },
               {
                 label: 'Radius', className: 'w-24',
+                urut: (l) => Number(l.gps_radius_m),
                 render: (l) => <Lencana label={`${l.gps_radius_m} m`} color="#1d4ed8" bg="#dbeafe" />,
               },
               {
                 label: 'Status', className: 'w-28',
+                urut: (l) => (l.approval_status === 'DITOLAK' ? 'Ditolak' : l.active ? 'Aktif' : 'Nonaktif'),
                 render: (l) => (l.approval_status === 'DITOLAK'
                   ? <Lencana {...GAYA_PERSETUJUAN.DITOLAK} />
                   : l.active
