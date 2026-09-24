@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
 import {
-  isPengawas, STATUS_JADWAL, STATE_KEHADIRAN,
+  isPengawas, STATUS_JADWAL, STATE_KEHADIRAN, statusEfektif,
   type StatusJadwal, type StateKehadiran,
 } from '@/lib/constants';
 import { tanggalISO, tanggalPendek, angka } from '@/lib/format';
@@ -104,7 +104,13 @@ export default function HalamanMeeting() {
     // orang lain hanya menambah baris yang pasti ditolak sm_check_in().
     if (!pengawas) q = q.eq('assigned_to', pengguna.id);
     else if (filterSales) q = q.eq('assigned_to', filterSales);
-    if (filterStatus) q = q.eq('status', filterStatus);
+    if (filterStatus === 'MISSED') {
+      q = q.or(`status.eq.MISSED,and(status.in.(UPCOMING,IN_PROGRESS),schedule_date.lt.${tanggalISO()})`);
+    } else if (filterStatus === 'UPCOMING' || filterStatus === 'IN_PROGRESS') {
+      q = q.eq('status', filterStatus).gte('schedule_date', tanggalISO());
+    } else if (filterStatus) {
+      q = q.eq('status', filterStatus);
+    }
 
     const { data, error, count } = await q;
     if (error) { setGalat(error.message); setMemuat(false); return; }
@@ -123,6 +129,35 @@ export default function HalamanMeeting() {
   }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, halaman]);
 
   useEffect(() => { void muat(); }, [muat]);
+
+  // Bawaan penyaring adalah hari ini, jadi meeting kemarin yang belum ditutup
+  // tidak kelihatan sama sekali kalau tidak diingatkan terpisah.
+  const [jumlahTerlewat, setJumlahTerlewat] = useState(0);
+  useEffect(() => {
+    if (!pengguna) return;
+    let q = supabase
+      .from('sm_schedules')
+      .select('id', { count: 'exact', head: true })
+      .eq('requires_attendance', true)
+      .in('status', ['UPCOMING', 'IN_PROGRESS'])
+      .lt('schedule_date', tanggalISO());
+    if (!pengawas) q = q.eq('assigned_to', pengguna.id);
+    void (async () => {
+      const { count } = await q;
+      setJumlahTerlewat(count ?? 0);
+    })();
+  }, [pengguna, pengawas, daftar]);
+
+  function tampilkanTerlewat() {
+    const mulai = new Date();
+    mulai.setDate(mulai.getDate() - 90);
+    const kemarin = new Date();
+    kemarin.setDate(kemarin.getDate() - 1);
+    setDari(tanggalISO(mulai));
+    setSampai(tanggalISO(kemarin));
+    setFilterStatus('MISSED');
+    setHalaman(0);
+  }
 
   // Dari lencana header, yang dituju bukan kartunya melainkan panel
   // eksekusinya — orang yang menekan "Meeting" di header hendak check-in,
@@ -154,7 +189,13 @@ export default function HalamanMeeting() {
 
     if (!pengawas) q = q.eq('assigned_to', pengguna.id);
     else if (filterSales) q = q.eq('assigned_to', filterSales);
-    if (filterStatus) q = q.eq('status', filterStatus);
+    if (filterStatus === 'MISSED') {
+      q = q.or(`status.eq.MISSED,and(status.in.(UPCOMING,IN_PROGRESS),schedule_date.lt.${tanggalISO()})`);
+    } else if (filterStatus === 'UPCOMING' || filterStatus === 'IN_PROGRESS') {
+      q = q.eq('status', filterStatus).gte('schedule_date', tanggalISO());
+    } else if (filterStatus) {
+      q = q.eq('status', filterStatus);
+    }
 
     const { data, error } = await q;
     if (error) throw new Error(error.message);
@@ -242,7 +283,7 @@ export default function HalamanMeeting() {
               { judul: 'Sales', lebar: 20,
                 nilai: (m) => (m.assigned_to ? (namaSales[m.assigned_to] ?? '—') : 'Belum ditugaskan') },
               { judul: 'Status Jadwal', lebar: 14,
-                nilai: (m) => STATUS_JADWAL[m.status as StatusJadwal]?.label ?? m.status },
+                nilai: (m) => STATUS_JADWAL[statusEfektif(m)]?.label ?? m.status },
               { judul: 'State Kehadiran', lebar: 18,
                 nilai: (m) => STATE_KEHADIRAN[(m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran]?.label ?? '—' },
               { judul: 'GPS Terverifikasi', lebar: 16,
@@ -291,7 +332,7 @@ export default function HalamanMeeting() {
             <p className="text-slate-400 text-sm text-center py-4">Belum ada meeting pada rentang ini</p>
           ) : (
             <div className="flex flex-col gap-2">
-              <Meter nilai={ringkas.selesai} maksimum={Math.max(1, ringkas.jumlah)} label="Meeting selesai" />
+              <Meter nilai={ringkas.selesai} maksimum={ringkas.jumlah} label="Meeting selesai" />
               {ringkas.perluFoto > 0 && (
                 <BarisBento
                   warna="#eda100"
@@ -307,6 +348,19 @@ export default function HalamanMeeting() {
           )}
         </BentoCard>
       </BentoGrid>
+
+      {jumlahTerlewat > 0 && filterStatus !== 'MISSED' && (
+        <div className="rounded-kartu border border-[#e34948]/30 bg-[#fce3e3] px-4 py-3 flex items-center gap-3 flex-wrap">
+          <p className="flex-1 min-w-[240px] text-[12px] text-[#8f2c2b] leading-snug">
+            <b className="font-bold">{jumlahTerlewat} meeting lewat tanggal</b> belum diselesaikan.
+            {' '}Check-in sudah tidak bisa dilakukan untuk tanggal yang lewat —{' '}
+            {pengawas ? 'tutup lewat Override bila meeting memang terjadi.' : 'hubungi atasan Anda untuk ditindaklanjuti.'}
+          </p>
+          <Tombol rupa="kedua" className="text-[12px] py-2" onClick={tampilkanTerlewat}>
+            Tampilkan
+          </Tombol>
+        </div>
+      )}
 
       {/* ── Penyaring ── */}
       <div className="bg-white rounded-kartu border border-slate-200 p-3 sm:p-4 flex flex-col gap-3">
@@ -403,7 +457,7 @@ export default function HalamanMeeting() {
                   const state = (m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran;
                   return (
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <Lencana {...(STATUS_JADWAL[m.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING)} />
+                      <Lencana {...(STATUS_JADWAL[statusEfektif(m)] ?? STATUS_JADWAL.UPCOMING)} />
                       <Lencana {...(STATE_KEHADIRAN[state] ?? STATE_KEHADIRAN.NOT_STARTED)} />
                       {m.sm_evidence.length > 0 && (
                         <Lencana label={`${m.sm_evidence.length} foto`} color="#1d4ed8" bg="#dbeafe" />

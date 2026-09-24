@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
 import { isPengawas, isAdmin } from '@/lib/constants';
-import { tanggalISO, tanggalPendek, rupiah, rupiahRingkas, persen, angka } from '@/lib/format';
+import { tanggalISO, tanggalPendek, rupiah, rupiahRingkas, persen, angka, polaIlike } from '@/lib/format';
 import {
   STATUS_GP, MUTU_MARGIN, menungguPeran, bolehMenyetujui,
   type GpRingkasan, type GpItem, type StatusGp,
@@ -96,7 +96,7 @@ export default function HalamanGp() {
     if (filterStatus) q = q.eq('status', filterStatus);
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`customer_name.ilike.%${k}%,project_name.ilike.%${k}%,nomor.ilike.%${k}%,po_spk_no.ilike.%${k}%`);
+      q = q.or(`customer_name.ilike.${polaIlike(k)},project_name.ilike.${polaIlike(k)},nomor.ilike.${polaIlike(k)},po_spk_no.ilike.${polaIlike(k)}`);
     }
 
     const { data, error, count } = await q;

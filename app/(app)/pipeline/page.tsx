@@ -6,7 +6,7 @@ import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
 import { usePengaturan } from '@/lib/use-settings';
 import { isPengawas, isAdmin, WARNA_PROBABILITY } from '@/lib/constants';
-import { tanggalISO, tanggalPendek, rupiah, rupiahRingkas, angka, persen } from '@/lib/format';
+import { tanggalISO, tanggalPendek, rupiah, rupiahRingkas, angka, persen, polaIlike } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar } from '@/components/shared/Bento';
 import { CorongTingkat, DonutLegenda, Meter } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
@@ -91,7 +91,7 @@ export default function HalamanPipeline() {
     if (filterStage) q = q.eq('stage', filterStage);
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`customer_name.ilike.%${k}%,project_detail.ilike.%${k}%`);
+      q = q.or(`customer_name.ilike.${polaIlike(k)},project_detail.ilike.${polaIlike(k)}`);
     }
 
     const { data, error, count } = await q;
@@ -124,7 +124,7 @@ export default function HalamanPipeline() {
     if (filterStage) q = q.eq('stage', filterStage);
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`customer_name.ilike.%${k}%,project_detail.ilike.%${k}%`);
+      q = q.or(`customer_name.ilike.${polaIlike(k)},project_detail.ilike.${polaIlike(k)}`);
     }
 
     const { data, error } = await q;

@@ -6,8 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
 import { usePengaturan } from '@/lib/use-settings';
-import { isPengawas, STATUS_JADWAL, type StatusJadwal } from '@/lib/constants';
-import { tanggalISO, tanggalPendek, angka } from '@/lib/format';
+import { isPengawas, STATUS_JADWAL, statusEfektif, type StatusJadwal } from '@/lib/constants';
+import { tanggalISO, tanggalPendek, angka, polaIlike } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar, BarisBento } from '@/components/shared/Bento';
 import { DonutLegenda, Meter } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
@@ -89,10 +89,16 @@ export default function HalamanSchedule() {
 
     if (filterSales) q = q.eq('assigned_to', filterSales);
     if (filterKategori) q = q.eq('category', filterKategori);
-    if (filterStatus) q = q.eq('status', filterStatus);
+    if (filterStatus === 'MISSED') {
+      q = q.or(`status.eq.MISSED,and(status.in.(UPCOMING,IN_PROGRESS),schedule_date.lt.${tanggalISO()})`);
+    } else if (filterStatus === 'UPCOMING' || filterStatus === 'IN_PROGRESS') {
+      q = q.eq('status', filterStatus).gte('schedule_date', tanggalISO());
+    } else if (filterStatus) {
+      q = q.eq('status', filterStatus);
+    }
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`customer_name.ilike.%${k}%,project.ilike.%${k}%,detail.ilike.%${k}%`);
+      q = q.or(`customer_name.ilike.${polaIlike(k)},project.ilike.${polaIlike(k)},detail.ilike.${polaIlike(k)}`);
     }
 
     const { data, error, count } = await q;
@@ -121,10 +127,16 @@ export default function HalamanSchedule() {
 
     if (filterSales) q = q.eq('assigned_to', filterSales);
     if (filterKategori) q = q.eq('category', filterKategori);
-    if (filterStatus) q = q.eq('status', filterStatus);
+    if (filterStatus === 'MISSED') {
+      q = q.or(`status.eq.MISSED,and(status.in.(UPCOMING,IN_PROGRESS),schedule_date.lt.${tanggalISO()})`);
+    } else if (filterStatus === 'UPCOMING' || filterStatus === 'IN_PROGRESS') {
+      q = q.eq('status', filterStatus).gte('schedule_date', tanggalISO());
+    } else if (filterStatus) {
+      q = q.eq('status', filterStatus);
+    }
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`customer_name.ilike.%${k}%,project.ilike.%${k}%,detail.ilike.%${k}%`);
+      q = q.or(`customer_name.ilike.${polaIlike(k)},project.ilike.${polaIlike(k)},detail.ilike.${polaIlike(k)}`);
     }
 
     const { data, error } = await q;
@@ -144,8 +156,8 @@ export default function HalamanSchedule() {
   }, []);
 
   const ringkas = useMemo(() => {
-    const hitung = (s: string) => daftar.filter((j) => j.status === s).length;
     const hariIni = tanggalISO();
+    const hitung = (s: string) => daftar.filter((j) => statusEfektif(j, hariIni) === s).length;
     return {
       upcoming: hitung('UPCOMING'),
       berjalan: hitung('IN_PROGRESS'),
@@ -226,7 +238,7 @@ export default function HalamanSchedule() {
                 { judul: 'Ditugaskan ke', lebar: 20,
                   nilai: (j) => (j.assigned_to ? (namaSales[j.assigned_to] ?? '—') : 'Belum ditugaskan') },
                 { judul: 'Status', lebar: 14,
-                  nilai: (j) => STATUS_JADWAL[j.status as StatusJadwal]?.label ?? j.status },
+                  nilai: (j) => STATUS_JADWAL[statusEfektif(j)]?.label ?? j.status },
                 { judul: 'Detail', lebar: 34, nilai: (j) => j.detail },
                 { judul: 'Catatan', lebar: 28, nilai: (j) => j.notes },
               ],
@@ -325,7 +337,7 @@ export default function HalamanSchedule() {
               {ringkas.meeting > 0 && (
                 <div className="pt-2 mt-1 border-t border-slate-200">
                   <Meter
-                    nilai={ringkas.selesai} maksimum={Math.max(1, ringkas.meeting)}
+                    nilai={ringkas.selesai} maksimum={ringkas.meeting}
                     label="Meeting selesai pada halaman ini"
                   />
                 </div>
@@ -436,7 +448,7 @@ export default function HalamanSchedule() {
               },
               {
                 label: 'Status', className: 'w-32',
-                render: (j) => <Lencana {...(STATUS_JADWAL[j.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING)} />,
+                render: (j) => <Lencana {...(STATUS_JADWAL[statusEfektif(j)] ?? STATUS_JADWAL.UPCOMING)} />,
               },
             ]}
             aksi={(j) => {
@@ -526,7 +538,7 @@ export default function HalamanSchedule() {
         >
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <Lencana {...(STATUS_JADWAL[dilihat.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING)} />
+              <Lencana {...(STATUS_JADWAL[statusEfektif(dilihat)] ?? STATUS_JADWAL.UPCOMING)} />
               {dilihat.requires_attendance && <Lencana label="📍 Meeting" color="#1d4ed8" bg="#dbeafe" />}
             </div>
             <Detail label="Kategori" nilai={`${dilihat.category}${dilihat.project ? ` · ${dilihat.project}` : ''}`} />

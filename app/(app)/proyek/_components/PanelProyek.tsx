@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { rupiah, rupiahRingkas, persen, tanggalPendek, angka } from '@/lib/format';
-import { STATUS_JADWAL, type StatusJadwal } from '@/lib/constants';
+import { STATUS_JADWAL, statusEfektif } from '@/lib/constants';
 import { STATUS_GP, MUTU_MARGIN, type StatusGp } from '@/lib/gp';
 import { STATUS_PROYEK, tahapProyek, type ProyekRingkasan, type StatusProyek } from '@/lib/proyek';
 import { Modal } from '@/components/shared/Modal';
@@ -205,7 +205,7 @@ export function PanelProyek({ buka, onTutup, proyek, namaOrang, onSunting }: {
             <Bagian judul="Jadwal & Meeting" jumlah={jadwal.length} href="/schedule"
               kosong="Belum ada jadwal tertaut.">
               {jadwal.map((j) => {
-                const g = STATUS_JADWAL[j.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING;
+                const g = STATUS_JADWAL[statusEfektif(j)] ?? STATUS_JADWAL.UPCOMING;
                 return (
                   <Baris key={j.id}
                     href={j.requires_attendance ? `/meeting?fokus=${j.id}` : `/schedule?fokus=${j.id}`}

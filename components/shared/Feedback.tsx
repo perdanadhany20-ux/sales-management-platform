@@ -25,6 +25,8 @@ const GAYA: Record<RupaToast, { bg: string; border: string; ikon: string }> = {
 
 const KonteksToast = createContext<(rupa: RupaToast, pesan: string) => void>(() => {});
 
+export const PERISTIWA_DATA_BERUBAH = 'sm:data-berubah';
+
 export function useToast() {
   return useContext(KonteksToast);
 }
@@ -41,6 +43,9 @@ export function PenyediaToast({ children }: { children: React.ReactNode }) {
     const id = Date.now() + Math.random();
     setDaftar((d) => [...d, { id, rupa, pesan }]);
     setTimeout(() => setDaftar((d) => d.filter((t) => t.id !== id)), 4500);
+    // Toast sukses hampir selalu menyusul penyimpanan data; lencana header
+    // mendengarkan peristiwa ini supaya angkanya tidak basi sampai 3 menit.
+    if (rupa === 'sukses') window.dispatchEvent(new Event(PERISTIWA_DATA_BERUBAH));
   }, []);
 
   return (

@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { supabase } from './supabase';
+import { PERISTIWA_DATA_BERUBAH } from '@/components/shared/Feedback';
 import type { PenggunaAktif } from './auth';
 
 /**
@@ -86,7 +88,14 @@ export function useLonceng(pengguna: PenggunaAktif | null) {
     });
   }, [pengguna]);
 
-  useEffect(() => { void muat(); }, [muat]);
+  const pathname = usePathname();
+  useEffect(() => { void muat(); }, [muat, pathname]);
+
+  useEffect(() => {
+    const segarkan = () => { void muat(); };
+    window.addEventListener(PERISTIWA_DATA_BERUBAH, segarkan);
+    return () => window.removeEventListener(PERISTIWA_DATA_BERUBAH, segarkan);
+  }, [muat]);
 
   // Disegarkan berkala supaya lencana tidak basi pada tab yang dibiarkan
   // terbuka sepanjang hari — tapi cukup jarang agar tidak menghabiskan kuota

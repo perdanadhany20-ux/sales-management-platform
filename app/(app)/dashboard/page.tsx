@@ -134,7 +134,7 @@ export default function HalamanDashboard() {
           </div>
           <div className="mt-4">
             <Meter
-              nilai={pl.akan_closing} maksimum={Math.max(1, pl.jumlah)}
+              nilai={pl.akan_closing} maksimum={pl.jumlah}
               label="Diperkirakan closing ≤30 hari"
             />
           </div>

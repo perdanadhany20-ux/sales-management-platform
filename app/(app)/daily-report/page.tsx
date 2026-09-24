@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
 import { isPengawas, isAdmin } from '@/lib/constants';
-import { tanggalISO, tanggalPendek, angka } from '@/lib/format';
+import { tanggalISO, tanggalPendek, angka, polaIlike } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar } from '@/components/shared/Bento';
 import { CincinCapaian, DonutLegenda, Sparkline } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
@@ -85,7 +85,7 @@ export default function HalamanDailyReport() {
     if (filterSales) q = q.eq('sales_user_id', filterSales);
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`customer_name.ilike.%${k}%,lead_project.ilike.%${k}%,activity.ilike.%${k}%`);
+      q = q.or(`customer_name.ilike.${polaIlike(k)},lead_project.ilike.${polaIlike(k)},activity.ilike.${polaIlike(k)}`);
     }
 
     const { data, error, count } = await q;
@@ -123,7 +123,7 @@ export default function HalamanDailyReport() {
     if (filterSales) q = q.eq('sales_user_id', filterSales);
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`customer_name.ilike.%${k}%,lead_project.ilike.%${k}%,activity.ilike.%${k}%`);
+      q = q.or(`customer_name.ilike.${polaIlike(k)},lead_project.ilike.${polaIlike(k)},activity.ilike.${polaIlike(k)}`);
     }
 
     const { data, error } = await q;
@@ -154,10 +154,29 @@ export default function HalamanDailyReport() {
   }, [pengawas]);
 
   const hariIni = tanggalISO();
-  const laporanHariIni = useMemo(
-    () => daftar.find((l) => l.report_date === hariIni && l.sales_user_id === pengguna?.id),
-    [daftar, hariIni, pengguna?.id],
-  );
+
+  // Dihitung terpisah dari daftar: daftar ikut tersaring pencarian dan
+  // paginasi, sedangkan status hari ini tidak boleh berubah karena itu.
+  const [hariIniSaya, setHariIniSaya] = useState<{ jumlah: number; terakhir: string | null }>({ jumlah: 0, terakhir: null });
+  useEffect(() => {
+    if (!pengguna || pengawas) return;
+    void (async () => {
+      const { data, count } = await supabase
+        .from('sm_daily_reports')
+        .select('customer_name', { count: 'exact' })
+        .eq('sales_user_id', pengguna.id)
+        .eq('report_date', hariIni)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      setHariIniSaya({ jumlah: count ?? 0, terakhir: (data?.[0] as { customer_name: string } | undefined)?.customer_name ?? null });
+    })();
+  }, [pengguna, pengawas, hariIni, daftar]);
+  const laporanHariIni = hariIniSaya.jumlah > 0;
+
+  const salesMelapor = useMemo(() => {
+    const idSales = new Set(daftarSales.map((s) => s.id));
+    return new Set(daftar.map((l) => l.sales_user_id).filter((id) => idSales.has(id))).size;
+  }, [daftar, daftarSales]);
 
   // Sebaran laporan per hari dalam 14 hari terakhir, untuk sparkline.
   const trenHarian = useMemo(() => {
@@ -257,8 +276,10 @@ export default function HalamanDailyReport() {
               <div className="flex items-center gap-3">
                 <span className="w-11 h-11 rounded-full bg-[#e0f2e0] text-[#008300] grid place-items-center text-lg font-black flex-shrink-0">✓</span>
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-slate-900">Sudah dikirim</p>
-                  <p className="text-[11px] text-slate-500 truncate">{laporanHariIni.customer_name}</p>
+                  <p className="text-sm font-black text-slate-900">
+                    {hariIniSaya.jumlah} laporan terkirim
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">Terakhir: {hariIniSaya.terakhir}</p>
                 </div>
               </div>
             ) : (
@@ -293,10 +314,10 @@ export default function HalamanDailyReport() {
             ) : (
               <CincinCapaian
                 terang
-                nilai={new Set(daftar.map((l) => l.sales_user_id)).size}
+                nilai={salesMelapor}
                 maksimum={daftarSales.length}
                 warna="#ffffff"
-                label={`${new Set(daftar.map((l) => l.sales_user_id)).size} dari ${daftarSales.length} Sales`}
+                label={`${salesMelapor} dari ${daftarSales.length} Sales`}
               />
             )}
           </BentoCard>

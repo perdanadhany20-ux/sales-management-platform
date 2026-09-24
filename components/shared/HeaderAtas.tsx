@@ -9,7 +9,7 @@ import { type Branding } from '@/lib/branding';
 import { useLonceng, totalPerluTindakan } from '@/lib/use-lonceng';
 import { usePengingat } from '@/lib/notifikasi';
 import { isPengawas } from '@/lib/constants';
-import { tanggalPendek, rupiahRingkas } from '@/lib/format';
+import { tanggalPendek, rupiahRingkas, polaIlike } from '@/lib/format';
 import {
   intipDailyReport, intipMeeting, intipJadwal, intipPipeline,
   intipTerlewat, intipBelumDitugaskan, intipGp, type ButirIntip,
@@ -557,20 +557,21 @@ function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boole
     (async () => {
       setMencari(true);
       const k = `%${tertunda}%`;
+      const p = polaIlike(tertunda);
 
       const [pelanggan, jadwal, pipeline, laporan] = await Promise.all([
         supabase.from('sm_customers').select('id, name, city, address').ilike('name', k).limit(5),
         supabase.from('sm_schedules')
           .select('id, customer_name, category, schedule_date, status')
-          .or(`customer_name.ilike.${k},project.ilike.${k}`)
+          .or(`customer_name.ilike.${p},project.ilike.${p}`)
           .order('schedule_date', { ascending: false }).limit(5),
         supabase.from('sm_pipeline')
           .select('id, customer_name, project_detail, project_value')
-          .or(`customer_name.ilike.${k},project_detail.ilike.${k}`)
+          .or(`customer_name.ilike.${p},project_detail.ilike.${p}`)
           .order('pipeline_date', { ascending: false }).limit(5),
         supabase.from('sm_daily_reports')
           .select('id, customer_name, activity, report_date')
-          .or(`customer_name.ilike.${k},activity.ilike.${k}`)
+          .or(`customer_name.ilike.${p},activity.ilike.${p}`)
           .order('report_date', { ascending: false }).limit(5),
       ]);
 

@@ -203,10 +203,10 @@ export function TabLokasi() {
           <Tabel
             data={tersaring.filter((l) => l.approval_status !== 'MENUNGGU')}
             kunci={(l) => l.id}
-            lebarAksi="w-52"
+            lebarAksi="w-24"
             kolom={[
               {
-                label: 'Lokasi', className: 'w-[46%]',
+                label: 'Lokasi', className: 'w-[34%]',
                 render: (l) => (
                   <div className={`flex items-center gap-2.5 ${l.active ? '' : 'opacity-60'}`}>
                     <span className="w-8 h-8 rounded-kontrol bg-aksen-50 text-aksen-700 grid place-items-center flex-shrink-0">
@@ -216,15 +216,8 @@ export function TabLokasi() {
                       </svg>
                     </span>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-slate-900 truncate">{l.name}</span>
-                        {!l.active && <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />}
-                        {l.approval_status === 'DITOLAK' && <Lencana {...GAYA_PERSETUJUAN.DITOLAK} />}
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate">
-                        {l.address || 'Tanpa alamat'}
-                        <span className="text-slate-400 tabular-nums"> · {Number(l.latitude).toFixed(5)}, {Number(l.longitude).toFixed(5)}</span>
-                      </p>
+                      <p className="font-bold text-slate-900 truncate">{l.name}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{l.address || 'Tanpa alamat'}</p>
                       {l.approval_status === 'DITOLAK' && l.rejection_reason && (
                         <p className="text-[11px] text-[#8f2c2b] mt-0.5 truncate">{l.rejection_reason}</p>
                       )}
@@ -233,19 +226,39 @@ export function TabLokasi() {
                 ),
               },
               {
-                label: 'Radius', className: 'w-28',
+                label: 'Koordinat', className: 'w-[20%]',
+                render: (l) => (
+                  <span className="text-slate-500 tabular-nums text-[12px]">
+                    {Number(l.latitude).toFixed(5)}, {Number(l.longitude).toFixed(5)}
+                  </span>
+                ),
+              },
+              {
+                label: 'Sumber', className: 'w-28',
+                render: (l) => (l.project_id
+                  ? <Lencana label="Dari Proyek" color="#7c3aed" bg="#ede9fe" />
+                  : <Lencana label="Manual" color="#64748b" bg="#f1f5f9" />),
+              },
+              {
+                label: 'Radius', className: 'w-24',
                 render: (l) => <Lencana label={`${l.gps_radius_m} m`} color="#1d4ed8" bg="#dbeafe" />,
+              },
+              {
+                label: 'Status', className: 'w-28',
+                render: (l) => (l.approval_status === 'DITOLAK'
+                  ? <Lencana {...GAYA_PERSETUJUAN.DITOLAK} />
+                  : l.active
+                    ? <Lencana label="Aktif" color="#008300" bg="#e0f2e0" />
+                    : <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />),
               },
             ]}
             aksi={(l) => (
               <>
                 <TombolIkon rupa="sunting" label="Sunting"
                   onClick={() => { setSunting(l); setFormBuka(true); }} />
-                <Tombol rupa="hantu"
-                  className={`text-[11px] py-1.5 px-2 ${l.active ? 'text-[#e34948]' : 'text-[#008300]'}`}
-                  onClick={() => setAkanUbahAktif(l)}>
-                  {l.active ? 'Nonaktifkan' : 'Aktifkan'}
-                </Tombol>
+                <TombolIkon rupa={l.active ? 'nonaktif' : 'aktif'}
+                  label={l.active ? 'Nonaktifkan lokasi' : 'Aktifkan lokasi'}
+                  onClick={() => setAkanUbahAktif(l)} />
               </>
             )}
           />

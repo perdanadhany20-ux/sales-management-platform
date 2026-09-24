@@ -87,6 +87,11 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
       (!k || u.full_name.toLowerCase().includes(k) || u.username.toLowerCase().includes(k)));
   }, [daftar, cari, filterPeran]);
 
+  const namaPengguna = useMemo(
+    () => Object.fromEntries(daftar.map((u) => [u.id, u.full_name])) as Record<string, string>,
+    [daftar],
+  );
+
   async function ubahAktif() {
     if (!akanUbahAktif) return;
     setMemproses(true);
@@ -134,10 +139,10 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
         <Tabel
           data={tersaring}
           kunci={(u) => u.id}
-          lebarAksi="w-64"
+          lebarAksi="w-32"
           kolom={[
             {
-              label: 'Pengguna', className: 'w-[38%]',
+              label: 'Pengguna', className: 'w-[28%]',
               render: (u) => {
                 const sendiri = u.id === pemanggilId;
                 return (
@@ -146,10 +151,9 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
                       {u.full_name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
                     </span>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <span className="font-bold text-slate-900 truncate">{u.full_name}</span>
                         {sendiri && <Lencana label="Anda" color="#64748b" bg="#f1f5f9" />}
-                        {!u.active && <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />}
                       </div>
                       <p className="text-[11px] text-slate-500 truncate">@{u.username}</p>
                     </div>
@@ -158,12 +162,29 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
               },
             },
             {
-              label: 'Peran', className: 'w-32',
+              label: 'Peran', className: 'w-28',
               render: (u) => <Lencana label={LABEL_PERAN[u.role as Peran] ?? u.role} {...(GAYA_PERAN[u.role] ?? GAYA_PERAN.SALES)} />,
             },
             {
               label: 'Kontak', className: 'w-[22%]',
-              render: (u) => <span className="text-slate-600">{u.email || '—'}</span>,
+              render: (u) => (
+                <div className="min-w-0">
+                  <p className="text-slate-600 truncate">{u.email || '—'}</p>
+                  {u.phone && <p className="text-[11px] text-slate-400 truncate">{u.phone}</p>}
+                </div>
+              ),
+            },
+            {
+              label: 'Atasan', className: 'w-[16%]',
+              render: (u) => (u.manager_id && namaPengguna[u.manager_id]
+                ? <span className="text-slate-600 truncate block">{namaPengguna[u.manager_id]}</span>
+                : <span className="text-slate-400">—</span>),
+            },
+            {
+              label: 'Status', className: 'w-24',
+              render: (u) => (u.active
+                ? <Lencana label="Aktif" color="#008300" bg="#e0f2e0" />
+                : <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />),
             },
             {
               label: 'Dibuat', className: 'w-28 whitespace-nowrap',
@@ -176,14 +197,12 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
               <>
                 <TombolIkon rupa="sunting" label="Sunting"
                   onClick={() => { setSunting(u); setFormBuka(true); }} />
-                <Tombol rupa="kedua" className="text-[11px] py-1.5 px-2"
-                  onClick={() => setResetUntuk(u)}>Reset Sandi</Tombol>
+                <TombolIkon rupa="sandi" label="Reset kata sandi"
+                  onClick={() => setResetUntuk(u)} />
                 {!sendiri && (
-                  <Tombol rupa="hantu"
-                    className={`text-[11px] py-1.5 px-2 ${u.active ? 'text-[#e34948]' : 'text-[#008300]'}`}
-                    onClick={() => setAkanUbahAktif(u)}>
-                    {u.active ? 'Nonaktifkan' : 'Aktifkan'}
-                  </Tombol>
+                  <TombolIkon rupa={u.active ? 'nonaktif' : 'aktif'}
+                    label={u.active ? 'Nonaktifkan akun' : 'Aktifkan akun'}
+                    onClick={() => setAkanUbahAktif(u)} />
                 )}
               </>
             );

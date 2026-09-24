@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
 import { isPengawas, isAdmin } from '@/lib/constants';
-import { tanggalPendek, rupiah, rupiahRingkas, persen, angka } from '@/lib/format';
+import { tanggalPendek, rupiah, rupiahRingkas, persen, angka, polaIlike } from '@/lib/format';
 import {
   STATUS_PROYEK, tahapProyek, type ProyekRingkasan, type StatusProyek,
 } from '@/lib/proyek';
@@ -82,7 +82,7 @@ export default function HalamanProyek() {
     if (filterSales) q = q.eq('owner_user_id', filterSales);
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`name.ilike.%${k}%,customer_name.ilike.%${k}%,kode.ilike.%${k}%`);
+      q = q.or(`name.ilike.${polaIlike(k)},customer_name.ilike.${polaIlike(k)},kode.ilike.${polaIlike(k)}`);
     }
 
     const { data, error, count } = await q;

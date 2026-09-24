@@ -87,17 +87,22 @@ export function Tabel<T>({
   );
 }
 
-const WARNA_IKON: Record<'lihat' | 'sunting' | 'hapus', string> = {
-  lihat:   'text-[#2a78d6] hover:bg-[#e3edfb]',
-  sunting: 'text-[#c17d0e] hover:bg-[#fef3d9]',
-  hapus:   'text-[#e34948] hover:bg-[#fce3e3]',
+type RupaIkon = 'lihat' | 'sunting' | 'hapus' | 'sandi' | 'nonaktif' | 'aktif';
+
+const WARNA_IKON: Record<RupaIkon, string> = {
+  lihat:    'text-[#2a78d6] hover:bg-[#e3edfb]',
+  sunting:  'text-[#c17d0e] hover:bg-[#fef3d9]',
+  hapus:    'text-[#e34948] hover:bg-[#fce3e3]',
+  sandi:    'text-slate-500 hover:bg-slate-100',
+  nonaktif: 'text-[#e34948] hover:bg-[#fce3e3]',
+  aktif:    'text-[#008300] hover:bg-[#e0f2e0]',
 };
 
-/** Tombol ikon bulat kecil untuk kolom Aksi — mata (lihat), pensil (sunting), tong sampah (hapus). */
+/** Tombol ikon bulat kecil untuk kolom Aksi; label tampil sebagai tooltip. */
 export function TombolIkon({
   rupa, label, onClick,
 }: {
-  rupa: 'lihat' | 'sunting' | 'hapus';
+  rupa: RupaIkon;
   label: string;
   onClick: () => void;
 }) {
@@ -122,6 +127,17 @@ export function TombolIkon({
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6h16z"
             stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {rupa === 'sandi' && (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="8" cy="15" r="4" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M10.8 12.2 20 3m-3 3 2.5 2.5M15 8l2 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {(rupa === 'nonaktif' || rupa === 'aktif') && (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3v8M6.3 7.3a8 8 0 1 0 11.4 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
     </button>
