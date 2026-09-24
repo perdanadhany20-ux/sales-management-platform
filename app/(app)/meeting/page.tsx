@@ -9,7 +9,7 @@ import {
   isPengawas, STATUS_JADWAL, STATE_KEHADIRAN, statusEfektif,
   type StatusJadwal, type StateKehadiran,
 } from '@/lib/constants';
-import { tanggalISO, tanggalPendek, angka } from '@/lib/format';
+import { tanggalISO, tanggalPendek, angka, polaIlike } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar, BarisBento } from '@/components/shared/Bento';
 import { Meter } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
@@ -75,6 +75,13 @@ export default function HalamanMeeting() {
   const [sampai, setSampai] = useState(() => tanggalISO());
   const [filterSales, setFilterSales] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [cari, setCari] = useState('');
+  const [cariTertunda, setCariTertunda] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => { setCariTertunda(cari.trim()); setHalaman(0); }, 350);
+    return () => clearTimeout(t);
+  }, [cari]);
 
   const [dibuka, setDibuka] = useState<BarisMeeting | null>(null);
 
@@ -111,6 +118,9 @@ export default function HalamanMeeting() {
     } else if (filterStatus) {
       q = q.eq('status', filterStatus);
     }
+    if (cariTertunda) {
+      q = q.or(`customer_name.ilike.${polaIlike(cariTertunda)},project.ilike.${polaIlike(cariTertunda)},detail.ilike.${polaIlike(cariTertunda)}`);
+    }
 
     const { data, error, count } = await q;
     if (error) { setGalat(error.message); setMemuat(false); return; }
@@ -126,7 +136,7 @@ export default function HalamanMeeting() {
     }));
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, halaman]);
+  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, cariTertunda, halaman]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -196,6 +206,9 @@ export default function HalamanMeeting() {
     } else if (filterStatus) {
       q = q.eq('status', filterStatus);
     }
+    if (cariTertunda) {
+      q = q.or(`customer_name.ilike.${polaIlike(cariTertunda)},project.ilike.${polaIlike(cariTertunda)},detail.ilike.${polaIlike(cariTertunda)}`);
+    }
 
     const { data, error } = await q;
     if (error) throw new Error(error.message);
@@ -209,7 +222,7 @@ export default function HalamanMeeting() {
         sm_evidence: (b.sm_evidence ?? []) as { id: string }[],
       };
     });
-  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus]);
+  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, cariTertunda]);
 
   useEffect(() => {
     if (!pengawas) return;
@@ -401,6 +414,12 @@ export default function HalamanMeeting() {
                 value: k, label: STATUS_JADWAL[k].label,
               }))} />
           </div>
+
+          <div className="flex flex-col gap-1 min-w-[200px] flex-[2]">
+            <label htmlFor="m-cari" className="text-[11px] font-semibold text-slate-600">Cari</label>
+            <Teks id="m-cari" type="search" value={cari} onChange={(e) => setCari(e.target.value)}
+              placeholder="Customer, proyek, atau detail…" />
+          </div>
         </div>
       </div>
 
@@ -412,7 +431,9 @@ export default function HalamanMeeting() {
         <div className="bg-white rounded-kartu border border-slate-200">
           <Kosong
             judul="Tidak ada meeting"
-            keterangan={hariIni
+            keterangan={cariTertunda
+              ? `Tidak ada meeting yang cocok dengan “${cariTertunda}” pada rentang ini.`
+              : hariIni
               ? 'Tidak ada meeting berkehadiran yang ditugaskan untuk hari ini.'
               : 'Tidak ada meeting pada rentang tanggal ini.'}
             aksi={

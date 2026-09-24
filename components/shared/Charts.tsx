@@ -397,6 +397,50 @@ export function Meter({
   );
 }
 
+// ── Batang target (bullet chart) ────────────────────────────────────────────
+
+/** Warna capaian: merah < 50%, kuning < 100%, hijau ≥ 100% (tercapai/over). */
+export function warnaCapaian(rasio: number | null): string {
+  if (rasio === null) return '#94a3b8';
+  if (rasio >= 1) return '#008300';
+  if (rasio >= 0.5) return '#eda100';
+  return '#e34948';
+}
+
+/**
+ * Realisasi terhadap target dalam satu batang mendatar.
+ *
+ * Bukan cincin: cincin berhenti di 100%, padahal pertanyaan utamanya justru
+ * "sudah lewat target berapa jauh". Skalanya mengikuti yang lebih besar di
+ * antara target dan realisasi, sehingga batang yang melewati garis target
+ * benar-benar terlihat memanjang melampauinya.
+ */
+export function BatangTarget({
+  realisasi, target, tinggi = 10, skalaMaks,
+}: {
+  realisasi: number;
+  target: number;
+  tinggi?: number;
+  /** Samakan skala antarbaris supaya panjang batang bisa dibandingkan. */
+  skalaMaks?: number;
+}) {
+  const maks = Math.max(skalaMaks ?? 0, target, realisasi, 1) * 1.08;
+  const lebarReal = (realisasi / maks) * 100;
+  const posTarget = target > 0 ? (target / maks) * 100 : null;
+  const warna = warnaCapaian(target > 0 ? realisasi / target : null);
+
+  return (
+    <div className="relative w-full rounded-full bg-slate-100" style={{ height: tinggi }}>
+      <div className="absolute inset-y-0 left-0 rounded-full"
+        style={{ width: `${lebarReal}%`, background: warna, transition: 'width .6s cubic-bezier(.22,1,.36,1)' }} />
+      {posTarget !== null && (
+        <div className="absolute -inset-y-1 w-[3px] rounded-full bg-slate-800"
+          style={{ left: `calc(${posTarget}% - 1.5px)` }} title="Target" />
+      )}
+    </div>
+  );
+}
+
 // ── Lencana tren ────────────────────────────────────────────────────────────
 
 /**

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LABEL_PERAN, type Peran } from '@/lib/constants';
 import { tanggalPendek, waktuPendek } from '@/lib/format';
-import { Tombol, Lencana, AreaTeks, Kolom } from '@/components/shared/FormParts';
+import { Tombol, Lencana, AreaTeks, Kolom, Teks } from '@/components/shared/FormParts';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Tabel } from '@/components/shared/Tabel';
 
@@ -57,6 +57,7 @@ export function TabPersetujuan() {
 
   const [menolak, setMenolak] = useState<string | null>(null);
   const [alasan, setAlasan] = useState('');
+  const [cari, setCari] = useState('');
 
   const muat = useCallback(async () => {
     setMemuat(true);
@@ -98,8 +99,11 @@ export function TabPersetujuan() {
     }
   }
 
-  const menunggu = semua.filter((a) => a.approval_status === 'MENUNGGU');
-  const sudah = semua.filter((a) => a.approval_status !== 'MENUNGGU');
+  const k = cari.trim().toLowerCase();
+  const cocok = (a: Akun) => !k || [a.full_name, a.username, a.email, a.division, a.position]
+    .some((v) => (v ?? '').toLowerCase().includes(k));
+  const menunggu = semua.filter((a) => a.approval_status === 'MENUNGGU' && cocok(a));
+  const sudah = semua.filter((a) => a.approval_status !== 'MENUNGGU' && cocok(a));
 
   if (memuat) return <KerangkaBaris jumlah={4} />;
   if (galat) return <PanelGalat pesan={galat} onCoba={muat} />;
@@ -113,6 +117,8 @@ export function TabPersetujuan() {
           Setiap pendaftar otomatis berperan Sales; menaikkan perannya dilakukan terpisah di
           bagian Pengguna.
         </p>
+        <Teks type="search" value={cari} onChange={(e) => setCari(e.target.value)}
+          placeholder="Cari nama, username, email, divisi…" aria-label="Cari pendaftar" className="!w-64" />
         <label className="flex items-center gap-2 text-[12px] font-semibold text-slate-600 cursor-pointer select-none">
           <input type="checkbox" checked={tampilkanRiwayat}
             onChange={(e) => setTampilkanRiwayat(e.target.checked)}

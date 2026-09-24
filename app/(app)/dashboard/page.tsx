@@ -11,6 +11,7 @@ import {
 import { KerangkaKartu, PanelGalat, Kosong } from '@/components/shared/Feedback';
 import { rupiahRingkas, angka, persen, hitungDelta } from '@/lib/format';
 import { WARNA_PROBABILITY, PESAN_GPS, isPengawas } from '@/lib/constants';
+import { KartuTarget } from './_components/KartuTarget';
 
 /**
  * Dashboard — ikhtisar operasional, bukan hiasan (§9).
@@ -157,6 +158,8 @@ export default function HalamanDashboard() {
           </div>
         </BentoCard>
         )}
+
+        {tampil('target') && <KartuTarget pengawas={pengawas} />}
 
         {/* ── Corong probability ── */}
         {tampil('probability') && (

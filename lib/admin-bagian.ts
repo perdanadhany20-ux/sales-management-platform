@@ -10,7 +10,7 @@
  */
 
 export type KunciBagian =
-  | 'pengguna' | 'persetujuan' | 'hak_akses' | 'lokasi' | 'tampilan' | 'konfigurasi' | 'audit';
+  | 'pengguna' | 'persetujuan' | 'hak_akses' | 'lokasi' | 'target' | 'tampilan' | 'konfigurasi' | 'audit';
 
 export type KelompokBagian = 'ORGANISASI' | 'TAMPILAN' | 'SISTEM';
 
@@ -45,6 +45,11 @@ export const BAGIAN_ADMIN: Bagian[] = [
     kunci: 'lokasi', label: 'Lokasi Meeting', kelompok: 'ORGANISASI', ikon: '📍',
     judul: 'Lokasi Meeting',
     keterangan: 'Titik meeting beserta radius GPS yang diterima saat check-in.',
+  },
+  {
+    kunci: 'target', label: 'Target Sales', kelompok: 'ORGANISASI', ikon: '🎯',
+    judul: 'Target Sales',
+    keterangan: 'Target bulanan nilai penjualan dan GP tiap Sales. Realisasi dihitung dari pipeline WON.',
   },
   {
     kunci: 'tampilan', label: 'Dashboard Setting', kelompok: 'TAMPILAN', ikon: '🎨', adminSaja: true,

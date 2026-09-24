@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { isPengawas, PESAN_GPS, WARNA_CHART } from '@/lib/constants';
-import { tanggalISO, tanggalPendek, waktuPendek, angka, rupiahRingkas, jarak } from '@/lib/format';
+import { tanggalISO, tanggalPendek, waktuPendek, angka, rupiahRingkas, jarak, polaIlike } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar } from '@/components/shared/Bento';
 import { DonutLegenda } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
@@ -80,6 +80,13 @@ export default function HalamanActivity() {
   const [sampai, setSampai] = useState(() => tanggalISO());
   const [filterJenis, setFilterJenis] = useState('');
   const [filterOrang, setFilterOrang] = useState('');
+  const [cari, setCari] = useState('');
+  const [cariTertunda, setCariTertunda] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => { setCariTertunda(cari.trim()); setHalaman(0); }, 350);
+    return () => clearTimeout(t);
+  }, [cari]);
 
   const muat = useCallback(async () => {
     setMemuat(true);
@@ -101,6 +108,9 @@ export default function HalamanActivity() {
 
     if (filterJenis) q = q.eq('jenis', filterJenis);
     if (filterOrang) q = q.eq('user_id', filterOrang);
+    if (cariTertunda) {
+      q = q.or(`judul.ilike.${polaIlike(cariTertunda)},keterangan.ilike.${polaIlike(cariTertunda)},tambahan.ilike.${polaIlike(cariTertunda)}`);
+    }
 
     const { data, error, count } = await q;
     if (error) { setGalat(error.message); setMemuat(false); return; }
@@ -108,7 +118,7 @@ export default function HalamanActivity() {
     setDaftar((data ?? []) as Aktivitas[]);
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [dari, sampai, filterJenis, filterOrang, halaman]);
+  }, [dari, sampai, filterJenis, filterOrang, cariTertunda, halaman]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -127,11 +137,14 @@ export default function HalamanActivity() {
 
     if (filterJenis) q = q.eq('jenis', filterJenis);
     if (filterOrang) q = q.eq('user_id', filterOrang);
+    if (cariTertunda) {
+      q = q.or(`judul.ilike.${polaIlike(cariTertunda)},keterangan.ilike.${polaIlike(cariTertunda)},tambahan.ilike.${polaIlike(cariTertunda)}`);
+    }
 
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return (data ?? []) as Aktivitas[];
-  }, [dari, sampai, filterJenis, filterOrang]);
+  }, [dari, sampai, filterJenis, filterOrang, cariTertunda]);
 
   useEffect(() => {
     (async () => {
@@ -166,7 +179,7 @@ export default function HalamanActivity() {
   }
 
   const totalHalaman = Math.max(1, Math.ceil(total / PER_HALAMAN));
-  const adaFilter = Boolean(filterJenis || filterOrang);
+  const adaFilter = Boolean(filterJenis || filterOrang || cariTertunda);
 
   return (
     <div className="flex flex-col gap-4">
@@ -300,6 +313,12 @@ export default function HalamanActivity() {
               onUbah={(v) => { setFilterJenis(v); setHalaman(0); }}
               bolehKosong labelKosong="Semua jenis"
               opsi={Object.entries(JENIS).map(([k, v]) => ({ value: k, label: v.label }))} />
+          </div>
+
+          <div className="flex flex-col gap-1 min-w-[200px] flex-[2]">
+            <label htmlFor="a-cari" className="text-[11px] font-semibold text-slate-600">Cari</label>
+            <Teks id="a-cari" type="search" value={cari} onChange={(e) => setCari(e.target.value)}
+              placeholder="Customer, aktivitas, atau keterangan…" />
           </div>
         </div>
       </div>
