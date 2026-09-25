@@ -9,12 +9,12 @@ import { type Branding } from '@/lib/branding';
 import { useLonceng, totalPerluTindakan } from '@/lib/use-lonceng';
 import { usePengingat } from '@/lib/notifikasi';
 import { isPengawas } from '@/lib/constants';
-import { tanggalPendek, rupiahRingkas } from '@/lib/format';
-import { Melayang } from './Melayang';
+import { tanggalPendek, rupiahRingkas, polaIlike } from '@/lib/format';
 import {
   intipDailyReport, intipMeeting, intipJadwal, intipPipeline,
   intipTerlewat, intipBelumDitugaskan, intipGp, type ButirIntip,
 } from '@/lib/intip';
+import { DropdownMengambang } from './DropdownMengambang';
 
 /**
  * components/shared/HeaderAtas.tsx — bilah judul + lencana di puncak halaman.
@@ -36,10 +36,10 @@ export function HeaderAtas({ pengguna, branding }: {
   const { lonceng, muatUlang } = useLonceng(pengguna);
   const [bukaNotif, setBukaNotif] = useState(false);
   const [bukaCari, setBukaCari] = useState(false);
+  const loncengRef = useRef<HTMLButtonElement>(null);
   // Hanya satu jendela intip terbuka pada satu waktu. Dua panel melayang
   // bersamaan saling menutupi dan tidak ada yang bisa dibaca utuh.
   const [intip, setIntip] = useState<string | null>(null);
-  const loncengRef = useRef<HTMLButtonElement>(null);
   const pengawas = isPengawas(pengguna.role);
 
   // Pengingat peramban memakai angka yang sama dengan lencana di bawah ini,
@@ -124,7 +124,7 @@ export function HeaderAtas({ pengguna, branding }: {
             ambil={() => intipPipeline(pengguna.id, pengawas)} />
 
           {/* ── Lonceng ── */}
-          <div className="flex-shrink-0">
+          <div className="relative flex-shrink-0">
             <button
               ref={loncengRef}
               type="button"
@@ -147,18 +147,18 @@ export function HeaderAtas({ pengguna, branding }: {
               </span>
             </button>
 
-            {bukaNotif && (
-              <Melayang pemicuRef={loncengRef} onTutup={() => setBukaNotif(false)}
-                lebar={330} label="Notifikasi">
-                <PanelNotifikasi
-                  lonceng={lonceng}
-                  pengawas={pengawas}
-                  peran={pengguna.role}
-                  userId={pengguna.id}
-                  onTutup={() => setBukaNotif(false)}
-                />
-              </Melayang>
-            )}
+            <DropdownMengambang
+              buka={bukaNotif} onTutup={() => setBukaNotif(false)}
+              triggerRef={loncengRef} lebar={320}
+            >
+              <PanelNotifikasi
+                lonceng={lonceng}
+                pengawas={pengawas}
+                peran={pengguna.role}
+                userId={pengguna.id}
+                onTutup={() => setBukaNotif(false)}
+              />
+            </DropdownMengambang>
           </div>
 
           {/*
@@ -241,12 +241,12 @@ function Pintasan({
   tersembunyiDiPonsel?: boolean;
 }) {
   const menyala = jumlah === '!' || jumlah > 0;
-  const tombolRef = useRef<HTMLButtonElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div className={`flex-shrink-0 ${tersembunyiDiPonsel ? 'hidden sidebar:block' : ''}`}>
+    <div className={`relative flex-shrink-0 ${tersembunyiDiPonsel ? 'hidden sidebar:block' : ''}`}>
       <button
-        ref={tombolRef}
+        ref={btnRef}
         type="button"
         aria-expanded={terbuka}
         aria-label={`${label}, ${jumlah} perlu dilihat`}
@@ -267,18 +267,16 @@ function Pintasan({
         </span>
       </button>
 
-      {terbuka && (
-        <Melayang pemicuRef={tombolRef} onTutup={() => onToggle(null)} lebar={300} label={judulPanel}>
-          <PanelIntip
-            judul={judulPanel}
-            kosong={kosong}
-            hrefSemua={href}
-            labelSemua={`Buka ${label}`}
-            ambil={ambil}
-            onTutup={() => onToggle(null)}
-          />
-        </Melayang>
-      )}
+      <DropdownMengambang buka={terbuka} onTutup={() => onToggle(null)} triggerRef={btnRef}>
+        <PanelIntip
+          judul={judulPanel}
+          kosong={kosong}
+          hrefSemua={href}
+          labelSemua={`Buka ${label}`}
+          ambil={ambil}
+          onTutup={() => onToggle(null)}
+        />
+      </DropdownMengambang>
     </div>
   );
 }
@@ -315,10 +313,15 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Klik di luar dan Escape ditangani Melayang, bukan di sini — menanganinya
-  // di dua tempat membuat panel berkedip tertutup lalu terbuka lagi.
+  // Posisi (fixed, portal ke body) dan klik-di-luar/Escape sudah ditangani
+  // DropdownMengambang yang membungkus komponen ini — tidak diulang di sini.
   return (
-    <>
+    <div
+      role="dialog"
+      aria-label={judul}
+      className="w-full max-w-[calc(100vw-24px)]
+                 bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden"
+    >
       <header className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70">
         <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">{judul}</h2>
       </header>
@@ -363,7 +366,7 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
           {labelSemua} →
         </Link>
       </footer>
-    </>
+    </div>
   );
 }
 
@@ -387,6 +390,8 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
 }) {
   const [kelompok, setKelompok] = useState<{ judul: string; butir: ButirIntip[] }[] | null>(null);
 
+  // Posisi (fixed, portal ke body), klik-di-luar, dan Escape sudah ditangani
+  // DropdownMengambang yang membungkus komponen ini.
   useEffect(() => {
     let batal = false;
 
@@ -441,7 +446,12 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
   const jumlah = (kelompok ?? []).reduce((t, k) => t + k.butir.length, 0);
 
   return (
-    <>
+    <div
+      role="dialog"
+      aria-label="Notifikasi"
+      className="w-full max-w-[calc(100vw-24px)]
+                 bg-white rounded-kartu border border-slate-200 shadow-dropdown overflow-hidden"
+    >
       <header className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center gap-2">
         <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex-1">
           Perlu Tindakan
@@ -504,7 +514,7 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
           Lihat seluruh riwayat aktivitas →
         </Link>
       </footer>
-    </>
+    </div>
   );
 }
 
@@ -547,20 +557,21 @@ function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boole
     (async () => {
       setMencari(true);
       const k = `%${tertunda}%`;
+      const p = polaIlike(tertunda);
 
       const [pelanggan, jadwal, pipeline, laporan] = await Promise.all([
         supabase.from('sm_customers').select('id, name, city, address').ilike('name', k).limit(5),
         supabase.from('sm_schedules')
           .select('id, customer_name, category, schedule_date, status')
-          .or(`customer_name.ilike.${k},project.ilike.${k}`)
+          .or(`customer_name.ilike.${p},project.ilike.${p}`)
           .order('schedule_date', { ascending: false }).limit(5),
         supabase.from('sm_pipeline')
           .select('id, customer_name, project_detail, project_value')
-          .or(`customer_name.ilike.${k},project_detail.ilike.${k}`)
+          .or(`customer_name.ilike.${p},project_detail.ilike.${p}`)
           .order('pipeline_date', { ascending: false }).limit(5),
         supabase.from('sm_daily_reports')
           .select('id, customer_name, activity, report_date')
-          .or(`customer_name.ilike.${k},activity.ilike.${k}`)
+          .or(`customer_name.ilike.${p},activity.ilike.${p}`)
           .order('report_date', { ascending: false }).limit(5),
       ]);
 

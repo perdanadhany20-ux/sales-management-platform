@@ -28,6 +28,10 @@ export function getAdminClient(): SupabaseClient {
 
   klien = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    // Next.js men-cache fetch GET di sisi server. Untuk klien ini itu
+    // berbahaya: pemeriksaan sesi, status aktif, dan must_change bisa membaca
+    // nilai basi — akun yang baru dinonaktifkan tetap lolos untuk sementara.
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
   });
   return klien;
 }

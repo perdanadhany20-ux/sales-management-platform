@@ -156,6 +156,15 @@
     scroll-margin-top: 5rem;
   }
 
+  /* Bilah progres pindah menu (components/shared/ProgresNavigasi.tsx). */
+  @keyframes progres-jalan {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(250%); }
+  }
+  .progres-jalan {
+    animation: progres-jalan 1.1s ease-in-out infinite;
+  }
+
   @keyframes masuk {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }

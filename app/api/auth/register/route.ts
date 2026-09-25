@@ -40,6 +40,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Rem spam: pendaftaran terbuka tanpa sesi, jadi tanpa batas ini satu
+  // skrip bisa membanjiri antrean Persetujuan Akun dengan ribuan baris.
+  const { count: baruSejamIni } = await db
+    .from('users').select('id', { count: 'exact', head: true })
+    .eq('approval_status', 'MENUNGGU')
+    .gte('created_at', new Date(Date.now() - 3600_000).toISOString());
+  if ((baruSejamIni ?? 0) >= 20) {
+    return NextResponse.json(
+      { error: 'Terlalu banyak pendaftaran dalam waktu singkat. Coba lagi nanti atau hubungi admin.' },
+      { status: 429 },
+    );
+  }
+
   const badan = await request.json().catch(() => ({}));
 
   const username = bersih(badan.username, 40)?.toLowerCase() ?? null;

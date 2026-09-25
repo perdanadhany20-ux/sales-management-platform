@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
     .from('users')
     .select(`id, username, full_name, email, phone, role, active, created_at,
              division, sales_division, position, event_code, joined_at,
-             approval_status, approved_by, approved_at, rejection_reason`)
+             approval_status, approved_by, approved_at, rejection_reason,
+             address, manager_id`)
     .order('full_name');
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -139,6 +140,21 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.division === 'string') perubahan.division = body.division.trim() || null;
   if (typeof body.sales_division === 'string') perubahan.sales_division = body.sales_division.trim() || null;
   if (typeof body.position === 'string') perubahan.position = body.position.trim() || null;
+  if (typeof body.address === 'string') perubahan.address = body.address.trim().slice(0, 300) || null;
+
+  // Atasan ("manager_id") murni keputusan struktur organisasi, bukan biodata
+  // — hanya Admin yang boleh mengisinya, dan itu sudah ditegakkan oleh
+  // `penjaga()` di atas: seluruh route ini memang admin-only.
+  if ('manager_id' in body) {
+    const managerId = body.manager_id;
+    if (managerId !== null && typeof managerId !== 'string') {
+      return NextResponse.json({ error: 'Atasan tidak sah.' }, { status: 400 });
+    }
+    if (managerId === id) {
+      return NextResponse.json({ error: 'Seseorang tidak bisa menjadi atasannya sendiri.' }, { status: 400 });
+    }
+    perubahan.manager_id = managerId || null;
+  }
 
   /**
    * Persetujuan pendaftaran.

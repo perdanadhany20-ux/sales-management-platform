@@ -6,15 +6,16 @@ import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
 import {
-  isPengawas, STATUS_JADWAL, STATE_KEHADIRAN,
+  isPengawas, STATUS_JADWAL, STATE_KEHADIRAN, statusEfektif,
   type StatusJadwal, type StateKehadiran,
 } from '@/lib/constants';
-import { tanggalISO, tanggalPendek, angka } from '@/lib/format';
+import { tanggalISO, tanggalPendek, angka, polaIlike } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar, BarisBento } from '@/components/shared/Bento';
 import { Meter } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { PanelMeeting, type Meeting, type Lokasi } from './_components/PanelMeeting';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
@@ -74,6 +75,13 @@ export default function HalamanMeeting() {
   const [sampai, setSampai] = useState(() => tanggalISO());
   const [filterSales, setFilterSales] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [cari, setCari] = useState('');
+  const [cariTertunda, setCariTertunda] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => { setCariTertunda(cari.trim()); setHalaman(0); }, 350);
+    return () => clearTimeout(t);
+  }, [cari]);
 
   const [dibuka, setDibuka] = useState<BarisMeeting | null>(null);
 
@@ -103,7 +111,16 @@ export default function HalamanMeeting() {
     // orang lain hanya menambah baris yang pasti ditolak sm_check_in().
     if (!pengawas) q = q.eq('assigned_to', pengguna.id);
     else if (filterSales) q = q.eq('assigned_to', filterSales);
-    if (filterStatus) q = q.eq('status', filterStatus);
+    if (filterStatus === 'MISSED') {
+      q = q.or(`status.eq.MISSED,and(status.in.(UPCOMING,IN_PROGRESS),schedule_date.lt.${tanggalISO()})`);
+    } else if (filterStatus === 'UPCOMING' || filterStatus === 'IN_PROGRESS') {
+      q = q.eq('status', filterStatus).gte('schedule_date', tanggalISO());
+    } else if (filterStatus) {
+      q = q.eq('status', filterStatus);
+    }
+    if (cariTertunda) {
+      q = q.or(`customer_name.ilike.${polaIlike(cariTertunda)},project.ilike.${polaIlike(cariTertunda)},detail.ilike.${polaIlike(cariTertunda)}`);
+    }
 
     const { data, error, count } = await q;
     if (error) { setGalat(error.message); setMemuat(false); return; }
@@ -119,9 +136,38 @@ export default function HalamanMeeting() {
     }));
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, halaman]);
+  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, cariTertunda, halaman]);
 
   useEffect(() => { void muat(); }, [muat]);
+
+  // Bawaan penyaring adalah hari ini, jadi meeting kemarin yang belum ditutup
+  // tidak kelihatan sama sekali kalau tidak diingatkan terpisah.
+  const [jumlahTerlewat, setJumlahTerlewat] = useState(0);
+  useEffect(() => {
+    if (!pengguna) return;
+    let q = supabase
+      .from('sm_schedules')
+      .select('id', { count: 'exact', head: true })
+      .eq('requires_attendance', true)
+      .in('status', ['UPCOMING', 'IN_PROGRESS'])
+      .lt('schedule_date', tanggalISO());
+    if (!pengawas) q = q.eq('assigned_to', pengguna.id);
+    void (async () => {
+      const { count } = await q;
+      setJumlahTerlewat(count ?? 0);
+    })();
+  }, [pengguna, pengawas, daftar]);
+
+  function tampilkanTerlewat() {
+    const mulai = new Date();
+    mulai.setDate(mulai.getDate() - 90);
+    const kemarin = new Date();
+    kemarin.setDate(kemarin.getDate() - 1);
+    setDari(tanggalISO(mulai));
+    setSampai(tanggalISO(kemarin));
+    setFilterStatus('MISSED');
+    setHalaman(0);
+  }
 
   // Dari lencana header, yang dituju bukan kartunya melainkan panel
   // eksekusinya — orang yang menekan "Meeting" di header hendak check-in,
@@ -153,7 +199,16 @@ export default function HalamanMeeting() {
 
     if (!pengawas) q = q.eq('assigned_to', pengguna.id);
     else if (filterSales) q = q.eq('assigned_to', filterSales);
-    if (filterStatus) q = q.eq('status', filterStatus);
+    if (filterStatus === 'MISSED') {
+      q = q.or(`status.eq.MISSED,and(status.in.(UPCOMING,IN_PROGRESS),schedule_date.lt.${tanggalISO()})`);
+    } else if (filterStatus === 'UPCOMING' || filterStatus === 'IN_PROGRESS') {
+      q = q.eq('status', filterStatus).gte('schedule_date', tanggalISO());
+    } else if (filterStatus) {
+      q = q.eq('status', filterStatus);
+    }
+    if (cariTertunda) {
+      q = q.or(`customer_name.ilike.${polaIlike(cariTertunda)},project.ilike.${polaIlike(cariTertunda)},detail.ilike.${polaIlike(cariTertunda)}`);
+    }
 
     const { data, error } = await q;
     if (error) throw new Error(error.message);
@@ -167,7 +222,7 @@ export default function HalamanMeeting() {
         sm_evidence: (b.sm_evidence ?? []) as { id: string }[],
       };
     });
-  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus]);
+  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, cariTertunda]);
 
   useEffect(() => {
     if (!pengawas) return;
@@ -241,7 +296,7 @@ export default function HalamanMeeting() {
               { judul: 'Sales', lebar: 20,
                 nilai: (m) => (m.assigned_to ? (namaSales[m.assigned_to] ?? '—') : 'Belum ditugaskan') },
               { judul: 'Status Jadwal', lebar: 14,
-                nilai: (m) => STATUS_JADWAL[m.status as StatusJadwal]?.label ?? m.status },
+                nilai: (m) => STATUS_JADWAL[statusEfektif(m)]?.label ?? m.status },
               { judul: 'State Kehadiran', lebar: 18,
                 nilai: (m) => STATE_KEHADIRAN[(m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran]?.label ?? '—' },
               { judul: 'GPS Terverifikasi', lebar: 16,
@@ -290,7 +345,7 @@ export default function HalamanMeeting() {
             <p className="text-slate-400 text-sm text-center py-4">Belum ada meeting pada rentang ini</p>
           ) : (
             <div className="flex flex-col gap-2">
-              <Meter nilai={ringkas.selesai} maksimum={Math.max(1, ringkas.jumlah)} label="Meeting selesai" />
+              <Meter nilai={ringkas.selesai} maksimum={ringkas.jumlah} label="Meeting selesai" />
               {ringkas.perluFoto > 0 && (
                 <BarisBento
                   warna="#eda100"
@@ -306,6 +361,19 @@ export default function HalamanMeeting() {
           )}
         </BentoCard>
       </BentoGrid>
+
+      {jumlahTerlewat > 0 && filterStatus !== 'MISSED' && (
+        <div className="rounded-kartu border border-[#e34948]/30 bg-[#fce3e3] px-4 py-3 flex items-center gap-3 flex-wrap">
+          <p className="flex-1 min-w-[240px] text-[12px] text-[#8f2c2b] leading-snug">
+            <b className="font-bold">{jumlahTerlewat} meeting lewat tanggal</b> belum diselesaikan.
+            {' '}Check-in sudah tidak bisa dilakukan untuk tanggal yang lewat —{' '}
+            {pengawas ? 'tutup lewat Override bila meeting memang terjadi.' : 'hubungi atasan Anda untuk ditindaklanjuti.'}
+          </p>
+          <Tombol rupa="kedua" className="text-[12px] py-2" onClick={tampilkanTerlewat}>
+            Tampilkan
+          </Tombol>
+        </div>
+      )}
 
       {/* ── Penyaring ── */}
       <div className="bg-white rounded-kartu border border-slate-200 p-3 sm:p-4 flex flex-col gap-3">
@@ -346,6 +414,12 @@ export default function HalamanMeeting() {
                 value: k, label: STATUS_JADWAL[k].label,
               }))} />
           </div>
+
+          <div className="flex flex-col gap-1 min-w-[200px] flex-[2]">
+            <label htmlFor="m-cari" className="text-[11px] font-semibold text-slate-600">Cari</label>
+            <Teks id="m-cari" type="search" value={cari} onChange={(e) => setCari(e.target.value)}
+              placeholder="Customer, proyek, atau detail…" />
+          </div>
         </div>
       </div>
 
@@ -357,7 +431,9 @@ export default function HalamanMeeting() {
         <div className="bg-white rounded-kartu border border-slate-200">
           <Kosong
             judul="Tidak ada meeting"
-            keterangan={hariIni
+            keterangan={cariTertunda
+              ? `Tidak ada meeting yang cocok dengan “${cariTertunda}” pada rentang ini.`
+              : hariIni
               ? 'Tidak ada meeting berkehadiran yang ditugaskan untuk hari ini.'
               : 'Tidak ada meeting pada rentang tanggal ini.'}
             aksi={
@@ -372,17 +448,70 @@ export default function HalamanMeeting() {
         </div>
       ) : (
         <>
-          <ul className="flex flex-col gap-2">
-            {daftar.map((m) => (
-              <li key={m.id} id={`baris-${m.id}`}>
-                <KartuMeeting
-                  meeting={m}
-                  namaSales={m.assigned_to ? (namaSales[m.assigned_to] ?? null) : null}
-                  onBuka={() => setDibuka(m)}
-                />
-              </li>
-            ))}
-          </ul>
+          <Tabel
+            data={daftar}
+            kunci={(m) => m.id}
+            kolom={[
+              {
+                label: 'Tanggal', className: 'w-28 whitespace-nowrap',
+                urut: (m) => `${m.schedule_date} ${m.schedule_time ?? ''}`,
+                render: (m) => (
+                  <>
+                    {tanggalPendek(m.schedule_date)}
+                    {m.schedule_time && <span className="text-slate-400"> · {m.schedule_time.slice(0, 5)}</span>}
+                  </>
+                ),
+              },
+              {
+                label: 'Customer', className: 'w-[36%]',
+                urut: (m) => m.customer_name,
+                render: (m) => (
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900 truncate">{m.customer_name}</p>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      📍 {m.sm_locations?.name ?? 'Lokasi belum diatur'}{m.project ? ` · ${m.project}` : ''}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                label: 'Status', className: 'w-56',
+                urut: (m) => STATUS_JADWAL[statusEfektif(m)]?.label,
+                render: (m) => {
+                  const state = (m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran;
+                  return (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Lencana {...(STATUS_JADWAL[statusEfektif(m)] ?? STATUS_JADWAL.UPCOMING)} />
+                      <Lencana {...(STATE_KEHADIRAN[state] ?? STATE_KEHADIRAN.NOT_STARTED)} />
+                      {m.sm_evidence.length > 0 && (
+                        <Lencana label={`${m.sm_evidence.length} foto`} color="#1d4ed8" bg="#dbeafe" />
+                      )}
+                    </div>
+                  );
+                },
+              },
+              ...(pengawas ? [{
+                label: 'Sales', className: 'w-36',
+                urut: (m: BarisMeeting) => (m.assigned_to ? namaSales[m.assigned_to] : null),
+                render: (m: BarisMeeting) => (
+                  <span className="text-slate-600">
+                    {m.assigned_to ? (namaSales[m.assigned_to] ?? 'Pengguna lain') : '—'}
+                  </span>
+                ),
+              }] : []),
+            ]}
+            aksi={(m) => {
+              const selesai = m.status === 'COMPLETED';
+              const label = selesai
+                ? 'Lihat Bukti'
+                : !m.sm_attendance?.gps_verified
+                  ? 'Mulai Check-in'
+                  : m.sm_evidence.length === 0
+                    ? 'Unggah Foto'
+                    : 'Selesaikan';
+              return <TombolIkon rupa="lihat" label={label} onClick={() => setDibuka(m)} />;
+            }}
+          />
 
           {totalHalaman > 1 ? (
             <nav className="flex items-center justify-between gap-3 py-1" aria-label="Paginasi">
@@ -432,72 +561,3 @@ function ChipRentang({ aktif, onClick, children }: {
   );
 }
 
-function KartuMeeting({ meeting: m, namaSales, onBuka }: {
-  meeting: BarisMeeting;
-  namaSales: string | null;
-  onBuka: () => void;
-}) {
-  const gaya = STATUS_JADWAL[m.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING;
-  const state = (m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran;
-  const gayaState = STATE_KEHADIRAN[state] ?? STATE_KEHADIRAN.NOT_STARTED;
-  const selesai = m.status === 'COMPLETED';
-
-  const aksi = selesai
-    ? 'Lihat Bukti'
-    : !m.sm_attendance?.gps_verified
-      ? 'Mulai Check-in'
-      : m.sm_evidence.length === 0
-        ? 'Unggah Foto'
-        : 'Selesaikan';
-
-  return (
-    <article className="bg-white rounded-kartu border border-slate-200 p-3 sm:p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-12 text-center">
-          <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">
-            {new Date(m.schedule_date).toLocaleDateString('id-ID', { month: 'short' })}
-          </p>
-          <p className="text-lg font-black text-slate-800 leading-tight tabular-nums">
-            {new Date(m.schedule_date).getDate()}
-          </p>
-          {m.schedule_time && (
-            <p className="text-[9px] text-slate-400 tabular-nums">{m.schedule_time.slice(0, 5)}</p>
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-900 truncate">{m.customer_name}</p>
-          <p className="text-[12px] text-slate-500 mt-0.5 truncate">
-            📍 {m.sm_locations?.name ?? 'Lokasi belum diatur'}
-            {m.project ? ` · ${m.project}` : ''}
-          </p>
-          <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-            <Lencana {...gaya} />
-            <Lencana {...gayaState} />
-            {m.sm_evidence.length > 0 && (
-              <Lencana label={`${m.sm_evidence.length} foto`} color="#1d4ed8" bg="#dbeafe" />
-            )}
-          </div>
-          {namaSales && (
-            <p className="text-[11px] text-slate-400 mt-1">
-              Ditugaskan ke <span className="font-semibold text-slate-600">{namaSales}</span>
-            </p>
-          )}
-          {selesai && m.completed_at && (
-            <p className="text-[11px] text-slate-400 mt-1">
-              Selesai {tanggalPendek(m.completed_at)}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <Tombol
-        rupa={selesai ? 'kedua' : 'utama'}
-        onClick={onBuka}
-        className="w-full mt-3 text-[12px] py-2.5"
-      >
-        {aksi}
-      </Tombol>
-    </article>
-  );
-}

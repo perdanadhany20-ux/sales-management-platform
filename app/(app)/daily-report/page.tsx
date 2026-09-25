@@ -4,14 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useFokusBaris } from '@/lib/fokus';
-import { isPengawas } from '@/lib/constants';
-import { tanggalISO, tanggalPendek, angka } from '@/lib/format';
+import { isPengawas, isAdmin } from '@/lib/constants';
+import { tanggalISO, tanggalPendek, angka, polaIlike } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar } from '@/components/shared/Bento';
 import { CincinCapaian, DonutLegenda, Sparkline } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
-import { Konfirmasi } from '@/components/shared/Modal';
+import { Modal, Konfirmasi } from '@/components/shared/Modal';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { FormLaporan, type Laporan } from './_components/FormLaporan';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
@@ -34,6 +35,7 @@ export default function HalamanDailyReport() {
   const { pengguna } = usePenggunaAktif();
   const toast = useToast();
   const pengawas = isPengawas(pengguna?.role);
+  const admin = isAdmin(pengguna?.role);
 
   const [daftar, setDaftar] = useState<Laporan[]>([]);
   const [namaSales, setNamaSales] = useState<Record<string, string>>({});
@@ -57,6 +59,7 @@ export default function HalamanDailyReport() {
   const [sedangSunting, setSedangSunting] = useState<Laporan | null>(null);
   const [akanHapus, setAkanHapus] = useState<Laporan | null>(null);
   const [menghapus, setMenghapus] = useState(false);
+  const [dilihat, setDilihat] = useState<Laporan | null>(null);
 
   // Pencarian ditunda supaya setiap huruf tidak memicu satu query.
   useEffect(() => {
@@ -82,7 +85,7 @@ export default function HalamanDailyReport() {
     if (filterSales) q = q.eq('sales_user_id', filterSales);
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`customer_name.ilike.%${k}%,lead_project.ilike.%${k}%,activity.ilike.%${k}%`);
+      q = q.or(`customer_name.ilike.${polaIlike(k)},lead_project.ilike.${polaIlike(k)},activity.ilike.${polaIlike(k)}`);
     }
 
     const { data, error, count } = await q;
@@ -120,7 +123,7 @@ export default function HalamanDailyReport() {
     if (filterSales) q = q.eq('sales_user_id', filterSales);
     if (cariTertunda.trim()) {
       const k = cariTertunda.trim();
-      q = q.or(`customer_name.ilike.%${k}%,lead_project.ilike.%${k}%,activity.ilike.%${k}%`);
+      q = q.or(`customer_name.ilike.${polaIlike(k)},lead_project.ilike.${polaIlike(k)},activity.ilike.${polaIlike(k)}`);
     }
 
     const { data, error } = await q;
@@ -151,10 +154,29 @@ export default function HalamanDailyReport() {
   }, [pengawas]);
 
   const hariIni = tanggalISO();
-  const laporanHariIni = useMemo(
-    () => daftar.find((l) => l.report_date === hariIni && l.sales_user_id === pengguna?.id),
-    [daftar, hariIni, pengguna?.id],
-  );
+
+  // Dihitung terpisah dari daftar: daftar ikut tersaring pencarian dan
+  // paginasi, sedangkan status hari ini tidak boleh berubah karena itu.
+  const [hariIniSaya, setHariIniSaya] = useState<{ jumlah: number; terakhir: string | null }>({ jumlah: 0, terakhir: null });
+  useEffect(() => {
+    if (!pengguna || pengawas) return;
+    void (async () => {
+      const { data, count } = await supabase
+        .from('sm_daily_reports')
+        .select('customer_name', { count: 'exact' })
+        .eq('sales_user_id', pengguna.id)
+        .eq('report_date', hariIni)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      setHariIniSaya({ jumlah: count ?? 0, terakhir: (data?.[0] as { customer_name: string } | undefined)?.customer_name ?? null });
+    })();
+  }, [pengguna, pengawas, hariIni, daftar]);
+  const laporanHariIni = hariIniSaya.jumlah > 0;
+
+  const salesMelapor = useMemo(() => {
+    const idSales = new Set(daftarSales.map((s) => s.id));
+    return new Set(daftar.map((l) => l.sales_user_id).filter((id) => idSales.has(id))).size;
+  }, [daftar, daftarSales]);
 
   // Sebaran laporan per hari dalam 14 hari terakhir, untuk sparkline.
   const trenHarian = useMemo(() => {
@@ -249,13 +271,15 @@ export default function HalamanDailyReport() {
       {/* ── Analitik ringkas (§16) ── */}
       <BentoGrid>
         {!pengawas ? (
-          <BentoCard rentang={4} tinggi="pendek" rupa={laporanHariIni ? 'polos' : 'sorot'} judul="Status Hari Ini">
+          <BentoCard rentang={6} tinggi="pendek" rupa={laporanHariIni ? 'polos' : 'sorot'} judul="Status Hari Ini">
             {laporanHariIni ? (
               <div className="flex items-center gap-3">
                 <span className="w-11 h-11 rounded-full bg-[#e0f2e0] text-[#008300] grid place-items-center text-lg font-black flex-shrink-0">✓</span>
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-slate-900">Sudah dikirim</p>
-                  <p className="text-[11px] text-slate-500 truncate">{laporanHariIni.customer_name}</p>
+                  <p className="text-sm font-black text-slate-900">
+                    {hariIniSaya.jumlah} laporan terkirim
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">Terakhir: {hariIniSaya.terakhir}</p>
                 </div>
               </div>
             ) : (
@@ -290,16 +314,16 @@ export default function HalamanDailyReport() {
             ) : (
               <CincinCapaian
                 terang
-                nilai={new Set(daftar.map((l) => l.sales_user_id)).size}
+                nilai={salesMelapor}
                 maksimum={daftarSales.length}
                 warna="#ffffff"
-                label={`${new Set(daftar.map((l) => l.sales_user_id)).size} dari ${daftarSales.length} Sales`}
+                label={`${salesMelapor} dari ${daftarSales.length} Sales`}
               />
             )}
           </BentoCard>
         )}
 
-        <BentoCard rentang={4} tinggi={pengawas ? 'sedang' : 'pendek'} judul="Jumlah Laporan">
+        <BentoCard rentang={pengawas ? 4 : 6} tinggi={pengawas ? 'sedang' : 'pendek'} judul="Jumlah Laporan">
           <AngkaJangkar
             nilai={angka(total)}
             satuan="laporan"
@@ -381,19 +405,55 @@ export default function HalamanDailyReport() {
         </div>
       ) : (
         <>
-          <ul className="flex flex-col gap-2">
-            {daftar.map((l) => (
-              <li key={l.id} id={`baris-${l.id}`}>
-                <KartuLaporan
-                  laporan={l}
-                  namaSales={pengawas ? (namaSales[l.sales_user_id] ?? '—') : null}
-                  milikSendiri={l.sales_user_id === pengguna?.id}
-                  onSunting={() => { setSedangSunting(l); setFormBuka(true); }}
-                  onHapus={() => setAkanHapus(l)}
-                />
-              </li>
-            ))}
-          </ul>
+          <Tabel
+            data={daftar}
+            kunci={(l) => l.id}
+            kolom={[
+              {
+                label: 'Tanggal', className: 'w-24 whitespace-nowrap',
+                urut: (l) => l.report_date,
+                render: (l) => tanggalPendek(l.report_date),
+              },
+              {
+                label: 'Customer', className: 'w-[30%]',
+                urut: (l) => l.customer_name,
+                render: (l) => (
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900 truncate">{l.customer_name}</p>
+                    {l.lead_project && (
+                      <p className="text-[11px] text-aksen-700 font-semibold truncate">🏷 {l.lead_project}</p>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                label: 'Aktivitas', className: 'w-[36%]',
+                render: (l) => <p className="line-clamp-2">{l.activity}</p>,
+              },
+              ...(pengawas ? [{
+                label: 'Sales', className: 'w-36',
+                urut: (l: Laporan) => namaSales[l.sales_user_id],
+                render: (l: Laporan) => (
+                  <Lencana label={namaSales[l.sales_user_id] ?? '—'} color="#1d4ed8" bg="#dbeafe" />
+                ),
+              }] : []),
+            ]}
+            aksi={(l) => {
+              const milikSendiri = l.sales_user_id === pengguna?.id;
+              return (
+                <>
+                  <TombolIkon rupa="lihat" label="Lihat detail" onClick={() => setDilihat(l)} />
+                  {(milikSendiri || admin) && (
+                    <TombolIkon rupa="sunting" label="Sunting"
+                      onClick={() => { setSedangSunting(l); setFormBuka(true); }} />
+                  )}
+                  {admin && (
+                    <TombolIkon rupa="hapus" label="Hapus" onClick={() => setAkanHapus(l)} />
+                  )}
+                </>
+              );
+            }}
+          />
 
           <Paginasi
             halaman={halaman} totalHalaman={totalHalaman} total={total}
@@ -422,80 +482,32 @@ export default function HalamanDailyReport() {
         pesan={`Laporan ${akanHapus?.customer_name ?? ''} tanggal ${tanggalPendek(akanHapus?.report_date)} akan dihapus permanen.`}
         labelSetuju="Hapus"
       />
-    </div>
-  );
-}
 
-function KartuLaporan({
-  laporan, namaSales, milikSendiri, onSunting, onHapus,
-}: {
-  laporan: Laporan;
-  namaSales: string | null;
-  milikSendiri: boolean;
-  onSunting: () => void;
-  onHapus: () => void;
-}) {
-  const [buka, setBuka] = useState(false);
-
-  return (
-    <article className="bg-white rounded-kartu border border-slate-200 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setBuka((b) => !b)}
-        aria-expanded={buka}
-        className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors"
-      >
-        <div className="flex-shrink-0 w-12 text-center">
-          <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">
-            {new Date(laporan.report_date).toLocaleDateString('id-ID', { month: 'short' })}
-          </p>
-          <p className="text-lg font-black text-slate-800 leading-tight tabular-nums">
-            {new Date(laporan.report_date).getDate()}
-          </p>
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-bold text-slate-900 truncate">{laporan.customer_name}</p>
-            {namaSales && <Lencana label={namaSales} color="#1d4ed8" bg="#dbeafe" />}
-          </div>
-          <p className="text-[12px] text-slate-500 line-clamp-1 mt-0.5">{laporan.activity}</p>
-          {laporan.lead_project && (
-            <p className="text-[11px] text-aksen-700 font-semibold mt-0.5 truncate">
-              🏷 {laporan.lead_project}
-            </p>
-          )}
-        </div>
-
-        <svg
-          width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
-          className={`flex-shrink-0 mt-1 text-slate-400 transition-transform ${buka ? 'rotate-180' : ''}`}
+      {dilihat && (
+        <Modal
+          buka={Boolean(dilihat)}
+          onTutup={() => setDilihat(null)}
+          judul={dilihat.customer_name}
+          keterangan={tanggalPendek(dilihat.report_date)}
+          kaki={<Tombol rupa="kedua" onClick={() => setDilihat(null)} className="text-[12px] py-2">Tutup</Tombol>}
         >
-          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {buka && (
-        <div className="px-4 pb-4 pt-1 border-t border-slate-100 flex flex-col gap-3">
-          <div className="grid grid-cols-1 formulir:grid-cols-2 gap-3">
-            <Detail label="Contact Person" nilai={laporan.contact_person} />
-            <Detail label="Jabatan" nilai={laporan.position} />
-            <Detail label="Telepon / WA" nilai={laporan.phone_whatsapp} />
-            <Detail label="Lead Project" nilai={laporan.lead_project} />
-          </div>
-          <Detail label="Aktivitas" nilai={laporan.activity} blok />
-          <Detail label="Hasil" nilai={laporan.result} blok />
-          <Detail label="Next Action" nilai={laporan.next_action} blok sorot />
-
-          {milikSendiri && (
-            <div className="flex items-center gap-2 pt-1">
-              <Tombol rupa="kedua" onClick={onSunting} className="text-[12px] py-2">Sunting</Tombol>
-              <Tombol rupa="hantu" onClick={onHapus} className="text-[12px] py-2 text-[#e34948]">Hapus</Tombol>
+          <div className="flex flex-col gap-3">
+            {pengawas && (
+              <Detail label="Sales" nilai={namaSales[dilihat.sales_user_id] ?? '—'} />
+            )}
+            <div className="grid grid-cols-1 formulir:grid-cols-2 gap-3">
+              <Detail label="Contact Person" nilai={dilihat.contact_person} />
+              <Detail label="Jabatan" nilai={dilihat.position} />
+              <Detail label="Telepon / WA" nilai={dilihat.phone_whatsapp} />
+              <Detail label="Lead Project" nilai={dilihat.lead_project} />
             </div>
-          )}
-        </div>
+            <Detail label="Aktivitas" nilai={dilihat.activity} blok />
+            <Detail label="Hasil" nilai={dilihat.result} blok />
+            <Detail label="Next Action" nilai={dilihat.next_action} blok sorot />
+          </div>
+        </Modal>
       )}
-    </article>
+    </div>
   );
 }
 

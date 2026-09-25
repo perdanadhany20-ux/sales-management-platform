@@ -5,10 +5,10 @@ import { supabase } from '@/lib/supabase';
 import { ambilLokasi, urlPetaKecil, GpsError } from '@/lib/gps';
 import { siapkanFoto } from '@/lib/image-compress';
 import {
-  PESAN_GPS, PESAN_PENYELESAIAN, STATE_KEHADIRAN, STATUS_JADWAL,
-  type StateKehadiran, type StatusJadwal,
+  PESAN_GPS, PESAN_PENYELESAIAN, STATE_KEHADIRAN, STATUS_JADWAL, statusEfektif,
+  type StateKehadiran,
 } from '@/lib/constants';
-import { jarak, tanggalPendek, waktuPendek } from '@/lib/format';
+import { jarak, tanggalPendek, waktuPendek, tanggalISO } from '@/lib/format';
 import { Modal } from '@/components/shared/Modal';
 import { Tombol, Lencana, AreaTeks, Kolom } from '@/components/shared/FormParts';
 import { useToast } from '@/components/shared/Feedback';
@@ -137,6 +137,7 @@ export function PanelMeeting({
   useEffect(() => { if (buka) void muat(); }, [buka, muat]);
 
   const selesai = meeting.status === 'COMPLETED';
+  const lewatTanggal = meeting.schedule_date < tanggalISO();
   const terverifikasi = Boolean(kehadiran?.gps_verified);
   const adaBukti = bukti.length > 0;
   const milikSaya = meeting.assigned_to === userId;
@@ -282,7 +283,7 @@ export function PanelMeeting({
   }
 
   const lok = meeting.sm_locations;
-  const gayaStatus = STATUS_JADWAL[meeting.status as StatusJadwal] ?? STATUS_JADWAL.UPCOMING;
+  const gayaStatus = STATUS_JADWAL[statusEfektif(meeting)] ?? STATUS_JADWAL.UPCOMING;
   const gayaState = kehadiran
     ? STATE_KEHADIRAN[kehadiran.state as StateKehadiran] ?? STATE_KEHADIRAN.NOT_STARTED
     : STATE_KEHADIRAN.NOT_STARTED;
@@ -352,13 +353,23 @@ export function PanelMeeting({
               : 'Berdirilah di dalam area meeting, lalu baca lokasi Anda. Jaraknya diperiksa di server.'
           }
         >
-          {!terverifikasi && !selesai && (milikSaya || pengawas) && (
+          {!terverifikasi && !selesai && milikSaya && lewatTanggal && (
+            <p className="text-[12px] text-[#8f2c2b] bg-[#fce3e3] rounded-kontrol px-3 py-2 leading-snug">
+              Tanggal meeting ini sudah lewat, jadi check-in tidak lagi diterima. Minta atasan
+              menutupnya lewat Override bila meeting memang terjadi.
+            </p>
+          )}
+          {!terverifikasi && !selesai && milikSaya && !lewatTanggal && (
             <Tombol onClick={checkIn} memuat={sibuk === 'gps'} className="text-[12px] py-2 w-full sm:w-auto">
               {gagalGps ? 'Coba Check-in Lagi' : 'Mulai Check-in'}
             </Tombol>
           )}
-          {!milikSaya && !pengawas && (
-            <p className="text-[12px] text-slate-500">{PESAN_GPS.ASSIGNMENT_MISMATCH}</p>
+          {!milikSaya && (
+            <p className="text-[12px] text-slate-500">
+              {pengawas
+                ? 'Ini meeting milik sales lain — check-in hanya bisa dilakukan oleh yang ditugaskan. Gunakan Override bila perlu menyelesaikannya secara manual.'
+                : PESAN_GPS.ASSIGNMENT_MISMATCH}
+            </p>
           )}
 
           {gagalGps && (

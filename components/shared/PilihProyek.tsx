@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { rupiahRingkas } from '@/lib/format';
+import { rupiahRingkas, polaIlike } from '@/lib/format';
 
 /**
  * components/shared/PilihProyek.tsx — menautkan catatan ke sebuah proyek.
@@ -64,7 +64,7 @@ export function PilihProyek({
 
     if (kata.trim().length >= 2) {
       const k = kata.trim();
-      q = q.or(`name.ilike.%${k}%,customer_name.ilike.%${k}%,kode.ilike.%${k}%`);
+      q = q.or(`name.ilike.${polaIlike(k)},customer_name.ilike.${polaIlike(k)},kode.ilike.${polaIlike(k)}`);
     }
 
     const { data } = await q;

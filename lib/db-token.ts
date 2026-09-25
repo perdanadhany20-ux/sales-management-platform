@@ -24,8 +24,14 @@ import crypto from 'crypto';
 
 const SECRET = process.env.SUPABASE_JWT_SECRET ?? '';
 
-/** Umur token disamakan dengan umur sesi supaya keduanya habis bersamaan. */
-const TOKEN_HOURS = 8;
+/**
+ * Sengaja pendek. sm_role() membaca peran dari klaim token, bukan dari tabel
+ * users, jadi akun yang dinonaktifkan, di-logout, atau diturunkan perannya
+ * tetap memegang hak lamanya sampai tokennya habis. Pembaruan otomatis di
+ * lib/supabase.ts lewat /api/auth/session memverifikasi ulang sesi, status
+ * aktif, dan peran terkini — umur 10 menit membatasi celah itu ke 10 menit.
+ */
+const TOKEN_MENIT = 10;
 
 function base64url(input: Buffer | string): string {
   return Buffer.from(input)
@@ -53,7 +59,7 @@ export function issueDbToken(user: DbTokenUser): string | null {
   if (!SECRET) return null;
 
   const iat = Math.floor(Date.now() / 1000);
-  const exp = iat + TOKEN_HOURS * 3600;
+  const exp = iat + TOKEN_MENIT * 60;
 
   const header = { alg: 'HS256', typ: 'JWT' };
   const payload = {

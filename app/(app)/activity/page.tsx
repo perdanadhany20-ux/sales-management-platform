@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePenggunaAktif } from '@/lib/auth';
 import { isPengawas, PESAN_GPS, WARNA_CHART } from '@/lib/constants';
-import { tanggalISO, tanggalPendek, waktuPendek, angka, rupiahRingkas, jarak } from '@/lib/format';
+import { tanggalISO, tanggalPendek, waktuPendek, angka, rupiahRingkas, jarak, polaIlike } from '@/lib/format';
 import { BentoGrid, BentoCard, AngkaJangkar } from '@/components/shared/Bento';
 import { DonutLegenda } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { Tabel } from '@/components/shared/Tabel';
 import { BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 
 /**
@@ -79,6 +80,13 @@ export default function HalamanActivity() {
   const [sampai, setSampai] = useState(() => tanggalISO());
   const [filterJenis, setFilterJenis] = useState('');
   const [filterOrang, setFilterOrang] = useState('');
+  const [cari, setCari] = useState('');
+  const [cariTertunda, setCariTertunda] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => { setCariTertunda(cari.trim()); setHalaman(0); }, 350);
+    return () => clearTimeout(t);
+  }, [cari]);
 
   const muat = useCallback(async () => {
     setMemuat(true);
@@ -93,13 +101,16 @@ export default function HalamanActivity() {
     let q = supabase
       .from('sm_activity_feed')
       .select('*', { count: 'exact' })
-      .gte('terjadi_pada', `${dari}T00:00:00`)
-      .lt('terjadi_pada', `${tanggalISO(batasAtas)}T00:00:00`)
+      .gte('terjadi_pada', new Date(`${dari}T00:00:00`).toISOString())
+      .lt('terjadi_pada', new Date(`${tanggalISO(batasAtas)}T00:00:00`).toISOString())
       .order('terjadi_pada', { ascending: false })
       .range(halaman * PER_HALAMAN, halaman * PER_HALAMAN + PER_HALAMAN - 1);
 
     if (filterJenis) q = q.eq('jenis', filterJenis);
     if (filterOrang) q = q.eq('user_id', filterOrang);
+    if (cariTertunda) {
+      q = q.or(`judul.ilike.${polaIlike(cariTertunda)},keterangan.ilike.${polaIlike(cariTertunda)},tambahan.ilike.${polaIlike(cariTertunda)}`);
+    }
 
     const { data, error, count } = await q;
     if (error) { setGalat(error.message); setMemuat(false); return; }
@@ -107,7 +118,7 @@ export default function HalamanActivity() {
     setDaftar((data ?? []) as Aktivitas[]);
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [dari, sampai, filterJenis, filterOrang, halaman]);
+  }, [dari, sampai, filterJenis, filterOrang, cariTertunda, halaman]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -119,18 +130,21 @@ export default function HalamanActivity() {
     let q = supabase
       .from('sm_activity_feed')
       .select('*')
-      .gte('terjadi_pada', `${dari}T00:00:00`)
-      .lt('terjadi_pada', `${tanggalISO(batasAtas)}T00:00:00`)
+      .gte('terjadi_pada', new Date(`${dari}T00:00:00`).toISOString())
+      .lt('terjadi_pada', new Date(`${tanggalISO(batasAtas)}T00:00:00`).toISOString())
       .order('terjadi_pada', { ascending: false })
       .limit(BATAS_BARIS_EKSPOR + 1);
 
     if (filterJenis) q = q.eq('jenis', filterJenis);
     if (filterOrang) q = q.eq('user_id', filterOrang);
+    if (cariTertunda) {
+      q = q.or(`judul.ilike.${polaIlike(cariTertunda)},keterangan.ilike.${polaIlike(cariTertunda)},tambahan.ilike.${polaIlike(cariTertunda)}`);
+    }
 
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return (data ?? []) as Aktivitas[];
-  }, [dari, sampai, filterJenis, filterOrang]);
+  }, [dari, sampai, filterJenis, filterOrang, cariTertunda]);
 
   useEffect(() => {
     (async () => {
@@ -156,19 +170,6 @@ export default function HalamanActivity() {
     return { per, gagalGps, nilai };
   }, [daftar]);
 
-  /** Aktivitas dikelompokkan per tanggal — feed tanpa pemisah hari jadi satu
-   *  gulungan panjang yang sulit dibaca begitu datanya menumpuk. */
-  const perHari = useMemo(() => {
-    const peta = new Map<string, Aktivitas[]>();
-    for (const a of daftar) {
-      const kunci = a.terjadi_pada.slice(0, 10);
-      const isi = peta.get(kunci);
-      if (isi) isi.push(a);
-      else peta.set(kunci, [a]);
-    }
-    return Array.from(peta.entries());
-  }, [daftar]);
-
   function geserRentang(hari: number) {
     const mulai = new Date();
     mulai.setDate(mulai.getDate() - hari);
@@ -178,7 +179,7 @@ export default function HalamanActivity() {
   }
 
   const totalHalaman = Math.max(1, Math.ceil(total / PER_HALAMAN));
-  const adaFilter = Boolean(filterJenis || filterOrang);
+  const adaFilter = Boolean(filterJenis || filterOrang || cariTertunda);
 
   return (
     <div className="flex flex-col gap-4">
@@ -313,6 +314,12 @@ export default function HalamanActivity() {
               bolehKosong labelKosong="Semua jenis"
               opsi={Object.entries(JENIS).map(([k, v]) => ({ value: k, label: v.label }))} />
           </div>
+
+          <div className="flex flex-col gap-1 min-w-[200px] flex-[2]">
+            <label htmlFor="a-cari" className="text-[11px] font-semibold text-slate-600">Cari</label>
+            <Teks id="a-cari" type="search" value={cari} onChange={(e) => setCari(e.target.value)}
+              placeholder="Customer, aktivitas, atau keterangan…" />
+          </div>
         </div>
       </div>
 
@@ -331,33 +338,72 @@ export default function HalamanActivity() {
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-4">
-            {perHari.map(([tanggal, isi]) => (
-              <section key={tanggal}>
-                <div className="flex items-center gap-2 mb-2">
-                  <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                    {tanggalPendek(tanggal)}
-                  </h2>
-                  <span className="h-px flex-1 bg-slate-200" />
-                  <span className="text-[10px] font-bold text-slate-400 tabular-nums">
-                    {isi.length} jejak
+          <Tabel
+            data={daftar}
+            kunci={(a) => a.id}
+            kolom={[
+              {
+                label: 'Waktu', className: 'w-32 whitespace-nowrap',
+                urut: (a) => a.terjadi_pada,
+                render: (a) => (
+                  <span className="tabular-nums">
+                    {tanggalPendek(tanggalISO(new Date(a.terjadi_pada)))}
+                    <span className="text-slate-400"> · {waktuPendek(a.terjadi_pada)}</span>
                   </span>
-                </div>
-
-                <ul className="flex flex-col gap-1.5">
-                  {isi.map((a) => (
-                    <li key={a.id}>
-                      <BarisAktivitas
-                        aktivitas={a}
-                        nama={a.user_id ? (namaOrang[a.user_id] ?? null) : null}
-                        tampilkanNama={pengawas}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+                ),
+              },
+              {
+                label: 'Jenis', className: 'w-36',
+                urut: (a) => (JENIS[a.jenis] ?? JENIS_BAWAAN).label,
+                render: (a) => {
+                  const gaya = JENIS[a.jenis] ?? JENIS_BAWAAN;
+                  return (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Lencana label={gaya.label} color={gaya.warna} bg={gaya.bg} />
+                      {checkInDitolak(a) && <Lencana label="Ditolak" color="#e34948" bg="#fce3e3" />}
+                    </div>
+                  );
+                },
+              },
+              {
+                label: 'Customer', className: 'w-[20%]',
+                urut: (a) => a.judul,
+                render: (a) => <span className="font-bold text-slate-900 truncate block">{a.judul || '—'}</span>,
+              },
+              {
+                label: 'Keterangan', className: pengawas ? 'w-[30%]' : 'w-[40%]',
+                render: (a) => (
+                  <div className="min-w-0">
+                    {a.keterangan && <p className="text-slate-600 truncate">{a.keterangan}</p>}
+                    {checkInDitolak(a) ? (
+                      <p className="text-[11px] text-[#8f2c2b] truncate">
+                        {PESAN_GPS[a.status ?? ''] ?? 'Check-in tidak diterima.'}
+                        {a.nilai != null && ` (${jarak(a.nilai)} dari titik lokasi)`}
+                      </p>
+                    ) : a.tambahan ? (
+                      <p className="text-[11px] text-slate-400 truncate">{a.tambahan}</p>
+                    ) : null}
+                  </div>
+                ),
+              },
+              ...(pengawas ? [{
+                label: 'Pengguna', className: 'w-[14%]',
+                urut: (a: Aktivitas) => (a.user_id ? namaOrang[a.user_id] : null),
+                render: (a: Aktivitas) => (
+                  <span className="text-slate-600 truncate block">
+                    {a.user_id ? (namaOrang[a.user_id] ?? '—') : '—'}
+                  </span>
+                ),
+              }] : []),
+              {
+                label: 'Nilai', className: 'w-28 text-right',
+                urut: (a) => (a.jenis === 'PIPELINE' ? Number(a.nilai ?? 0) : null),
+                render: (a) => (a.jenis === 'PIPELINE' && a.nilai != null
+                  ? <span className="font-semibold tabular-nums">{rupiahRingkas(a.nilai)}</span>
+                  : <span className="text-slate-300">—</span>),
+              },
+            ]}
+          />
 
           {totalHalaman > 1 ? (
             <nav className="flex items-center justify-between gap-3 py-1" aria-label="Paginasi">
@@ -396,59 +442,6 @@ function Chip({ aktif, onClick, children }: {
   );
 }
 
-function BarisAktivitas({ aktivitas: a, nama, tampilkanNama }: {
-  aktivitas: Aktivitas; nama: string | null; tampilkanNama: boolean;
-}) {
-  const gaya = JENIS[a.jenis] ?? JENIS_BAWAAN;
-  const gagal = a.jenis === 'CHECK_IN' && a.status !== null && a.status !== 'VALID';
-
-  return (
-    <article className={`bg-white rounded-kartu border px-3.5 py-3 flex items-start gap-3
-                         ${gagal ? 'border-[#e34948]/30' : 'border-slate-200'}`}>
-      <span
-        aria-hidden="true"
-        className="flex-shrink-0 w-8 h-8 rounded-full grid place-items-center text-[13px]"
-        style={{ background: gaya.bg, color: gaya.warna }}
-      >
-        {gaya.ikon}
-      </span>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-[13px] font-bold text-slate-900 truncate">{a.judul || '—'}</p>
-          <Lencana label={gaya.label} color={gaya.warna} bg={gaya.bg} />
-          {gagal && (
-            <Lencana label="Ditolak" color="#e34948" bg="#fce3e3" />
-          )}
-        </div>
-
-        {a.keterangan && (
-          <p className="text-[12px] text-slate-600 mt-0.5 leading-snug line-clamp-2">
-            {a.keterangan}
-          </p>
-        )}
-
-        {gagal && (
-          <p className="text-[11px] text-[#8f2c2b] mt-1 leading-snug">
-            {PESAN_GPS[a.status ?? ''] ?? 'Check-in tidak diterima.'}
-            {a.nilai != null && ` (${jarak(a.nilai)} dari titik lokasi)`}
-          </p>
-        )}
-
-        {a.tambahan && !gagal && (
-          <p className="text-[11px] text-slate-400 mt-0.5 leading-snug line-clamp-1">
-            {a.tambahan}
-          </p>
-        )}
-
-        <p className="text-[11px] text-slate-400 mt-1 tabular-nums">
-          {waktuPendek(a.terjadi_pada)}
-          {tampilkanNama && nama && <span className="text-slate-500"> · {nama}</span>}
-          {a.jenis === 'PIPELINE' && a.nilai != null && (
-            <span className="text-slate-500"> · {rupiahRingkas(a.nilai)}</span>
-          )}
-        </p>
-      </div>
-    </article>
-  );
+function checkInDitolak(a: Aktivitas): boolean {
+  return a.jenis === 'CHECK_IN' && a.status !== null && a.status !== 'VALID';
 }

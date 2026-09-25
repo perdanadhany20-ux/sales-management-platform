@@ -54,6 +54,7 @@ const BAWAAN: Pengaturan = {
     { key: 'tren', label: 'Aktivitas 6 Bulan Terakhir', aktif: true },
     { key: 'meeting', label: 'Meeting', aktif: true },
     { key: 'pengecualian', label: 'Perlu Ditindaklanjuti', aktif: true },
+    { key: 'target', label: 'Pencapaian Target Sales', aktif: true },
   ],
 };
 

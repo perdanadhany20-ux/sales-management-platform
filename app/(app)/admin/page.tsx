@@ -3,11 +3,14 @@
 import { usePenggunaAktif } from '@/lib/auth';
 import { isPengawas } from '@/lib/constants';
 import { bagianUntuk } from '@/lib/admin-bagian';
+import { mulaiNavigasi } from '@/lib/navigasi-muat';
 import { LayarMemuat, Kosong } from '@/components/shared/Feedback';
 import { useBagianAdmin } from '@/components/shared/Shell';
 import { TabPengguna } from './_components/TabPengguna';
 import { TabPersetujuan } from './_components/TabPersetujuan';
+import { TabHakAkses } from './_components/TabHakAkses';
 import { TabLokasi } from './_components/TabLokasi';
+import { TabTarget } from './_components/TabTarget';
 import { TabKonfigurasi } from './_components/TabKonfigurasi';
 import { TabTampilan } from './_components/TabTampilan';
 import { TabAudit } from './_components/TabAudit';
@@ -63,7 +66,8 @@ export default function HalamanAdmin() {
           const ini = b.kunci === aktif.kunci;
           return (
             <button
-              key={b.kunci} type="button" onClick={() => setBagian(b.kunci)}
+              key={b.kunci} type="button"
+              onClick={() => { if (!ini) mulaiNavigasi(null); setBagian(b.kunci); }}
               aria-current={ini ? 'true' : undefined}
               className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-kontrol
                           text-[12px] font-semibold whitespace-nowrap transition-colors
@@ -92,7 +96,9 @@ export default function HalamanAdmin() {
       <div>
         {aktif.kunci === 'pengguna' && <TabPengguna pemanggilId={pengguna.id} />}
         {aktif.kunci === 'persetujuan' && <TabPersetujuan />}
+        {aktif.kunci === 'hak_akses' && <TabHakAkses />}
         {aktif.kunci === 'lokasi' && <TabLokasi />}
+        {aktif.kunci === 'target' && <TabTarget pemanggilId={pengguna.id} />}
         {aktif.kunci === 'tampilan' && <TabTampilan />}
         {aktif.kunci === 'konfigurasi' && <TabKonfigurasi />}
         {aktif.kunci === 'audit' && <TabAudit />}

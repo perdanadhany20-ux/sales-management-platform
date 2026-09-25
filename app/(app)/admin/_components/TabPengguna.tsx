@@ -7,6 +7,7 @@ import { Modal, Konfirmasi } from '@/components/shared/Modal';
 import { Kolom, Teks, KataSandi, Tombol, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 
 interface Pengguna {
   id: string;
@@ -17,6 +18,7 @@ interface Pengguna {
   role: string;
   active: boolean;
   created_at: string;
+  manager_id: string | null;
 }
 
 const GAYA_PERAN: Record<string, { color: string; bg: string }> = {
@@ -85,6 +87,11 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
       (!k || u.full_name.toLowerCase().includes(k) || u.username.toLowerCase().includes(k)));
   }, [daftar, cari, filterPeran]);
 
+  const namaPengguna = useMemo(
+    () => Object.fromEntries(daftar.map((u) => [u.id, u.full_name])) as Record<string, string>,
+    [daftar],
+  );
+
   async function ubahAktif() {
     if (!akanUbahAktif) return;
     setMemproses(true);
@@ -129,49 +136,84 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
             keterangan={cari || filterPeran ? 'Tidak ada yang cocok dengan penyaring.' : 'Tambahkan akun pertama.'} />
         </div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {tersaring.map((u) => {
-            const gaya = GAYA_PERAN[u.role] ?? GAYA_PERAN.SALES;
+        <Tabel
+          data={tersaring}
+          kunci={(u) => u.id}
+          lebarAksi="w-32"
+          kolom={[
+            {
+              label: 'Pengguna', className: 'w-[28%]',
+              urut: (u) => u.full_name,
+              render: (u) => {
+                const sendiri = u.id === pemanggilId;
+                return (
+                  <div className={`flex items-center gap-2.5 ${u.active ? '' : 'opacity-60'}`}>
+                    <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 grid place-items-center text-[11px] font-black flex-shrink-0">
+                      {u.full_name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-bold text-slate-900 truncate">{u.full_name}</span>
+                        {sendiri && <Lencana label="Anda" color="#64748b" bg="#f1f5f9" />}
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate">@{u.username}</p>
+                    </div>
+                  </div>
+                );
+              },
+            },
+            {
+              label: 'Peran', className: 'w-28',
+              urut: (u) => LABEL_PERAN[u.role as Peran] ?? u.role,
+              render: (u) => <Lencana label={LABEL_PERAN[u.role as Peran] ?? u.role} {...(GAYA_PERAN[u.role] ?? GAYA_PERAN.SALES)} />,
+            },
+            {
+              label: 'Kontak', className: 'w-[22%]',
+              urut: (u) => u.email,
+              render: (u) => (
+                <div className="min-w-0">
+                  <p className="text-slate-600 truncate">{u.email || '—'}</p>
+                  {u.phone && <p className="text-[11px] text-slate-400 truncate">{u.phone}</p>}
+                </div>
+              ),
+            },
+            {
+              label: 'Atasan', className: 'w-[16%]',
+              urut: (u) => (u.manager_id ? namaPengguna[u.manager_id] : null),
+              render: (u) => (u.manager_id && namaPengguna[u.manager_id]
+                ? <span className="text-slate-600 truncate block">{namaPengguna[u.manager_id]}</span>
+                : <span className="text-slate-400">—</span>),
+            },
+            {
+              label: 'Status', className: 'w-24',
+              urut: (u) => (u.active ? 'Aktif' : 'Nonaktif'),
+              render: (u) => (u.active
+                ? <Lencana label="Aktif" color="#008300" bg="#e0f2e0" />
+                : <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />),
+            },
+            {
+              label: 'Dibuat', className: 'w-28 whitespace-nowrap',
+              urut: (u) => u.created_at,
+              render: (u) => tanggalPendek(u.created_at),
+            },
+          ]}
+          aksi={(u) => {
             const sendiri = u.id === pemanggilId;
             return (
-              <li key={u.id}
-                className={`bg-white rounded-kartu border px-4 py-3 flex items-center gap-3 flex-wrap
-                            ${u.active ? 'border-slate-200' : 'border-slate-200 opacity-60'}`}>
-                <span className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 grid place-items-center text-[11px] font-black flex-shrink-0">
-                  {u.full_name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
-                </span>
-
-                <div className="flex-1 min-w-[160px]">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-bold text-slate-900">{u.full_name}</p>
-                    <Lencana label={LABEL_PERAN[u.role as Peran] ?? u.role} {...gaya} />
-                    {sendiri && <Lencana label="Anda" color="#64748b" bg="#f1f5f9" />}
-                    {!u.active && <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />}
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    @{u.username}
-                    {u.email ? ` · ${u.email}` : ''}
-                    <span className="text-slate-400"> · dibuat {tanggalPendek(u.created_at)}</span>
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <Tombol rupa="kedua" className="text-[12px] py-2"
-                    onClick={() => { setSunting(u); setFormBuka(true); }}>Sunting</Tombol>
-                  <Tombol rupa="kedua" className="text-[12px] py-2"
-                    onClick={() => setResetUntuk(u)}>Reset Sandi</Tombol>
-                  {!sendiri && (
-                    <Tombol rupa="hantu"
-                      className={`text-[12px] py-2 ${u.active ? 'text-[#e34948]' : 'text-[#008300]'}`}
-                      onClick={() => setAkanUbahAktif(u)}>
-                      {u.active ? 'Nonaktifkan' : 'Aktifkan'}
-                    </Tombol>
-                  )}
-                </div>
-              </li>
+              <>
+                <TombolIkon rupa="sunting" label="Sunting"
+                  onClick={() => { setSunting(u); setFormBuka(true); }} />
+                <TombolIkon rupa="sandi" label="Reset kata sandi"
+                  onClick={() => setResetUntuk(u)} />
+                {!sendiri && (
+                  <TombolIkon rupa={u.active ? 'nonaktif' : 'aktif'}
+                    label={u.active ? 'Nonaktifkan akun' : 'Aktifkan akun'}
+                    onClick={() => setAkanUbahAktif(u)} />
+                )}
+              </>
             );
-          })}
-        </ul>
+          }}
+        />
       )}
 
       {formBuka && (
@@ -180,6 +222,7 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
           onTutup={() => setFormBuka(false)}
           onTersimpan={muat}
           awal={sunting}
+          calonAtasan={daftar}
         />
       )}
 
@@ -209,9 +252,10 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
 }
 
 function FormPengguna({
-  buka, onTutup, onTersimpan, awal,
+  buka, onTutup, onTersimpan, awal, calonAtasan,
 }: {
   buka: boolean; onTutup: () => void; onTersimpan: () => void; awal: Pengguna | null;
+  calonAtasan: Pengguna[];
 }) {
   const toast = useToast();
   const [fullName, setFullName] = useState(awal?.full_name ?? '');
@@ -219,6 +263,7 @@ function FormPengguna({
   const [email, setEmail] = useState(awal?.email ?? '');
   const [phone, setPhone] = useState(awal?.phone ?? '');
   const [role, setRole] = useState(awal?.role ?? 'SALES');
+  const [managerId, setManagerId] = useState(awal?.manager_id ?? '');
   const [sandi, setSandi] = useState('');
   const [galat, setGalat] = useState<string | null>(null);
   const [memproses, setMemproses] = useState(false);
@@ -234,7 +279,7 @@ function FormPengguna({
         credentials: 'include',
         body: JSON.stringify(
           awal
-            ? { id: awal.id, full_name: fullName, email, phone, role }
+            ? { id: awal.id, full_name: fullName, email, phone, role, manager_id: managerId || null }
             : { username, full_name: fullName, email, phone, role, password: sandi },
         ),
       });
@@ -295,6 +340,20 @@ function FormPengguna({
         <Kolom label="Peran" wajib>
           {(id) => <PilihCari id={id} nilai={role} onUbah={setRole} opsi={OPSI_PERAN} disabled={memproses} />}
         </Kolom>
+
+        {awal && (
+          <Kolom label="Atasan" bantuan="Siapa yang membawahi akun ini secara struktural.">
+            {(id) => (
+              <PilihCari
+                id={id} nilai={managerId} onUbah={setManagerId} disabled={memproses}
+                bolehKosong labelKosong="— tidak ada —"
+                opsi={calonAtasan
+                  .filter((u) => u.id !== awal.id)
+                  .map((u) => ({ value: u.id, label: `${u.full_name} (${LABEL_PERAN[u.role as Peran] ?? u.role})` }))}
+              />
+            )}
+          </Kolom>
+        )}
 
         {!awal && (
           <Kolom label="Kata Sandi Awal" wajib

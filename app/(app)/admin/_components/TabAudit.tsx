@@ -7,6 +7,7 @@ import { Teks, Tombol, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { Tabel } from '@/components/shared/Tabel';
 import { BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 
 const PER_HALAMAN = 30;
@@ -35,7 +36,64 @@ const GAYA_AKSI: Record<string, { label: string; color: string; bg: string }> = 
   USER_UPDATED:         { label: 'Akun Diubah',        color: '#64748b', bg: '#f1f5f9' },
   USER_PASSWORD_RESET:  { label: 'Sandi Direset',      color: '#eda100', bg: '#fef3d9' },
   PASSWORD_CHANGED:     { label: 'Sandi Diganti',      color: '#64748b', bg: '#f1f5f9' },
+  PROFIL_KONTAK_DIUBAH: { label: 'Profil Diubah',      color: '#64748b', bg: '#f1f5f9' },
+  AKUN_MENDAFTAR:       { label: 'Pendaftaran Akun',   color: '#0891b2', bg: '#cffafe' },
+  AKUN_DISETUJUI:       { label: 'Akun Disetujui',     color: '#008300', bg: '#e0f2e0' },
+  AKUN_DITOLAK:         { label: 'Akun Ditolak',       color: '#e34948', bg: '#fce3e3' },
+  LOKASI_DIBUAT:        { label: 'Lokasi Dibuat',      color: '#0891b2', bg: '#cffafe' },
+  LOKASI_DIAJUKAN:      { label: 'Lokasi Diajukan',    color: '#eda100', bg: '#fef3d9' },
+  LOKASI_DISETUJUI:     { label: 'Lokasi Disetujui',   color: '#008300', bg: '#e0f2e0' },
+  LOKASI_DITOLAK:       { label: 'Lokasi Ditolak',     color: '#e34948', bg: '#fce3e3' },
+  GP_DIAJUKAN:          { label: 'GP Diajukan',        color: '#eda100', bg: '#fef3d9' },
+  GP_DIPERIKSA:         { label: 'GP Diperiksa',       color: '#2a78d6', bg: '#e3edfb' },
+  GP_DISETUJUI:         { label: 'GP Disetujui',       color: '#008300', bg: '#e0f2e0' },
+  GP_DIVERIFIKASI:      { label: 'GP Diverifikasi',    color: '#008300', bg: '#e0f2e0' },
+  GP_DITOLAK:           { label: 'GP Ditolak',         color: '#e34948', bg: '#fce3e3' },
+  GP_DIBUKA_ULANG:      { label: 'GP Dibuka Ulang',    color: '#7c3aed', bg: '#ede9fe' },
 };
+
+const LABEL_ENTITAS: Record<string, string> = {
+  users: 'Akun',
+  sm_locations: 'Lokasi',
+  sm_schedules: 'Jadwal',
+  sm_gp_calculations: 'GP Calculation',
+  sm_daily_reports: 'Daily Report',
+  sm_pipeline: 'Pipeline',
+  sm_projects: 'Proyek',
+};
+
+const LABEL_DETAIL: Record<string, string> = {
+  role: 'Peran', email: 'Email', phone: 'Telepon', full_name: 'Nama', username: 'Username',
+  manager_id: 'Atasan', approved_by: 'Disetujui oleh', approval_status: 'Status',
+  rejection_reason: 'Alasan', name: 'Nama', active: 'Aktif', division: 'Divisi',
+  position: 'Jabatan', distance_m: 'Jarak (m)', accuracy_m: 'Akurasi (m)',
+  evidence_count: 'Foto', original_failure: 'Kegagalan awal', reason: 'Alasan',
+  nomor: 'Nomor', catatan: 'Catatan', address: 'Alamat',
+};
+
+const POLA_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function gayaAksi(kode: string) {
+  return GAYA_AKSI[kode] ?? {
+    label: kode.toLowerCase().split('_').map((w) => w[0]?.toUpperCase() + w.slice(1)).join(' '),
+    color: '#64748b', bg: '#f1f5f9',
+  };
+}
+
+/** Detail jejak dalam bahasa manusia: id orang diganti namanya, id teknis lain dan nilai kosong dibuang. */
+function ringkasDetail(detail: Record<string, unknown> | null, nama: Record<string, string>): string {
+  if (!detail) return '';
+  return Object.entries(detail)
+    .filter(([k, v]) => v !== null && v !== '' && k !== 'approved_at')
+    .map(([k, v]) => {
+      const teks = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      if (POLA_UUID.test(teks)) return nama[teks] ? `${LABEL_DETAIL[k] ?? k}: ${nama[teks]}` : null;
+      const nilai = typeof v === 'boolean' ? (v ? 'Ya' : 'Tidak') : teks;
+      return `${LABEL_DETAIL[k] ?? k.replace(/_/g, ' ')}: ${nilai}`;
+    })
+    .filter(Boolean)
+    .join(' · ');
+}
 
 export function TabAudit() {
   const [daftar, setDaftar] = useState<Jejak[]>([]);
@@ -74,6 +132,15 @@ export function TabAudit() {
   }, [halaman, filterAksi, cariTertunda]);
 
   useEffect(() => { void muat(); }, [muat]);
+
+  const [namaPengguna, setNamaPengguna] = useState<Record<string, string>>({});
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase.from('users').select('id, full_name');
+      setNamaPengguna(Object.fromEntries(((data ?? []) as { id: string; full_name: string }[])
+        .map((u) => [u.id, u.full_name])));
+    })();
+  }, []);
 
   /** Seluruh jejak sesuai penyaring, tanpa paginasi. */
   const ambilSemua = useCallback(async () => {
@@ -124,9 +191,9 @@ export function TabAudit() {
                 nilai: (j) => `${tanggalPendek(j.created_at)} ${waktuPendek(j.created_at)}` },
               { judul: 'Pelaku', lebar: 22, nilai: (j) => j.actor_name ?? '—' },
               { judul: 'Tindakan', lebar: 22,
-                nilai: (j) => GAYA_AKSI[j.action]?.label ?? j.action },
+                nilai: (j) => gayaAksi(j.action).label },
               { judul: 'Kode Tindakan', lebar: 22, nilai: (j) => j.action },
-              { judul: 'Entitas', lebar: 18, nilai: (j) => j.entity },
+              { judul: 'Objek', lebar: 18, nilai: (j) => LABEL_ENTITAS[j.entity] ?? j.entity },
               { judul: 'ID Entitas', lebar: 38, nilai: (j) => j.entity_id },
               // Detail disimpan sebagai JSON; diratakan jadi teks supaya tetap
               // terbaca di Excel tanpa perlu alat tambahan.
@@ -164,38 +231,46 @@ export function TabAudit() {
         </div>
       ) : (
         <>
-          <ul className="flex flex-col gap-1.5">
-            {daftar.map((j) => {
-              const gaya = GAYA_AKSI[j.action] ?? { label: j.action, color: '#64748b', bg: '#f1f5f9' };
-              return (
-                <li key={j.id}
-                  className="bg-white rounded-kartu border border-slate-200 px-4 py-2.5 flex items-start gap-3 flex-wrap">
-                  <div className="flex-shrink-0 w-[84px] text-[11px] text-slate-400 tabular-nums leading-tight">
-                    {tanggalPendek(j.created_at)}<br />
-                    <span className="text-slate-500 font-semibold">{waktuPendek(j.created_at)}</span>
-                  </div>
-
-                  <div className="flex-1 min-w-[180px]">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Lencana {...gaya} />
-                      <span className="text-[12px] font-bold text-slate-700">
-                        {j.actor_name ?? 'Sistem'}
-                      </span>
-                    </div>
-                    {j.detail && Object.keys(j.detail).length > 0 && (
-                      <p className="text-[11px] text-slate-500 mt-1 font-mono break-all leading-relaxed">
-                        {Object.entries(j.detail)
-                          .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
-                          .join(' · ')}
-                      </p>
-                    )}
-                  </div>
-
-                  <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">{j.entity}</span>
-                </li>
-              );
-            })}
-          </ul>
+          <Tabel
+            data={daftar}
+            kunci={(j) => String(j.id)}
+            kolom={[
+              {
+                label: 'Waktu', className: 'w-32 whitespace-nowrap',
+                urut: (j) => j.created_at,
+                render: (j) => (
+                  <span className="tabular-nums">
+                    {tanggalPendek(j.created_at)}
+                    <span className="text-slate-400"> · {waktuPendek(j.created_at)}</span>
+                  </span>
+                ),
+              },
+              { label: 'Tindakan', className: 'w-40', render: (j) => <Lencana {...gayaAksi(j.action)} /> },
+              {
+                label: 'Pelaku', className: 'w-[16%]',
+                urut: (j) => j.actor_name ?? (j.actor_id ? namaPengguna[j.actor_id] : null),
+                render: (j) => (
+                  <span className="font-semibold text-slate-800 truncate block">
+                    {j.actor_name ?? (j.actor_id ? namaPengguna[j.actor_id] : null) ?? 'Sistem'}
+                  </span>
+                ),
+              },
+              {
+                label: 'Objek', className: 'w-28',
+                urut: (j) => LABEL_ENTITAS[j.entity] ?? j.entity,
+                render: (j) => <span className="text-slate-500">{LABEL_ENTITAS[j.entity] ?? j.entity}</span>,
+              },
+              {
+                label: 'Detail', className: 'w-[36%]',
+                render: (j) => {
+                  const teks = ringkasDetail(j.detail, namaPengguna);
+                  return teks
+                    ? <span className="text-[12px] text-slate-600 line-clamp-2" title={teks}>{teks}</span>
+                    : <span className="text-slate-400">—</span>;
+                },
+              },
+            ]}
+          />
 
           {totalHalaman > 1 ? (
             <nav className="flex items-center justify-between gap-3 py-1" aria-label="Paginasi">

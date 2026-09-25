@@ -1,12 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
 import { usePengaturan } from '@/lib/use-settings';
-import { ambilLokasi, urlPetaKecil, GpsError } from '@/lib/gps';
+import { ambilLokasi, GpsError } from '@/lib/gps';
 import { Modal, Konfirmasi } from '@/components/shared/Modal';
-import { Kolom, Teks, Tombol, Lencana } from '@/components/shared/FormParts';
+import { Kolom, Teks, AreaTeks, Tombol, Lencana } from '@/components/shared/FormParts';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
+import { Tabel, TombolIkon } from '@/components/shared/Tabel';
+
+// Leaflet menyentuh `window` saat modulnya dimuat, jadi ia tidak boleh ikut
+// dirender di server — `ssr:false` membuat Next.js hanya memuatnya di
+// browser, sesudah hidrasi.
+const PetaLokasi = dynamic(
+  () => import('@/components/shared/PetaLokasi').then((m) => m.PetaLokasi),
+  { ssr: false, loading: () => <div className="w-full h-72 rounded-kontrol bg-slate-100 animate-pulse" /> },
+);
 
 interface Lokasi {
   id: string;
@@ -16,7 +26,15 @@ interface Lokasi {
   longitude: number;
   gps_radius_m: number;
   active: boolean;
+  project_id: string | null;
+  approval_status: string;
+  rejection_reason: string | null;
 }
+
+const GAYA_PERSETUJUAN: Record<string, { label: string; color: string; bg: string }> = {
+  MENUNGGU: { label: 'Menunggu Persetujuan', color: '#eda100', bg: '#fef3d9' },
+  DITOLAK:  { label: 'Ditolak',              color: '#e34948', bg: '#fce3e3' },
+};
 
 /**
  * Kelola lokasi meeting.
@@ -39,17 +57,46 @@ export function TabLokasi() {
   const [akanUbahAktif, setAkanUbahAktif] = useState<Lokasi | null>(null);
   const [memproses, setMemproses] = useState(false);
 
+  const [menolak, setMenolak] = useState<string | null>(null);
+  const [alasan, setAlasan] = useState('');
+  const [sibuk, setSibuk] = useState<string | null>(null);
+
   const muat = useCallback(async () => {
     setMemuat(true);
     setGalat(null);
     const { data, error } = await supabase
       .from('sm_locations')
-      .select('id, name, address, latitude, longitude, gps_radius_m, active')
+      .select('id, name, address, latitude, longitude, gps_radius_m, active, project_id, approval_status, rejection_reason')
       .order('name');
     if (error) setGalat(error.message);
     else setDaftar((data ?? []) as Lokasi[]);
     setMemuat(false);
   }, []);
+
+  /**
+   * Setujui/tolak lokasi yang diajukan Sales lewat form Proyek (§020).
+   * Lewat route handler karena penegakan radius & pengaktifan tetap harus
+   * dilakukan server, sama seperti alasan lok_tambah dikunci ke pengawas.
+   */
+  async function putuskan(id: string, keputusan: 'DISETUJUI' | 'DITOLAK', alasanTolak?: string) {
+    setSibuk(id);
+    try {
+      const res = await fetch('/api/admin/locations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id, approval_status: keputusan, rejection_reason: alasanTolak }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast('galat', data?.error ?? 'Gagal menyimpan keputusan.'); return; }
+      toast('sukses', keputusan === 'DISETUJUI' ? 'Lokasi disetujui dan siap dipakai check-in.' : 'Lokasi ditolak.');
+      setMenolak(null);
+      setAlasan('');
+      void muat();
+    } finally {
+      setSibuk(null);
+    }
+  }
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -96,42 +143,130 @@ export function TabLokasi() {
           />
         </div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {tersaring.map((l) => (
-            <li key={l.id}
-              className={`bg-white rounded-kartu border border-slate-200 px-4 py-3 flex items-center gap-3 flex-wrap
-                          ${l.active ? '' : 'opacity-60'}`}>
-              <span className="w-9 h-9 rounded-kontrol bg-aksen-50 text-aksen-700 grid place-items-center flex-shrink-0">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"
-                    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
+        <>
+          {tersaring.some((l) => l.approval_status === 'MENUNGGU') && (
+            <section className="flex flex-col gap-2">
+              <p className="text-[11px] font-bold text-[#eda100] uppercase tracking-wide">
+                Menunggu persetujuan — diajukan Sales lewat form Proyek
+              </p>
+              <ul className="flex flex-col gap-2">
+                {tersaring.filter((l) => l.approval_status === 'MENUNGGU').map((l) => (
+                  <li key={l.id}
+                    className="bg-white rounded-kartu border border-[#eda100]/40 ring-1 ring-[#eda100]/15 px-4 py-3 flex flex-col gap-2">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex-1 min-w-[170px]">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-slate-900">{l.name}</p>
+                          <Lencana {...GAYA_PERSETUJUAN.MENUNGGU} />
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {l.address || 'Tanpa alamat'}
+                          <span className="text-slate-400 tabular-nums"> · {Number(l.latitude).toFixed(5)}, {Number(l.longitude).toFixed(5)}</span>
+                        </p>
+                      </div>
+                      {menolak !== l.id && (
+                        <div className="flex items-center gap-1.5">
+                          <Tombol rupa="kedua" className="text-[12px] py-2"
+                            onClick={() => { setMenolak(l.id); setAlasan(''); }}>Tolak</Tombol>
+                          <Tombol className="text-[12px] py-2" memuat={sibuk === l.id}
+                            onClick={() => putuskan(l.id, 'DISETUJUI')}>Setujui</Tombol>
+                        </div>
+                      )}
+                    </div>
+                    {menolak === l.id && (
+                      <div className="pt-1">
+                        <Kolom label="Alasan penolakan" wajib
+                          galat={alasan && alasan.trim().length < 10 ? 'Minimal 10 karakter.' : null}>
+                          {(id, invalid) => (
+                            <AreaTeks id={id} rows={2} value={alasan} aria-invalid={invalid}
+                              onChange={(e) => setAlasan(e.target.value)}
+                              placeholder="Contoh: radius terlalu dekat jalan raya, titik meleset dari alamat." />
+                          )}
+                        </Kolom>
+                        <div className="flex justify-end gap-2 mt-2">
+                          <Tombol rupa="kedua" className="text-[12px] py-2"
+                            onClick={() => { setMenolak(null); setAlasan(''); }}>Batal</Tombol>
+                          <Tombol rupa="bahaya" className="text-[12px] py-2"
+                            disabled={alasan.trim().length < 10} memuat={sibuk === l.id}
+                            onClick={() => putuskan(l.id, 'DITOLAK', alasan.trim())}>
+                            Kirim Penolakan
+                          </Tombol>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-              <div className="flex-1 min-w-[170px]">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-bold text-slate-900">{l.name}</p>
-                  <Lencana label={`radius ${l.gps_radius_m} m`} color="#1d4ed8" bg="#dbeafe" />
-                  {!l.active && <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  {l.address || 'Tanpa alamat'}
-                  <span className="text-slate-400 tabular-nums"> · {Number(l.latitude).toFixed(5)}, {Number(l.longitude).toFixed(5)}</span>
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <Tombol rupa="kedua" className="text-[12px] py-2"
-                  onClick={() => { setSunting(l); setFormBuka(true); }}>Sunting</Tombol>
-                <Tombol rupa="hantu"
-                  className={`text-[12px] py-2 ${l.active ? 'text-[#e34948]' : 'text-[#008300]'}`}
-                  onClick={() => setAkanUbahAktif(l)}>
-                  {l.active ? 'Nonaktifkan' : 'Aktifkan'}
-                </Tombol>
-              </div>
-            </li>
-          ))}
-        </ul>
+          <Tabel
+            data={tersaring.filter((l) => l.approval_status !== 'MENUNGGU')}
+            kunci={(l) => l.id}
+            lebarAksi="w-24"
+            kolom={[
+              {
+                label: 'Lokasi', className: 'w-[34%]',
+                urut: (l) => l.name,
+                render: (l) => (
+                  <div className={`flex items-center gap-2.5 ${l.active ? '' : 'opacity-60'}`}>
+                    <span className="w-8 h-8 rounded-kontrol bg-aksen-50 text-aksen-700 grid place-items-center flex-shrink-0">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"
+                          stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 truncate">{l.name}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{l.address || 'Tanpa alamat'}</p>
+                      {l.approval_status === 'DITOLAK' && l.rejection_reason && (
+                        <p className="text-[11px] text-[#8f2c2b] mt-0.5 truncate">{l.rejection_reason}</p>
+                      )}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                label: 'Koordinat', className: 'w-[20%]',
+                render: (l) => (
+                  <span className="text-slate-500 tabular-nums text-[12px]">
+                    {Number(l.latitude).toFixed(5)}, {Number(l.longitude).toFixed(5)}
+                  </span>
+                ),
+              },
+              {
+                label: 'Sumber', className: 'w-28',
+                urut: (l) => (l.project_id ? 'Dari Proyek' : 'Manual'),
+                render: (l) => (l.project_id
+                  ? <Lencana label="Dari Proyek" color="#7c3aed" bg="#ede9fe" />
+                  : <Lencana label="Manual" color="#64748b" bg="#f1f5f9" />),
+              },
+              {
+                label: 'Radius', className: 'w-24',
+                urut: (l) => Number(l.gps_radius_m),
+                render: (l) => <Lencana label={`${l.gps_radius_m} m`} color="#1d4ed8" bg="#dbeafe" />,
+              },
+              {
+                label: 'Status', className: 'w-28',
+                urut: (l) => (l.approval_status === 'DITOLAK' ? 'Ditolak' : l.active ? 'Aktif' : 'Nonaktif'),
+                render: (l) => (l.approval_status === 'DITOLAK'
+                  ? <Lencana {...GAYA_PERSETUJUAN.DITOLAK} />
+                  : l.active
+                    ? <Lencana label="Aktif" color="#008300" bg="#e0f2e0" />
+                    : <Lencana label="Nonaktif" color="#e34948" bg="#fce3e3" />),
+              },
+            ]}
+            aksi={(l) => (
+              <>
+                <TombolIkon rupa="sunting" label="Sunting"
+                  onClick={() => { setSunting(l); setFormBuka(true); }} />
+                <TombolIkon rupa={l.active ? 'nonaktif' : 'aktif'}
+                  label={l.active ? 'Nonaktifkan lokasi' : 'Aktifkan lokasi'}
+                  onClick={() => setAkanUbahAktif(l)} />
+              </>
+            )}
+          />
+        </>
       )}
 
       {formBuka && (
@@ -279,17 +414,21 @@ function FormLokasi({
           </p>
         </div>
 
-        {koordinatSah && (
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Pratinjau Peta</p>
-            <iframe
-              title={`Peta ${nama || 'lokasi'}`}
-              src={urlPetaKecil(latNum, lngNum)}
-              className="w-full h-56 rounded-kontrol border border-slate-200"
-              loading="lazy"
-            />
-          </div>
-        )}
+        <div>
+          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+            Cari &amp; Tunjuk di Peta
+          </p>
+          <PetaLokasi
+            lat={koordinatSah ? latNum : null}
+            lng={koordinatSah ? lngNum : null}
+            radiusM={radius}
+            onUbahTitik={(latBaru, lngBaru) => {
+              setLat(String(latBaru));
+              setLng(String(lngBaru));
+              setGalat(null);
+            }}
+          />
+        </div>
       </form>
     </Modal>
   );

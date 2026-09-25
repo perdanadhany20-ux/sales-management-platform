@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LABEL_PERAN, type Peran } from '@/lib/constants';
 import { tanggalPendek, waktuPendek } from '@/lib/format';
-import { Tombol, Lencana, AreaTeks, Kolom } from '@/components/shared/FormParts';
+import { Tombol, Lencana, AreaTeks, Kolom, Teks } from '@/components/shared/FormParts';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
+import { Tabel } from '@/components/shared/Tabel';
 
 /**
  * Persetujuan pendaftaran akun.
@@ -56,6 +57,7 @@ export function TabPersetujuan() {
 
   const [menolak, setMenolak] = useState<string | null>(null);
   const [alasan, setAlasan] = useState('');
+  const [cari, setCari] = useState('');
 
   const muat = useCallback(async () => {
     setMemuat(true);
@@ -97,8 +99,11 @@ export function TabPersetujuan() {
     }
   }
 
-  const menunggu = semua.filter((a) => a.approval_status === 'MENUNGGU');
-  const sudah = semua.filter((a) => a.approval_status !== 'MENUNGGU');
+  const k = cari.trim().toLowerCase();
+  const cocok = (a: Akun) => !k || [a.full_name, a.username, a.email, a.division, a.position]
+    .some((v) => (v ?? '').toLowerCase().includes(k));
+  const menunggu = semua.filter((a) => a.approval_status === 'MENUNGGU' && cocok(a));
+  const sudah = semua.filter((a) => a.approval_status !== 'MENUNGGU' && cocok(a));
 
   if (memuat) return <KerangkaBaris jumlah={4} />;
   if (galat) return <PanelGalat pesan={galat} onCoba={muat} />;
@@ -112,6 +117,8 @@ export function TabPersetujuan() {
           Setiap pendaftar otomatis berperan Sales; menaikkan perannya dilakukan terpisah di
           bagian Pengguna.
         </p>
+        <Teks type="search" value={cari} onChange={(e) => setCari(e.target.value)}
+          placeholder="Cari nama, username, email, divisi…" aria-label="Cari pendaftar" className="!w-64" />
         <label className="flex items-center gap-2 text-[12px] font-semibold text-slate-600 cursor-pointer select-none">
           <input type="checkbox" checked={tampilkanRiwayat}
             onChange={(e) => setTampilkanRiwayat(e.target.checked)}
@@ -167,15 +174,58 @@ export function TabPersetujuan() {
       )}
 
       {tampilkanRiwayat && (
-        <section>
-          <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">
+        <section className="flex flex-col gap-2">
+          <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
             Sudah diputuskan ({sudah.length})
           </h3>
-          <ul className="flex flex-col gap-2">
-            {sudah.map((a) => (
-              <li key={a.id}><KartuAkun akun={a} /></li>
-            ))}
-          </ul>
+          <Tabel
+            data={sudah}
+            kunci={(a) => a.id}
+            kolom={[
+              {
+                label: 'Pengguna', className: 'w-[32%]',
+                urut: (a) => a.full_name,
+                render: (a) => (
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-slate-900 truncate">{a.full_name}</span>
+                      <Lencana {...(GAYA_PERSETUJUAN[a.approval_status] ?? GAYA_PERSETUJUAN.MENUNGGU)} />
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate">@{a.username}</p>
+                  </div>
+                ),
+              },
+              {
+                label: 'Peran', className: 'w-28',
+                render: (a) => <Lencana label={LABEL_PERAN[a.role as Peran] ?? a.role} color="#0891b2" bg="#cffafe" />,
+              },
+              {
+                label: 'Divisi / Jabatan', className: 'w-[22%]',
+                urut: (a) => a.division,
+                render: (a) => (
+                  <span className="text-slate-600">
+                    {[a.division, a.position].filter(Boolean).join(' · ') || '—'}
+                  </span>
+                ),
+              },
+              {
+                label: 'Diputuskan', className: 'w-32',
+                urut: (a) => a.approved_at,
+                render: (a) => (a.approved_at
+                  ? tanggalPendek(a.approved_at)
+                  : <span className="text-slate-400">—</span>),
+              },
+            ]}
+          />
+          {sudah.some((a) => a.approval_status === 'DITOLAK' && a.rejection_reason) && (
+            <ul className="flex flex-col gap-1">
+              {sudah.filter((a) => a.approval_status === 'DITOLAK' && a.rejection_reason).map((a) => (
+                <li key={a.id} className="text-[11px] text-[#8f2c2b] bg-[#fce3e3] rounded-kontrol px-2.5 py-1.5 leading-snug">
+                  <b className="font-bold">{a.full_name}:</b> {a.rejection_reason}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
     </div>

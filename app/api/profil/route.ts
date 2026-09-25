@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 
 const KOLOM_PROFIL = `id, username, full_name, email, phone, role, active, created_at,
                       division, sales_division, position, event_code, joined_at,
-                      approval_status`;
+                      approval_status, address, manager_id`;
 
 export async function GET(request: NextRequest) {
   const pengguna = await getSessionUser(request);
@@ -41,6 +41,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Profil tidak ditemukan.' }, { status: 404 });
   }
 
+  // Atasan dan bawahan dibaca terpisah: yang tersimpan di baris sendiri
+  // hanya id-nya, sedangkan yang ditampilkan adalah namanya.
+  const [atasan, bawahan] = await Promise.all([
+    profil.data.manager_id
+      ? db.from('users').select('id, full_name').eq('id', profil.data.manager_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    db.from('users').select('id, full_name, role').eq('manager_id', pengguna.id).order('full_name'),
+  ]);
+
   // Token mentah tidak pernah dikirim balik; yang dibandingkan hanya hash-nya
   // supaya perangkat ini bisa ditandai tanpa membocorkan apa pun.
   const tokenIni = request.cookies.get(COOKIE_SESI)?.value;
@@ -57,6 +66,8 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     profil: profil.data,
+    atasan: atasan.data ?? null,
+    bawahan: bawahan.data ?? [],
     sandi_diperbarui: kredensial.data?.updated_at ?? null,
     jumlah_sesi: daftarSesi.length,
     sesi_ini: sesiIni,
@@ -76,6 +87,10 @@ export async function PATCH(request: NextRequest) {
   const salesDivision = typeof badan.sales_division === 'string'
     ? badan.sales_division.trim().slice(0, 60) : null;
   const position = typeof badan.position === 'string' ? badan.position.trim().slice(0, 60) : null;
+  // Alamat: biodata pribadi, boleh disunting sendiri — beda dengan `role`/
+  // `manager_id` yang keputusan struktur organisasi dan hanya berubah lewat
+  // /api/admin/users.
+  const address = typeof badan.address === 'string' ? badan.address.trim().slice(0, 300) : null;
 
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: 'Format email tidak sah.' }, { status: 400 });
@@ -100,6 +115,7 @@ export async function PATCH(request: NextRequest) {
       division: division || null,
       sales_division: salesDivision || null,
       position: position || null,
+      address: address || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', pengguna.id)
@@ -116,7 +132,7 @@ export async function PATCH(request: NextRequest) {
     detail: {
       email: email || null, phone: phone || null,
       division: division || null, sales_division: salesDivision || null,
-      position: position || null,
+      position: position || null, address: address || null,
     },
   });
 

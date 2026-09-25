@@ -10,6 +10,8 @@
  * Tailwind sembarangan tanpa mengulang pemeriksaan yang sama.
  */
 
+import { tanggalISO } from './format';
+
 export type StatusJadwal =
   | 'UPCOMING' | 'IN_PROGRESS' | 'COMPLETED' | 'MISSED' | 'CANCELLED';
 
@@ -22,6 +24,19 @@ export const STATUS_JADWAL: Record<StatusJadwal, GayaStatus> = {
   MISSED:      { label: 'Terlewat',       color: '#e34948', bg: '#fce3e3' },
   CANCELLED:   { label: 'Dibatalkan',     color: '#94a3b8', bg: '#f1f5f9' },
 };
+
+/**
+ * Tidak ada proses yang menulis MISSED ke database, jadi jadwal yang lewat
+ * tanggal tanpa diselesaikan diturunkan di sini saat ditampilkan. Barisnya
+ * sendiri tetap UPCOMING agar override pengawas masih bisa menutupnya.
+ */
+export function statusEfektif(
+  j: { status: string; schedule_date: string },
+  hariIni: string = tanggalISO(),
+): StatusJadwal {
+  if ((j.status === 'UPCOMING' || j.status === 'IN_PROGRESS') && j.schedule_date < hariIni) return 'MISSED';
+  return j.status as StatusJadwal;
+}
 
 export type StateKehadiran =
   | 'NOT_STARTED' | 'CHECKED_IN' | 'GPS_VERIFIED' | 'EVIDENCE_PENDING'

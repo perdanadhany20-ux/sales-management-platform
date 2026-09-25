@@ -58,6 +58,15 @@ export function hitungGp(nilai: unknown, hpp: unknown): { gp: number; gpPersen: 
 }
 
 /** Input <input type="date"> selalu "YYYY-MM-DD". */
+/**
+ * Pola ilike untuk dipakai di dalam filter .or() PostgREST. Nilainya dikutip
+ * karena koma dan kurung — lazim di nama perusahaan seperti "PT X, Tbk" atau
+ * "PT Y (Persero)" — adalah pemisah sintaks di sana dan akan merusak query.
+ */
+export function polaIlike(kata: string): string {
+  return `"%${kata.replace(/["\\]/g, (c) => `\\${c}`)}%"`;
+}
+
 export function tanggalISO(d: Date = new Date()): string {
   const off = d.getTimezoneOffset();
   // Dikoreksi ke waktu lokal dulu. toISOString() memakai UTC, sehingga di
