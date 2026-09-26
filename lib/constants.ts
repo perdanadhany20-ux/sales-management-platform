@@ -72,6 +72,12 @@ export const PESAN_GPS: Record<string, string> = {
     'Anda berada di luar area meeting yang diizinkan.',
   NO_LOCATION:
     'Lokasi meeting belum diatur. Hubungi admin untuk melengkapinya.',
+  // Sengaja tidak menuduh "Anda memakai fake GPS": yang dipegang platform
+  // adalah dugaan berdasar ciri sinyal, bukan kepastian, dan pembacaan yang
+  // aneh memang bisa terjadi tanpa ada yang berniat menipu. Yang disampaikan
+  // adalah apa yang terjadi pada datanya dan apa yang bisa dilakukan sekarang.
+  SUSPECTED_MOCK:
+    'Pembacaan lokasi ini tidak menunjukkan ciri sinyal GPS sungguhan, jadi belum bisa dipakai sebagai bukti kehadiran. Matikan aplikasi pengubah lokasi bila ada, nyalakan GPS perangkat, pindah ke tempat terbuka, lalu ulangi. Bila Anda yakin tidak ada yang salah, minta atasan menyelesaikannya lewat Override.',
 };
 
 export const PESAN_PENYELESAIAN: Record<string, string> = {

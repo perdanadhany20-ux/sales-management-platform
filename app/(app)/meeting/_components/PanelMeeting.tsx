@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { ambilLokasi, urlPetaKecil, GpsError } from '@/lib/gps';
+import { ambilLokasi, ambilLokasiKehadiran, urlPetaKecil, GpsError } from '@/lib/gps';
 import { siapkanFoto } from '@/lib/image-compress';
 import {
   PESAN_GPS, PESAN_PENYELESAIAN, STATE_KEHADIRAN, STATUS_JADWAL, statusEfektif,
@@ -152,12 +152,23 @@ export function PanelMeeting({
     setGagalGps(null);
     setPesanGalat(null);
     try {
-      const lok = await ambilLokasi();
+      // ambilLokasiKehadiran, bukan ambilLokasi: yang dikirim bukan satu titik
+      // tapi beberapa sampel berurutan plus ciri sinyalnya. Tanpa itu database
+      // tidak punya bahan untuk membedakan GPS sungguhan dari lokasi buatan —
+      // dan memang menolak check-in yang datang tanpa laporan (migrasi 032).
+      const lok = await ambilLokasiKehadiran();
       const { data, error } = await supabase.rpc('sm_check_in', {
         p_schedule_id: meeting.id,
         p_lat: lok.lat,
         p_lng: lok.lng,
         p_accuracy: lok.accuracy,
+        p_altitude: lok.altitude,
+        p_alt_acc: lok.altitudeAccuracy,
+        p_speed: lok.speed,
+        p_heading: lok.heading,
+        p_client_time: lok.waktu,
+        p_samples: lok.sampel,
+        p_signals: lok.sinyal,
       });
       if (error) throw new Error(error.message);
 
@@ -350,7 +361,7 @@ export function PanelMeeting({
           keterangan={
             terverifikasi
               ? `Terverifikasi ${kehadiran?.distance_m != null ? `pada ${jarak(kehadiran.distance_m)} dari titik lokasi` : ''}${kehadiran?.checkin_at ? ` · ${waktuPendek(kehadiran.checkin_at)}` : ''}`
-              : 'Berdirilah di dalam area meeting, lalu baca lokasi Anda. Jaraknya diperiksa di server.'
+              : 'Berdirilah di dalam area meeting, lalu baca lokasi Anda. Pembacaan berlangsung beberapa detik — biarkan layar tetap terbuka. Jaraknya diperiksa di server.'
           }
         >
           {!terverifikasi && !selesai && milikSaya && lewatTanggal && (
