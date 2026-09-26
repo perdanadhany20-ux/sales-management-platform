@@ -58,6 +58,30 @@
     overflow-wrap: break-word;
   }
 
+  /*
+   * Penjagaan lebar halaman.
+   *
+   * Satu saja elemen yang melebihi lebar layar — tabel dengan lebar minimum,
+   * kartu yang tidak bisa menyusut, deretan tombol yang terlalu panjang —
+   * membuat SELURUH halaman bisa digeser mendatar. Akibatnya bukan cuma
+   * elemen itu yang melenceng: sidebar dan bilah judul ikut tergeser, dan
+   * pemakainya melihat menu yang terpotong di tepi kiri tanpa tahu sebabnya.
+   * Kerangka aplikasi tidak boleh bergantung pada kedisiplinan setiap
+   * halaman.
+   *
+   * `clip`, BUKAN `hidden`. Keduanya sama-sama memotong, tapi `hidden`
+   * menjadikan body sebagai wadah gulir baru — dan itu mematikan seluruh
+   * `position: sticky` di dalamnya, termasuk bilah judul dan sidebar. `clip`
+   * memotong tanpa membuat wadah gulir, jadi sticky tetap hidup.
+   *
+   * Ini jaring pengaman, bukan izin untuk membuat halaman yang kelebaran:
+   * isi yang memang perlu digeser mendatar (tabel lebar) tetap harus
+   * membungkus dirinya sendiri dalam pembungkus overflow-x-auto.
+   */
+  body {
+    overflow-x: clip;
+  }
+
   h1, h2, h3 {
     text-wrap: balance;
   }

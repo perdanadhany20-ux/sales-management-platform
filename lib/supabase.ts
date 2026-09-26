@@ -31,10 +31,6 @@ export function setDbToken(token: string | null): void {
   else window.sessionStorage.removeItem(TOKEN_KEY);
 }
 
-export function getDbToken(): string | null {
-  return dbToken;
-}
-
 /**
  * Kapan token kedaluwarsa (epoch ms), dibaca dari klaim `exp`.
  *

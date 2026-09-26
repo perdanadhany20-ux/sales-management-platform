@@ -79,7 +79,10 @@ export function HeaderAtas({ pengguna, branding }: {
             Menggulung mendatar di layar sempit, bukan membungkus ke baris
             kedua: header yang tiba-tiba jadi dua baris menggeser seluruh isi
             halaman ke bawah setiap kali satu lencana muncul. */}
-        <nav aria-label="Pintasan" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        {/* min-w-0 wajib: tanpa itu, deretan lencana yang memanjang bisa
+            mendorong header melebihi lebar layar, dan seluruh halaman —
+            sidebar termasuk — ikut tergeser. */}
+        <nav aria-label="Pintasan" className="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar">
           <button
             type="button" onClick={() => setBukaCari(true)}
             className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-kontrol border border-slate-200 bg-slate-50
@@ -139,12 +142,15 @@ export function HeaderAtas({ pengguna, branding }: {
             >
               <span aria-hidden="true">🔔</span>
               <span className="hidden sidebar:inline">Notifikasi</span>
-              <span className={`inline-grid place-items-center min-w-[18px] h-[18px] sentuhlebar:min-w-[21px]
-                                sentuhlebar:h-[21px] rounded-full px-1 text-[10px] sentuhlebar:text-[12px]
-                                font-black tabular-nums
-                                ${total > 0 ? 'bg-white text-[#e34948]' : 'bg-slate-100 text-slate-500'}`}>
-                {total}
-              </span>
+              {/* Sama seperti pintasan: nol tidak perlu dipamerkan. Loncengnya
+                  sendiri tetap ada supaya isinya bisa dibuka kapan saja. */}
+              {total > 0 && (
+                <span className="inline-grid place-items-center min-w-[18px] h-[18px] sentuhlebar:min-w-[21px]
+                                 sentuhlebar:h-[21px] rounded-full px-1 text-[10px] sentuhlebar:text-[12px]
+                                 font-black tabular-nums bg-white text-[#e34948]">
+                  {total}
+                </span>
+              )}
             </button>
 
             <DropdownMengambang
@@ -259,12 +265,21 @@ function Pintasan({
       >
         <span aria-hidden="true">{ikon}</span>
         <span className="hidden sidebar:inline">{label}</span>
-        <span className={`inline-grid place-items-center min-w-[18px] h-[18px] sentuhlebar:min-w-[21px]
-                          sentuhlebar:h-[21px] rounded-full px-1 text-[10px] sentuhlebar:text-[12px]
-                          font-black tabular-nums
-                          ${menyala ? WARNA_LENCANA[warna] : 'bg-slate-100 text-slate-400'}`}>
-          {jumlah}
-        </span>
+        {/* Lencana bernilai nol TIDAK ditampilkan.
+            Sebelumnya keempat pintasan selalu memakai pil angka, sehingga
+            header yang sehat justru terlihat penuh: empat pil "0" berjajar
+            yang tidak memberi satu pun kabar. Lencana gunanya menarik mata ke
+            sesuatu yang perlu dikerjakan; kalau ia selalu ada, ia berhenti
+            berarti dan tinggal jadi keramaian. Angkanya tetap dibacakan
+            pembaca layar lewat aria-label tombolnya, jadi tidak ada informasi
+            yang hilang — yang hilang hanya kebisingannya. */}
+        {menyala && (
+          <span className={`inline-grid place-items-center min-w-[18px] h-[18px] sentuhlebar:min-w-[21px]
+                            sentuhlebar:h-[21px] rounded-full px-1 text-[10px] sentuhlebar:text-[12px]
+                            font-black tabular-nums ${WARNA_LENCANA[warna]}`}>
+            {jumlah}
+          </span>
+        )}
       </button>
 
       <DropdownMengambang buka={terbuka} onTutup={() => onToggle(null)} triggerRef={btnRef}>
