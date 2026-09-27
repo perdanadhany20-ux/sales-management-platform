@@ -40,7 +40,7 @@ export async function keluar(): Promise<void> {
     // saat logout, yang paling berbahaya adalah token identitas tertinggal
     // di tab yang dikira sudah keluar.
     setDbToken(null);
-    lupakanSesi();
+    lupakanSesi({ keluar: true });
   }
 }
 
@@ -109,11 +109,20 @@ function ambilSesi(): Promise<void> {
   return permintaan;
 }
 
-/** Lupakan identitas tersimpan — dipanggil saat masuk dan keluar. */
-function lupakanSesi() {
+/**
+ * Lupakan identitas tersimpan.
+ *
+ * Saat masuk, sesi ditandai belum dimuat supaya Shell mengambil identitas
+ * yang baru. Saat keluar, sesi justru ditandai SUDAH dimuat dengan pengguna
+ * kosong: Shell yang masih tampil selama permintaan logout berjalan langsung
+ * menampilkan "Mengalihkan…" (bukan "Memulihkan sesi…"), dan halaman yang
+ * dibuka lagi lewat tombol Back tidak memakai identitas lama.
+ */
+function lupakanSesi({ keluar = false } = {}) {
   penggunaTersimpan = null;
-  sudahDimuat = false;
+  sudahDimuat = keluar;
   aturPewaktuToken();
+  kabari();
 }
 
 /**
