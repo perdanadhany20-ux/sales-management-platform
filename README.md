@@ -107,6 +107,12 @@ disebut **pengawas** dan melihat data seluruh tim.
 - **Sales** — hanya data miliknya, plus jadwal yang ditugaskan kepadanya. Boleh
   menyunting data sendiri, tidak boleh menghapus.
 - **Admin** — boleh menyunting dan menghapus data siapa pun.
+- **Customer** — hanya terlihat oleh Sales yang menanganinya (pembuatnya) dan
+  oleh garis atasannya lewat `users.manager_id` (atasan langsung dan atasan di
+  atasnya), plus Admin. Sales lain dan Manager di luar garis itu tidak
+  melihatnya sama sekali — termasuk lewat pencarian header dan isian pilihan
+  customer. Atasan hanya melihat, tidak mengubah. Atasan diisi di
+  Admin → Pengguna.
 - **GP Calculation** — pembuat dokumen tidak boleh menyetujui dokumennya
   sendiri, dan satu orang tidak boleh mengisi dua tahap persetujuan.
 - **`user_credentials`, `user_sessions`, `login_attempts`** — tanpa policy sama
@@ -135,7 +141,7 @@ bukti tidak boleh ditimpa.
 
 ## 10. Pengujian
 
-Empat skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
+Lima skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
 Supabase. Setiap skrip diakhiri `ROLLBACK`, jadi data ujinya tidak pernah
 tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 
@@ -144,6 +150,7 @@ tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 | `keamanan.sql` | 19 | Isolasi antar-Sales, manipulasi status, check-in (radius, akurasi), bukti foto, eskalasi peran |
 | `keamanan-gp.sql` | 29 | Ketepatan rumus GP terhadap berkas asli, isolasi, rantai persetujuan |
 | `keamanan-gps.sql` | 13 | Penolakan lokasi palsu — dan jaminan bahwa Sales jujur tetap lolos |
+| `keamanan-customer.sql` | 15 | Customer hanya terlihat oleh Sales pemiliknya dan garis atasannya; nama unik per Sales |
 | `keamanan-hak.sql` | 20 | Sales menyunting tapi tidak menghapus miliknya, hanya Admin mengubah data orang lain, isolasi Target Sales, kolom pribadi `users` |
 
 Pemeriksaan kode: `npm run typecheck` dan `npm run build`.

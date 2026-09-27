@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, idPenggunaToken } from '@/lib/supabase';
 
 /**
  * components/shared/PilihCustomer.tsx — isian customer dengan saran dari data
@@ -144,11 +144,16 @@ export async function pastikanCustomer(
 
   if (!error && baru) return baru.id;
 
-  const { data: lama } = await supabase
-    .from('sm_customers')
-    .select('id')
-    .ilike('name', bersih)
-    .maybeSingle();
+  // Gagal karena nama itu sudah ada di daftar MILIK SENDIRI (nama unik per
+  // pemilik, migrasi 035). Ambil baris milik sendiri — Admin dan atasan bisa
+  // melihat beberapa customer bernama sama milik Sales berbeda, dan yang
+  // dimaksud di sini jelas miliknya sendiri. Pencocokan tanpa wildcard: nama
+  // seperti "PT 100% Jaya" tidak boleh terbaca sebagai pola.
+  const pemilik = idPenggunaToken();
+  let q = supabase.from('sm_customers').select('id, name')
+    .ilike('name', bersih.replace(/[\\%_]/g, (c) => '\\' + c));
+  if (pemilik) q = q.eq('created_by', pemilik);
+  const { data: lama } = await q.limit(1);
 
-  return lama?.id ?? null;
+  return lama?.[0]?.id ?? null;
 }

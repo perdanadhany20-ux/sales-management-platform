@@ -39,13 +39,27 @@ export function setDbToken(token: string | null): void {
  * ada keputusan keamanan yang diambil dari hasil parsing di browser ini.
  */
 export function dbTokenExpiryMs(): number | null {
+  const exp = klaimToken()?.exp;
+  return typeof exp === 'number' ? exp * 1000 : null;
+}
+
+/**
+ * ID pengguna di token saat ini — hanya untuk MENYARING tampilan (mis. memilih
+ * baris milik sendiri di antara hasil yang sudah lolos RLS). Sama seperti
+ * dbTokenExpiryMs, ini bukan keputusan keamanan.
+ */
+export function idPenggunaToken(): string | null {
+  const sub = klaimToken()?.sub;
+  return typeof sub === 'string' ? sub : null;
+}
+
+function klaimToken(): { exp?: unknown; sub?: unknown } | null {
   if (!dbToken) return null;
   try {
     const payload = dbToken.split('.')[1];
     if (!payload) return null;
     const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    const exp = (JSON.parse(json) as { exp?: unknown }).exp;
-    return typeof exp === 'number' ? exp * 1000 : null;
+    return JSON.parse(json) as { exp?: unknown; sub?: unknown };
   } catch {
     return null;
   }
