@@ -29,6 +29,7 @@ const WARNA_STATUS: Record<StatusLisensi, { label: string; color: string; bg: st
   EXPIRED:       { label: 'BERAKHIR',         color: '#8f2c2b', bg: '#fce3e3' },
   SUSPENDED:     { label: 'DITANGGUHKAN',     color: '#7a5300', bg: '#fde9c4' },
   REVOKED:       { label: 'DICABUT',          color: '#475569', bg: '#e2e8f0' },
+  REPLACED:      { label: 'DIGANTI',          color: '#475569', bg: '#e2e8f0' },
 };
 
 const WARNA_PERMINTAAN: Record<StatusPermintaan, { label: string; color: string; bg: string }> = {
@@ -178,7 +179,7 @@ function KartuStatus({ lisensi, onSegarkan }: { lisensi: Lisensi; onSegarkan: ()
 
   const baris: [string, React.ReactNode][] = [
     ['Perusahaan', d?.perusahaan ?? '—'],
-    ['Paket', lisensi.paket ?? '—'],
+    ['Paket', lisensi.paket ? `${lisensi.paket}${lisensi.trial ? ' (Trial)' : ''}` : '—'],
     ['Berlaku sejak', tanggalPanjang(d?.mulai)],
     ['Berlaku sampai', tanggalPanjang(d?.berakhir)],
     ['Sisa', lisensi.sisa_hari === null ? '—' : lisensi.sisa_hari > 0 ? `${lisensi.sisa_hari} hari` : 'Sudah berakhir'],
@@ -193,6 +194,7 @@ function KartuStatus({ lisensi, onSegarkan }: { lisensi: Lisensi; onSegarkan: ()
           <div className="flex flex-wrap items-center gap-2 mt-1">
             <h2 className="text-base font-black text-slate-900">{lisensi.judul}</h2>
             {warna && <Lencana {...warna} />}
+            {lisensi.trial && <Lencana label="TRIAL" color="#6d28d9" bg="#ede9fe" />}
             {lisensi.mode_pengembangan && <Lencana label="PENGEMBANGAN" color="#475569" bg="#e2e8f0" />}
           </div>
           <p className="text-[12px] text-slate-500 mt-1 leading-relaxed max-w-xl">{lisensi.keterangan}</p>
@@ -382,8 +384,17 @@ function KartuPermintaan({ lisensi, onBerubah }: { lisensi: Lisensi; onBerubah: 
       ) : punyaLisensi && !jenis ? (
         <div className="flex flex-wrap gap-2">
           <p className="w-full text-[12px] text-slate-500 mb-1">Lisensi saat ini: <b className="text-slate-800">{lisensi.paket}</b></p>
-          <Tombol rupa="kedua" onClick={() => setJenis('CHANGE_PACKAGE')}>Ajukan perubahan paket</Tombol>
-          <Tombol rupa="kedua" onClick={() => setJenis('EXTENSION')}>Ajukan perpanjangan</Tombol>
+          {lisensi.trial ? (
+            <Tombol onClick={() => setJenis('NEW')}>Ajukan lisensi penuh</Tombol>
+          ) : (
+            <>
+              <Tombol rupa="kedua" onClick={() => setJenis('CHANGE_PACKAGE')}>Ajukan perubahan paket</Tombol>
+              <Tombol rupa="kedua" onClick={() => setJenis('EXTENSION')}>Ajukan perpanjangan</Tombol>
+            </>
+          )}
+          <p className="w-full text-[11px] text-slate-400 mt-1">
+            Perubahan paket menerbitkan lisensi baru; platform ini beralih ke lisensi baru secara otomatis.
+          </p>
         </div>
       ) : (
         <form onSubmit={kirim} className="grid gap-3 sm:grid-cols-2 max-w-2xl">

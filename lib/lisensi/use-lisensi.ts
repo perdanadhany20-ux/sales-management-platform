@@ -53,6 +53,7 @@ export interface Lisensi {
   sisa_hari: number | null;
   peringatan: Peringatan[];
   mode_pengembangan: boolean;
+  trial: boolean;
   /** Hanya untuk Admin. */
   detail?: DetailLisensi;
   peristiwa?: PeristiwaLisensiUI[];

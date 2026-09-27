@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     sisa_hari: e.sisaHari,
     peringatan: peringatanLisensi(e),
     mode_pengembangan: s.modePengembangan,
+    trial: Boolean(e.trial),
   };
 
   if (!isAdmin(user.role)) return NextResponse.json({ lisensi: ringkas });
