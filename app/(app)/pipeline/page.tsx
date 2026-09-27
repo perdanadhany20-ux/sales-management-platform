@@ -285,7 +285,7 @@ export default function HalamanPipeline() {
           ) : (
             <>
               <DonutLegenda
-                judul="" ukuran={104}
+                judul="" ukuran={120}
                 nilaiTengah={daftar.length} labelTengah="PELUANG"
                 data={[
                   { label: 'GP positif', value: ringkas.positif, color: '#008300' },

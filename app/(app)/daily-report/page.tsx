@@ -341,7 +341,7 @@ export default function HalamanDailyReport() {
               <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
             ) : (
               <DonutLegenda
-                judul="" ukuran={104}
+                judul="" ukuran={120}
                 nilaiTengah={perSales.reduce((a, b) => a + b.jml, 0)}
                 labelTengah="LAPORAN"
                 data={perSales.map((s, i) => ({

@@ -233,7 +233,7 @@ export default function HalamanProyek() {
           ) : (
             <div className="flex flex-col gap-2">
               <DonutLegenda
-                judul="" ukuran={92}
+                judul="" ukuran={112}
                 nilaiTengah={daftar.length} labelTengah="PROYEK"
                 data={(Object.keys(STATUS_PROYEK) as StatusProyek[])
                   .map((k) => ({

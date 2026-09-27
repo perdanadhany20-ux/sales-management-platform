@@ -52,8 +52,8 @@ const JENIS: Record<string, GayaJenis> = {
   PIPELINE:         { label: 'Pipeline',         ikon: '📊', warna: '#0891b2', bg: '#e0f2fe' },
   SCHEDULE:         { label: 'Jadwal Dibuat',    ikon: '🗓️', warna: '#64748b', bg: '#f1f5f9' },
   SCHEDULE_SELESAI: { label: 'Jadwal Selesai',   ikon: '✓',  warna: '#008300', bg: '#e0f2e0' },
-  MEETING_SELESAI:  { label: 'Meeting Selesai',  ikon: '✓',  warna: '#008300', bg: '#e0f2e0' },
-  CHECK_IN:         { label: 'Check-in',         ikon: '📍', warna: '#2a78d6', bg: '#e3edfb' },
+  MEETING_SELESAI:  { label: 'Meeting Selesai',  ikon: '✓',  warna: '#65a30d', bg: '#ecfccb' },
+  CHECK_IN:         { label: 'Check-in',         ikon: '📍', warna: '#db2777', bg: '#fce7f3' },
   BUKTI:            { label: 'Foto Bukti',       ikon: '📷', warna: '#7c3aed', bg: '#ede9fe' },
   OVERRIDE:         { label: 'Override',         ikon: '⚠️', warna: '#eda100', bg: '#fef3d9' },
 };
@@ -251,7 +251,7 @@ export default function HalamanActivity() {
             <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
           ) : (
             <DonutLegenda
-              judul="" ukuran={104}
+              judul="" ukuran={140}
               nilaiTengah={daftar.length} labelTengah="JEJAK"
               filterAktif={filterJenis ? (JENIS[filterJenis] ?? JENIS_BAWAAN).label : null}
               onKlikIrisan={(label) => {

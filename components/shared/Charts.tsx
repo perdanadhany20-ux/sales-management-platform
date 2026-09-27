@@ -99,7 +99,8 @@ export function DonutLegenda({
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
         <svg
           width={ukuran} height={ukuran} viewBox="0 0 120 120"
-          className="flex-shrink-0 w-[92px] h-[92px] sm:w-[120px] sm:h-[120px]"
+          className="flex-shrink-0"
+          style={{ width: ukuran, height: ukuran }}
           role="img"
           aria-label={`${judul}: ${data.map(d => `${d.label} ${d.value}`).join(', ')}`}
         >

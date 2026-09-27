@@ -226,7 +226,7 @@ export default function HalamanDashboard() {
           ) : (
             <DonutLegenda
               judul=""
-              ukuran={104}
+              ukuran={120}
               nilaiTengah={meeting.total}
               labelTengah="MEETING"
               data={[

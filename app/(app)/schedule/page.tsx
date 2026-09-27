@@ -273,7 +273,7 @@ export default function HalamanSchedule() {
             <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
           ) : (
             <DonutLegenda
-              judul="" ukuran={104}
+              judul="" ukuran={120}
               nilaiTengah={daftar.length} labelTengah="JADWAL"
               filterAktif={filterStatus ? STATUS_JADWAL[filterStatus as StatusJadwal]?.label : null}
               onKlikIrisan={(label) => {
