@@ -10,7 +10,7 @@
  */
 
 export type KunciBagian =
-  | 'pengguna' | 'persetujuan' | 'hak_akses' | 'lokasi' | 'target' | 'tampilan' | 'konfigurasi' | 'audit';
+  | 'pengguna' | 'struktur' | 'persetujuan' | 'hak_akses' | 'lokasi' | 'target' | 'tampilan' | 'konfigurasi' | 'audit';
 
 export type KelompokBagian = 'ORGANISASI' | 'TAMPILAN' | 'SISTEM';
 
@@ -30,6 +30,11 @@ export const BAGIAN_ADMIN: Bagian[] = [
     kunci: 'pengguna', label: 'Pengguna', kelompok: 'ORGANISASI', ikon: '👥', adminSaja: true,
     judul: 'Manajemen Pengguna',
     keterangan: 'Akun, peran, status aktif, dan pengaturan ulang kata sandi.',
+  },
+  {
+    kunci: 'struktur', label: 'Struktur Organisasi', kelompok: 'ORGANISASI', ikon: '🌳', adminSaja: true,
+    judul: 'Struktur Organisasi',
+    keterangan: 'Pohon atasan–bawahan: Staff, Supervisor, Manager, General Manager, Direktur. Menentukan siapa melihat data siapa.',
   },
   {
     kunci: 'persetujuan', label: 'Persetujuan Akun', kelompok: 'ORGANISASI', ikon: '✅', adminSaja: true,

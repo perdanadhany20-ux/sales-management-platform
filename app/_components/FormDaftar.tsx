@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { KataSandi } from '@/components/shared/FormParts';
+import { DAFTAR_POSISI } from '@/lib/posisi';
 
 /**
  * Formulir pendaftaran mandiri.
@@ -80,6 +81,7 @@ export function FormDaftar({ onSelesai, onKembali, warnaUtama, warnaUtama2 }: {
     setGalat('');
 
     if (sandi !== ulangi) { setGalat('Konfirmasi kata sandi tidak cocok.'); return; }
+    if (!jabatan) { setGalat('Pilih posisi Anda.'); return; }
 
     setMemproses(true);
     try {
@@ -169,10 +171,11 @@ export function FormDaftar({ onSelesai, onKembali, warnaUtama, warnaUtama2 }: {
           )}
         </Bidang>
 
-        <Bidang label="Jabatan / Posisi">
+        <Bidang label="Posisi" wajib
+          bantuan="Jenjang Anda di struktur organisasi. Atasan Anda dipetakan Admin.">
           {(id) => (
-            <Pilih id={id} value={jabatan} onChange={setJabatan} disabled={memproses}
-              kosong="— Pilih Jabatan —" opsi={opsi.positions} />
+            <Pilih id={id} value={jabatan} onChange={setJabatan} disabled={memproses} required
+              kosong="— Pilih Posisi —" opsi={[...DAFTAR_POSISI]} />
           )}
         </Bidang>
 
@@ -256,7 +259,8 @@ function Bidang({ label, wajib, galat, bantuan, children }: {
     <div className="flex flex-col gap-1.5 min-w-0">
       <label htmlFor={id} className="text-[11px] font-bold text-slate-600 tracking-widest uppercase">
         {label}
-        {wajib && <span className="text-[#e34948] ml-0.5" aria-hidden="true">*</span>}
+        {wajib && <><span className="text-[#e34948] ml-0.5" aria-hidden="true">*</span>
+          <span className="sr-only"> (wajib)</span></>}
       </label>
       {children(id, Boolean(galat))}
       {galat

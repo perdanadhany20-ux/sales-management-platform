@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { pesanGalat } from '@/lib/pesan-galat';
+import { posisiSah, DAFTAR_POSISI } from '@/lib/posisi';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,15 @@ export async function POST(request: NextRequest) {
   if (!username || !fullName || !email || !password) {
     return NextResponse.json(
       { error: 'Username, nama lengkap, email, dan kata sandi wajib diisi.' },
+      { status: 400 },
+    );
+  }
+
+  // Posisi wajib dan harus salah satu jenjang baku — letak di struktur
+  // organisasi ditentukan olehnya (migrasi 036).
+  if (!posisiSah(position)) {
+    return NextResponse.json(
+      { error: `Pilih posisi Anda: ${DAFTAR_POSISI.join(', ')}.` },
       { status: 400 },
     );
   }

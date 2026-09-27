@@ -11,6 +11,7 @@ import { TabPersetujuan } from './_components/TabPersetujuan';
 import { TabHakAkses } from './_components/TabHakAkses';
 import { TabLokasi } from './_components/TabLokasi';
 import { TabTarget } from './_components/TabTarget';
+import { TabStruktur } from './_components/TabStruktur';
 import { TabKonfigurasi } from './_components/TabKonfigurasi';
 import { TabTampilan } from './_components/TabTampilan';
 import { TabAudit } from './_components/TabAudit';
@@ -95,6 +96,7 @@ export default function HalamanAdmin() {
 
       <div>
         {aktif.kunci === 'pengguna' && <TabPengguna pemanggilId={pengguna.id} />}
+        {aktif.kunci === 'struktur' && <TabStruktur />}
         {aktif.kunci === 'persetujuan' && <TabPersetujuan />}
         {aktif.kunci === 'hak_akses' && <TabHakAkses />}
         {aktif.kunci === 'lokasi' && <TabLokasi />}

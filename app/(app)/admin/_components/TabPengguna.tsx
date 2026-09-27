@@ -8,6 +8,7 @@ import { Kolom, Teks, KataSandi, Tombol, Lencana } from '@/components/shared/For
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Tabel, TombolIkon } from '@/components/shared/Tabel';
+import { DAFTAR_POSISI, GAYA_POSISI, peringkatPosisi, type Posisi } from '@/lib/posisi';
 
 interface Pengguna {
   id: string;
@@ -19,6 +20,7 @@ interface Pengguna {
   active: boolean;
   created_at: string;
   manager_id: string | null;
+  position: string | null;
 }
 
 const GAYA_PERAN: Record<string, { color: string; bg: string }> = {
@@ -178,6 +180,13 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
               ),
             },
             {
+              label: 'Posisi', className: 'w-32',
+              urut: (u) => peringkatPosisi(u.position) || null,
+              render: (u) => (u.position && GAYA_POSISI[u.position as Posisi]
+                ? <Lencana label={u.position} {...GAYA_POSISI[u.position as Posisi]} />
+                : <Lencana label="Belum diisi" color="#b45309" bg="#fef3c7" />),
+            },
+            {
               label: 'Atasan', className: 'w-[16%]',
               urut: (u) => (u.manager_id ? namaPengguna[u.manager_id] : null),
               render: (u) => (u.manager_id && namaPengguna[u.manager_id]
@@ -264,6 +273,17 @@ function FormPengguna({
   const [phone, setPhone] = useState(awal?.phone ?? '');
   const [role, setRole] = useState(awal?.role ?? 'SALES');
   const [managerId, setManagerId] = useState(awal?.manager_id ?? '');
+  const [posisi, setPosisi] = useState(awal?.position ?? '');
+
+  // Hanya akun aktif yang posisinya LEBIH TINGGI yang bisa menjadi atasan —
+  // aturan yang sama ditegakkan trigger sm_jaga_struktur (migrasi 036).
+  const opsiAtasan = calonAtasan
+    .filter((u) => u.id !== awal?.id && u.active
+      && peringkatPosisi(u.position) > peringkatPosisi(posisi))
+    .sort((a, b) => peringkatPosisi(a.position) - peringkatPosisi(b.position)
+      || a.full_name.localeCompare(b.full_name, 'id'))
+    .map((u) => ({ value: u.id, label: `${u.full_name} — ${u.position}` }));
+  const atasanMasihSah = !managerId || opsiAtasan.some((o) => o.value === managerId);
   const [sandi, setSandi] = useState('');
   const [galat, setGalat] = useState<string | null>(null);
   const [memproses, setMemproses] = useState(false);
@@ -271,6 +291,7 @@ function FormPengguna({
   async function simpan(e: React.FormEvent) {
     e.preventDefault();
     setGalat(null);
+    if (!posisi) { setGalat('Pilih posisi akun ini.'); return; }
     setMemproses(true);
     try {
       const res = await fetch('/api/admin/users', {
@@ -279,8 +300,10 @@ function FormPengguna({
         credentials: 'include',
         body: JSON.stringify(
           awal
-            ? { id: awal.id, full_name: fullName, email, phone, role, manager_id: managerId || null }
-            : { username, full_name: fullName, email, phone, role, password: sandi },
+            ? { id: awal.id, full_name: fullName, email, phone, role, position: posisi,
+                manager_id: atasanMasihSah ? managerId || null : null }
+            : { username, full_name: fullName, email, phone, role, position: posisi,
+                manager_id: atasanMasihSah ? managerId || null : null, password: sandi },
         ),
       });
       const data = await res.json();
@@ -341,19 +364,29 @@ function FormPengguna({
           {(id) => <PilihCari id={id} nilai={role} onUbah={setRole} opsi={OPSI_PERAN} disabled={memproses} />}
         </Kolom>
 
-        {awal && (
-          <Kolom label="Atasan" bantuan="Siapa yang membawahi akun ini secara struktural.">
-            {(id) => (
-              <PilihCari
-                id={id} nilai={managerId} onUbah={setManagerId} disabled={memproses}
-                bolehKosong labelKosong="— tidak ada —"
-                opsi={calonAtasan
-                  .filter((u) => u.id !== awal.id)
-                  .map((u) => ({ value: u.id, label: `${u.full_name} (${LABEL_PERAN[u.role as Peran] ?? u.role})` }))}
-              />
-            )}
-          </Kolom>
-        )}
+        <Kolom label="Posisi" wajib bantuan="Jenjang di struktur organisasi.">
+          {(id) => (
+            <PilihCari id={id} nilai={posisi} onUbah={setPosisi} disabled={memproses}
+              bolehKosong labelKosong="— pilih posisi —"
+              opsi={DAFTAR_POSISI.map((p) => ({ value: p, label: p }))} />
+          )}
+        </Kolom>
+
+        <Kolom label="Atasan"
+          bantuan={!posisi
+            ? 'Pilih posisi dulu — atasan harus berposisi lebih tinggi.'
+            : !atasanMasihSah
+              ? 'Atasan sebelumnya tidak lagi lebih tinggi dari posisi baru dan akan dilepas.'
+              : 'Hanya akun aktif berposisi lebih tinggi. Bisa juga diatur di Struktur Organisasi.'}>
+          {(id) => (
+            <PilihCari
+              id={id} nilai={atasanMasihSah ? managerId : ''} onUbah={setManagerId}
+              disabled={memproses || !posisi}
+              bolehKosong labelKosong="— tidak ada —"
+              opsi={opsiAtasan}
+            />
+          )}
+        </Kolom>
 
         {!awal && (
           <Kolom label="Kata Sandi Awal" wajib

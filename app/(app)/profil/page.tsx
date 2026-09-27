@@ -201,7 +201,7 @@ export default function HalamanProfil() {
         credentials: 'include',
         body: JSON.stringify({
           email, phone: telepon,
-          division: divisi, sales_division: salesDivisi, position: jabatan,
+          division: divisi, sales_division: salesDivisi,
           address: alamat,
         }),
       });
@@ -326,12 +326,10 @@ export default function HalamanProfil() {
                         opsi={opsi.sales_divisions.map((d) => ({ value: d, label: d }))} />
                     )}
                   </Kolom>
-                  <Kolom label="Jabatan / Posisi">
-                    {(id) => (
-                      <PilihCari id={id} nilai={jabatan} onUbah={setJabatan}
-                        disabled={simpanKontak} bolehKosong labelKosong="— belum diisi —"
-                        opsi={opsi.positions.map((d) => ({ value: d, label: d }))} />
-                    )}
+                  {/* Posisi menentukan letak di struktur organisasi, jadi hanya
+                      Admin yang boleh mengubahnya — bukan pemiliknya sendiri. */}
+                  <Kolom label="Posisi" bantuan="Diatur Admin. Hubungi Admin bila tidak sesuai.">
+                    {(id) => <Teks id={id} value={jabatan || 'Belum diisi'} readOnly disabled />}
                   </Kolom>
                 </div>
 

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { getSessionUser, isAdmin } from '@/lib/server-auth';
 import { pesanGalat } from '@/lib/pesan-galat';
+import { posisiSah, DAFTAR_POSISI } from '@/lib/posisi';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,14 @@ export const dynamic = 'force-dynamic';
 const PERAN_SAH = ['SALES', 'MANAGER', 'ADMIN', 'DIRECTOR', 'FINANCE'];
 
 /** Aturan sandi minimum — ditegakkan di sini, bukan hanya di formulir. */
+/**
+ * Penolakan aturan bisnis dari database (RAISE EXCEPTION, mis. trigger
+ * sm_jaga_struktur) adalah kesalahan isian, bukan kerusakan server.
+ */
+function statusGalat(galat: { code?: string } | null): number {
+  return galat?.code === 'P0001' || galat?.code === '23514' ? 409 : 500;
+}
+
 function sandiLemah(sandi: string): string | null {
   if (sandi.length < 8) return 'Kata sandi minimal 8 karakter.';
   if (!/[a-zA-Z]/.test(sandi)) return 'Kata sandi harus memuat huruf.';
@@ -78,15 +87,25 @@ export async function POST(request: NextRequest) {
   if (!PERAN_SAH.includes(role)) {
     return NextResponse.json({ error: 'Peran tidak dikenal.' }, { status: 400 });
   }
+  if (!posisiSah(body.position)) {
+    return NextResponse.json(
+      { error: `Posisi wajib dipilih: ${DAFTAR_POSISI.join(', ')}.` }, { status: 400 },
+    );
+  }
+  const managerBaru = typeof body.manager_id === 'string' && body.manager_id ? body.manager_id : null;
   const lemah = sandiLemah(sandi);
   if (lemah) return NextResponse.json({ error: lemah }, { status: 400 });
 
   const db = getAdminClient();
 
+  // Aturan pohon (atasan lebih tinggi, aktif, tanpa lingkaran) ditegakkan
+  // trigger sm_jaga_struktur — pesannya diteruskan apa adanya.
   const { data: baru, error: galatUser } = await db
     .from('users')
     .insert({
       username, full_name: fullName, role,
+      position: body.position,
+      manager_id: managerBaru,
       email: String(body.email ?? '').trim() || null,
       phone: String(body.phone ?? '').trim() || null,
     })
@@ -98,7 +117,7 @@ export async function POST(request: NextRequest) {
     if (galatUser.code === '23505') {
       return NextResponse.json({ error: `Username "${username}" sudah dipakai.` }, { status: 409 });
     }
-    return NextResponse.json({ error: pesanGalat(galatUser) }, { status: 500 });
+    return NextResponse.json({ error: pesanGalat(galatUser) }, { status: statusGalat(galatUser) });
   }
 
   const { error: galatKredensial } = await db.from('user_credentials').insert({
@@ -140,7 +159,14 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.phone === 'string') perubahan.phone = body.phone.trim() || null;
   if (typeof body.division === 'string') perubahan.division = body.division.trim() || null;
   if (typeof body.sales_division === 'string') perubahan.sales_division = body.sales_division.trim() || null;
-  if (typeof body.position === 'string') perubahan.position = body.position.trim() || null;
+  if ('position' in body) {
+    if (!posisiSah(body.position)) {
+      return NextResponse.json(
+        { error: `Posisi harus salah satu dari: ${DAFTAR_POSISI.join(', ')}.` }, { status: 400 },
+      );
+    }
+    perubahan.position = body.position;
+  }
   if (typeof body.address === 'string') perubahan.address = body.address.trim().slice(0, 300) || null;
 
   // Atasan ("manager_id") murni keputusan struktur organisasi, bukan biodata
@@ -226,7 +252,7 @@ export async function PATCH(request: NextRequest) {
 
   if (Object.keys(perubahan).length > 0) {
     const { error } = await db.from('users').update(perubahan).eq('id', id);
-    if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
+    if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: statusGalat(error) });
   }
 
   // Reset sandi ditangani terpisah: nilainya tidak boleh ikut tercatat di

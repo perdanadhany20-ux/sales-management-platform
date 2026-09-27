@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * components/shared/PilihCari.tsx — combobox dengan kotak pencarian.
@@ -47,7 +48,9 @@ export function PilihCari({
   const wadahRef = useRef<HTMLDivElement>(null);
   const pemicuRef = useRef<HTMLButtonElement>(null);
   const daftarRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const idDaftar = useId();
+  const [letak, setLetak] = useState<{ left: number; width: number; top?: number; bottom?: number } | null>(null);
 
   const semua: OpsiPilih[] = bolehKosong
     ? [{ value: '', label: labelKosong }, ...opsi]
@@ -65,10 +68,40 @@ export function PilihCari({
   useEffect(() => {
     if (!buka) return;
     const tutup = (e: MouseEvent) => {
-      if (wadahRef.current && !wadahRef.current.contains(e.target as Node)) setBuka(false);
+      const t = e.target as Node;
+      if (wadahRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setBuka(false);
     };
     document.addEventListener('mousedown', tutup);
     return () => document.removeEventListener('mousedown', tutup);
+  }, [buka]);
+
+  // Daftar dirender lewat portal dengan posisi fixed. Sebelumnya ia anak
+  // absolute dari isiannya, sehingga di dalam Modal — yang badannya bisa
+  // digulir — daftarnya terpotong batas modal menjadi kotak gulir sempit.
+  // Posisi dihitung ulang saat digulir atau jendela berubah ukuran, dan
+  // daftar membuka ke ATAS bila ruang di bawah isian tidak cukup.
+  useEffect(() => {
+    if (!buka) { setLetak(null); return; }
+    const TINGGI_PANEL = 300;
+    function hitung() {
+      const el = pemicuRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const bawah = window.innerHeight - r.bottom;
+      const keAtas = bawah < TINGGI_PANEL && r.top > bawah;
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - r.width - 8));
+      setLetak(keAtas
+        ? { left, width: r.width, bottom: window.innerHeight - r.top + 4 }
+        : { left, width: r.width, top: r.bottom + 4 });
+    }
+    hitung();
+    window.addEventListener('scroll', hitung, true);
+    window.addEventListener('resize', hitung);
+    return () => {
+      window.removeEventListener('scroll', hitung, true);
+      window.removeEventListener('resize', hitung);
+    };
   }, [buka]);
 
   // Sorotan dikembalikan ke atas setiap kali kata kuncinya berubah. Tanpa ini,
@@ -103,6 +136,15 @@ export function PilihCari({
       const o = tersaring[sorot];
       if (o) pilih(o.value);
     } else if (e.key === 'Escape') {
+      // Hanya daftar yang ditutup — Escape tidak boleh ikut menutup Modal
+      // tempat isian ini berada.
+      e.preventDefault();
+      e.stopPropagation();
+      setBuka(false);
+      pemicuRef.current?.focus();
+    } else if (e.key === 'Tab') {
+      // Daftar hidup di portal di luar Modal; Tab darinya akan melompat ke
+      // luar Modal. Tutup daftarnya dan kembali ke isian.
       e.preventDefault();
       setBuka(false);
       pemicuRef.current?.focus();
@@ -144,8 +186,10 @@ export function PilihCari({
         </svg>
       </button>
 
-      {buka && (
-        <div className="absolute z-30 mt-1 w-full rounded-kontrol border border-slate-200 bg-white shadow-dropdown overflow-hidden">
+      {buka && letak && typeof document !== 'undefined' && createPortal(
+        <div ref={panelRef}
+          style={{ position: 'fixed', left: letak.left, width: letak.width, top: letak.top, bottom: letak.bottom, zIndex: 80 }}
+          className="rounded-kontrol border border-slate-200 bg-white shadow-dropdown overflow-hidden">
           <input
             autoFocus
             value={cari}
@@ -192,7 +236,8 @@ export function PilihCari({
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -87,7 +87,6 @@ export async function PATCH(request: NextRequest) {
   const division = typeof badan.division === 'string' ? badan.division.trim().slice(0, 60) : null;
   const salesDivision = typeof badan.sales_division === 'string'
     ? badan.sales_division.trim().slice(0, 60) : null;
-  const position = typeof badan.position === 'string' ? badan.position.trim().slice(0, 60) : null;
   // Alamat: biodata pribadi, boleh disunting sendiri — beda dengan `role`/
   // `manager_id` yang keputusan struktur organisasi dan hanya berubah lewat
   // /api/admin/users.
@@ -115,7 +114,6 @@ export async function PATCH(request: NextRequest) {
       phone: phone || null,
       division: division || null,
       sales_division: salesDivision || null,
-      position: position || null,
       address: address || null,
       updated_at: new Date().toISOString(),
     })
@@ -133,7 +131,7 @@ export async function PATCH(request: NextRequest) {
     detail: {
       email: email || null, phone: phone || null,
       division: division || null, sales_division: salesDivision || null,
-      position: position || null, address: address || null,
+      address: address || null,
     },
   });
 

@@ -99,7 +99,23 @@ terbaru). Nomor berkas adalah urutan wajib; jangan mengubah isi migrasi yang
 sudah pernah dijalankan — perbaikan selalu ditulis sebagai migrasi baru.
 Supabase Auth tidak perlu diaktifkan: platform ini memakai autentikasi sendiri.
 
-## 8. Peran & Hak
+## 8. Posisi & Struktur Organisasi
+
+Setiap akun wajib punya **posisi** — jenjang tetap dari bawah ke atas:
+Staff → Supervisor → Manager → General Manager → Direktur. Posisi dipilih
+saat mendaftar (atau saat Admin membuat akun) dan hanya bisa diubah Admin.
+
+**Pohon** atasan–bawahan (`users.manager_id`) dipetakan Admin di
+Admin → Struktur Organisasi. Database (trigger `sm_jaga_struktur`, migrasi
+036) menolak pemetaan yang tidak sah: atasan harus aktif dan berposisi lebih
+tinggi, tidak ada lingkaran, dan posisi tidak bisa diturunkan selagi masih
+membawahi orang yang setara atau lebih tinggi. Pohon inilah yang menentukan
+siapa melihat customer siapa.
+
+Posisi berbeda dari **peran**: peran (bagian berikut) menentukan hak akses di
+aplikasi, posisi menentukan letak di struktur.
+
+## 9. Peran & Hak
 
 `SALES`, `MANAGER`, `ADMIN`, `DIRECTOR`, `FINANCE`. Empat yang terakhir
 disebut **pengawas** dan melihat data seluruh tim.
@@ -133,15 +149,15 @@ galat teknis Postgres/PostgREST diterjemahkan ke kalimat biasa dan rinciannya
 dicatat ke console; pesan yang memang ditulis untuk manusia (RAISE EXCEPTION
 fungsi kita sendiri) diteruskan apa adanya.
 
-## 9. Storage
+## 10. Storage
 
 Bucket privat `evidence`, jalur `evidence/{user_id}/{schedule_id}/berkas.jpg`.
 Kepemilikan terbaca dari jalurnya sendiri. Tidak ada policy UPDATE: berkas
 bukti tidak boleh ditimpa.
 
-## 10. Pengujian
+## 11. Pengujian
 
-Lima skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
+Enam skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
 Supabase. Setiap skrip diakhiri `ROLLBACK`, jadi data ujinya tidak pernah
 tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 
@@ -151,18 +167,19 @@ tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 | `keamanan-gp.sql` | 29 | Ketepatan rumus GP terhadap berkas asli, isolasi, rantai persetujuan |
 | `keamanan-gps.sql` | 13 | Penolakan lokasi palsu — dan jaminan bahwa Sales jujur tetap lolos |
 | `keamanan-customer.sql` | 15 | Customer hanya terlihat oleh Sales pemiliknya dan garis atasannya; nama unik per Sales |
+| `keamanan-struktur.sql` | 13 | Jenjang posisi dan pohon organisasi: atasan harus lebih tinggi, tanpa lingkaran, tidak menurunkan posisi selagi membawahi yang setara |
 | `keamanan-hak.sql` | 20 | Sales menyunting tapi tidak menghapus miliknya, hanya Admin mengubah data orang lain, isolasi Target Sales, kolom pribadi `users` |
 
 Pemeriksaan kode: `npm run typecheck` dan `npm run build`.
 
-## 11. Deploy
+## 12. Deploy
 
 Push ke `main` memicu deployment otomatis di Vercel. Kelima variabel di §6
 harus terpasang di Vercel. Migrasi database diterapkan terpisah — terapkan
 migrasi **bersamaan** dengan kode yang membutuhkannya, karena kode lama
 terhadap fungsi database baru (atau sebaliknya) bisa gagal.
 
-## 12. Batasan yang Diketahui
+## 13. Batasan yang Diketahui
 
 - **Middleware bukan lapisan keamanan.** Ia hanya memeriksa keberadaan cookie.
   Penegakan sesungguhnya ada di route handler dan database.

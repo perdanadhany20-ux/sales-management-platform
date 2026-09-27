@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
+import { DAFTAR_POSISI } from '@/lib/posisi';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ const KUNCI = ['divisions', 'sales_divisions', 'positions', 'registration_open']
 const BAWAAN: Record<string, unknown> = {
   divisions: ['Sales', 'Marketing', 'Teknis', 'Finance', 'Operasional', 'Manajemen'],
   sales_divisions: ['Corporate', 'Government', 'Retail', 'Project', 'Channel Partner'],
-  positions: ['Staff', 'Senior Staff', 'Supervisor', 'Manager', 'Senior Manager', 'Director'],
+  positions: [...DAFTAR_POSISI],
   registration_open: true,
 };
 
@@ -40,7 +41,9 @@ export async function GET() {
   );
 
   return NextResponse.json(
-    { opsi: { ...BAWAAN, ...peta } },
+    // Posisi selalu jenjang baku, apa pun isi pengaturannya: urutannya
+    // menentukan pohon organisasi, jadi tidak boleh berbeda dari lib/posisi.ts.
+    { opsi: { ...BAWAAN, ...peta, positions: [...DAFTAR_POSISI] } },
     { headers: { 'Cache-Control': 'public, max-age=120, stale-while-revalidate=600' } },
   );
 }
