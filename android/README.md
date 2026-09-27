@@ -1,61 +1,86 @@
-# Aplikasi Android (APK / AAB)
+# Aplikasi Android
 
-Aplikasi Android Sales Management Platform adalah **Trusted Web Activity (TWA)**:
-jendela layar penuh ke deployment web pelanggan, memakai mesin Chrome di ponsel.
+Aplikasi Android Sales Management Platform adalah aplikasi **native** ringan
+(Java, tanpa pustaka tambahan) yang menampilkan deployment web pelanggan di
+WebView layar penuh, ditambah kemampuan yang tidak dimiliki browser:
 
-Karena isinya adalah aplikasi web yang sama, **setiap pembaruan web langsung
-berlaku di APK** — termasuk logo, perubahan fitur, dan status lisensi
-(LICENSE_ARCHITECTURE.md). Tidak perlu merilis APK baru saat lisensi
-di-upgrade, diperpanjang, atau diturunkan. APK baru hanya perlu dibangun bila
-ikon/nama aplikasi/domain berubah.
-
-Satu pelanggan = satu domain = satu APK (package id sendiri). Tidak ada fork kode.
-
-## Prasyarat
-
-- Node.js 20+, JDK 17, dan Android SDK (Bubblewrap bisa mengunduhkannya).
-- Deployment web pelanggan sudah online dengan HTTPS.
-
-## Membangun
-
-```bash
-# 1. Tulis konfigurasi untuk deployment pelanggan
-node android/buat-twa.mjs sales.ptabc.co.id id.co.ptabc.sales "Sales PT ABC" 1
-
-# 2. Bangun (pertama kali Bubblewrap membuat keystore android/android.keystore — SIMPAN baik-baik)
-cd android
-npx @bubblewrap/cli init --manifest=https://sales.ptabc.co.id/manifest.webmanifest   # hanya sekali, lalu pilih pakai twa-manifest.json
-npx @bubblewrap/cli build
-#  → app-release-signed.apk  (pasang langsung / distribusi internal)
-#  → app-release-bundle.aab  (unggah ke Google Play)
-
-# 3. Ambil sidik jari SHA-256 sertifikat penanda tangan
-keytool -list -v -keystore android.keystore -alias android | grep SHA256
-```
-
-## Menghubungkan APK ke domain (tanpa bilah alamat)
-
-Di Environment Variables proyek Vercel **pelanggan tersebut**:
-
-| Variabel | Contoh |
+| Kemampuan | Kenapa native |
 |---|---|
-| `ANDROID_PACKAGE_ID` | `id.co.ptabc.sales` |
-| `ANDROID_CERT_SHA256` | `AB:CD:…` (64 heks bertitik dua; bila memakai Play App Signing, tambahkan sidik jari dari Play Console dipisah koma) |
+| **Lokasi check-in anti fake GPS** | Android menandai lokasi dari aplikasi pengubah lokasi (`Location.isMock()`). Penanda itu tidak pernah sampai ke browser. Laporan lokasi ditandatangani HMAC dan diverifikasi server (`sm_verifikasi_aplikasi`, migrasi 039). |
+| Kamera foto bukti | Foto resolusi penuh lewat kamera HP (`PenyediaFoto`). |
+| Simpan ekspor Excel | Ke folder Download (WebView tidak bisa mengunduh blob). |
 
-Lalu redeploy. `https://<domain>/.well-known/assetlinks.json` akan berisi
-pernyataan yang cocok, dan APK terbuka tanpa bilah alamat.
+Isi halaman tetap aplikasi web yang sama, jadi pembaruan web, logo, dan status
+lisensi langsung berlaku tanpa merilis APK baru. APK baru hanya perlu bila kode
+native, ikon, atau domain berubah.
 
-## Aset ikon
+**Satu pelanggan = satu APK.** Domain, kunci tanda tangan lokasi, dan keystore
+berbeda per deployment. Tidak ada fork kode.
 
-Ikon aplikasi diambil dari web: `public/icon-512.png` (any) dan
-`public/icon-maskable-512.png` (adaptive icon, zona aman 60%). Keduanya dibuat
-dari logo resmi di `public/brand/logo-1024.png`.
+## Membangun APK untuk satu pelanggan
 
-## Catatan izin
+Prasyarat: JDK 17 dan Android SDK (platform 36). Build berjalan offline bila
+dependensi Gradle sudah ada di cache.
 
-- **Lokasi**: `locationDelegation` aktif, sehingga check-in GPS Meeting memakai izin lokasi Android.
-- **Kamera**: foto bukti Meeting memakai pemilih berkas/kamera bawaan Chrome.
-- **Notifikasi**: `enableNotifications` aktif untuk pengingat.
+1. Buat folder rahasia pelanggan **di luar repositori** (dan cadangkan):
 
-Berkas keluaran (`twa-manifest.json`, `android.keystore`, `*.apk`, `*.aab`)
-tidak di-commit — lihat `.gitignore`.
+   ```bash
+   keytool -genkeypair -keystore sales-release.jks -alias sales -keyalg RSA -keysize 2048 -validity 10000
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # kunciTanda
+   ```
+
+2. Tulis `pelanggan.properties` di folder itu:
+
+   ```properties
+   url=https://sales.ptabc.co.id
+   applicationId=id.co.ptabc.sales
+   namaAplikasi=Sales PT ABC
+   versionCode=1
+   versionName=1.0.0
+   kunciTanda=<64 heksadesimal>
+   keystore=C:/lokasi/rahasia/sales-release.jks
+   keyAlias=sales
+   keystorePassword=<sandi keystore>
+   ```
+
+3. Pasang `kunciTanda` yang SAMA ke database pelanggan (tabel
+   `sm_kunci_aplikasi`, hanya bisa ditulis service role):
+
+   ```sql
+   insert into sm_kunci_aplikasi (id, kunci) values (true, '<kunciTanda>')
+   on conflict (id) do update set kunci = excluded.kunci, dibuat_pada = now();
+   ```
+
+4. Salin `pelanggan.properties` ke `android/` (diabaikan git), lalu bangun:
+
+   ```bash
+   cd android
+   ./gradlew assembleRelease
+   # → app/build/outputs/apk/release/app-release.apk
+   ```
+
+5. Unggah APK ke bucket Storage **privat** `aplikasi` milik pelanggan dengan
+   nama `sales-management.apk`. Pengguna yang sudah masuk mengunduhnya lewat
+   Profil → Aplikasi Android (`/api/aplikasi/unduh`, tautan sementara 5 menit).
+
+## Merilis versi baru
+
+Naikkan `versionCode` dan `versionName`, bangun dengan **keystore yang sama**
+(tanpa itu APK baru tidak bisa dipasang menimpa versi lama), unggah ulang. Bila
+versi lama harus dipaksa berhenti, naikkan *Versi aplikasi minimum* di
+Admin → Nilai Bisnis → Aplikasi Android.
+
+## Mewajibkan check-in lewat aplikasi
+
+Admin → Nilai Bisnis → Aplikasi Android → *Wajib check-in lewat aplikasi*.
+Nyalakan setelah seluruh Sales memasang APK: check-in Meeting dari browser
+lalu ditolak dengan status `APP_REQUIRED`.
+
+## Batasan yang jujur
+
+- Kunci tanda tangan tertanam di APK. Orang yang membongkar APK bisa
+  mengambilnya dan mengarang laporan. Itu jauh lebih sulit daripada memasang
+  aplikasi fake GPS, dan APK hanya dibagikan ke pengguna yang sudah masuk.
+  Kepastian penuh butuh Play Integrity API (distribusi lewat Google Play).
+- HP yang di-root dengan modul penyembunyi (mis. Xposed) bisa menyembunyikan
+  penanda `isMock`.

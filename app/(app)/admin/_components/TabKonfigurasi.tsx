@@ -35,6 +35,8 @@ export function TabKonfigurasi() {
   const [aktivitas, setAktivitas] = useState<string[]>([]);
   const [radius, setRadius] = useState(50);
   const [akurasi, setAkurasi] = useState(100);
+  const [wajibAplikasi, setWajibAplikasi] = useState(false);
+  const [versiMinimum, setVersiMinimum] = useState('1.0.0');
 
   const [memuat, setMemuat] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
@@ -55,6 +57,8 @@ export function TabKonfigurasi() {
     setAktivitas((peta.activity_categories ?? []) as string[]);
     setRadius(Number(peta.default_gps_radius_m ?? 50));
     setAkurasi(Number(peta.gps_accuracy_threshold_m ?? 100));
+    setWajibAplikasi(peta.checkin_wajib_aplikasi === true);
+    setVersiMinimum(typeof peta.apk_versi_minimum === 'string' ? peta.apk_versi_minimum : '1.0.0');
     setMemuat(false);
   }, []);
 
@@ -174,6 +178,43 @@ export function TabKonfigurasi() {
           <Tombol className="text-[12px] py-2" memuat={menyimpan === 'gps_accuracy_threshold_m'}
             onClick={() => simpan('gps_accuracy_threshold_m', akurasi, 'Ambang akurasi')}>
             Simpan Akurasi
+          </Tombol>
+        </div>
+      </BentoCard>
+
+      {/* ── Aplikasi Android ── */}
+      <BentoCard rentang={6} tinggi="auto" judul="Aplikasi Android">
+        <p className="text-[12px] text-slate-600 leading-relaxed mb-3">
+          Di aplikasi Android, lokasi check-in dibaca langsung dari HP dan lokasi dari aplikasi
+          fake GPS terdeteksi. Versi browser hanya bisa menebaknya dari ciri sinyal.
+        </p>
+        <label className="flex items-start gap-3 rounded-kontrol border border-slate-200 p-3 cursor-pointer">
+          <input type="checkbox" className="mt-0.5 w-4 h-4 accent-aksen-600"
+            checked={wajibAplikasi} onChange={(e) => setWajibAplikasi(e.target.checked)} />
+          <span>
+            <span className="block text-[13px] font-semibold text-slate-800">Wajib check-in lewat aplikasi</span>
+            <span className="block text-[11px] text-slate-500 mt-0.5">
+              Check-in Meeting dari browser ditolak. Nyalakan setelah seluruh Sales memasang aplikasinya.
+            </span>
+          </span>
+        </label>
+        <div className="flex flex-col gap-1.5 mt-3">
+          <label htmlFor="k-versi" className="text-[12px] font-semibold text-slate-700">Versi aplikasi minimum</label>
+          <Teks id="k-versi" value={versiMinimum} onChange={(e) => setVersiMinimum(e.target.value.trim())}
+            placeholder="1.0.0" className="max-w-[140px] tabular-nums" />
+          <p className="text-[11px] text-slate-500">Pengguna dengan versi lebih lama diminta memperbarui aplikasinya.</p>
+        </div>
+        <div className="flex items-center gap-2 mt-3">
+          <Tombol className="text-[12px] py-2" memuat={menyimpan === 'checkin_wajib_aplikasi'}
+            onClick={() => simpan('checkin_wajib_aplikasi', wajibAplikasi, 'Wajib aplikasi')}>
+            Simpan Kewajiban
+          </Tombol>
+          <Tombol className="text-[12px] py-2" rupa="kedua" memuat={menyimpan === 'apk_versi_minimum'}
+            onClick={() => {
+              if (!/^\d+(\.\d+){0,2}$/.test(versiMinimum)) { toast('galat', 'Format versi: 1.0.0'); return; }
+              void simpan('apk_versi_minimum', versiMinimum, 'Versi minimum');
+            }}>
+            Simpan Versi
           </Tombol>
         </div>
       </BentoCard>

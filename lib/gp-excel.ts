@@ -1,5 +1,7 @@
 'use client';
 
+import { simpanBlobNative } from './aplikasi';
+
 import type { GpRingkasan, GpItem } from './gp';
 
 /**
@@ -288,10 +290,10 @@ export async function eksporGpExcel(
   }
 
   const buffer = await wb.xlsx.writeBuffer();
-  saveAs(
-    new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    }),
-    `${gp.nomor.replace(/\//g, '-')}-${gp.project_name.replace(/[^\w\s-]/g, '').trim().slice(0, 30)}.xlsx`,
-  );
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const nama = `${gp.nomor.replace(/\//g, '-')}-${gp.project_name.replace(/[^\w\s-]/g, '').trim().slice(0, 30)}.xlsx`;
+  // Di aplikasi Android berkas disimpan ke folder Download lewat jembatan
+  // native; WebView tidak bisa mengunduh blob seperti browser.
+  if (await simpanBlobNative(blob, nama)) return;
+  saveAs(blob, nama);
 }

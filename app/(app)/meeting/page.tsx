@@ -20,6 +20,7 @@ import { PanelMeeting, type Meeting, type Lokasi } from './_components/PanelMeet
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { pesanGalat } from '@/lib/pesan-galat';
+import { BannerAplikasi } from '@/components/shared/KartuAplikasi';
 
 /**
  * Halaman Meeting (§28–§39) — tempat jadwal berkehadiran DIEKSEKUSI.
@@ -267,6 +268,8 @@ export default function HalamanMeeting() {
 
   return (
     <div className="flex flex-col gap-4">
+
+      <BannerAplikasi />
 
       <header className="flex items-end justify-between gap-3 flex-wrap">
         <div>

@@ -138,7 +138,18 @@ export const BAWAAN_LISENSI = {
   durasiHari: 365,
   peringatanHari: 30,
   graceHari: 7,
+  /**
+   * Batas "masa tenggang": verifikasi terakhir yang lebih tua dari ini
+   * dianggap tertunda. BUKAN jadwal pemeriksaan — lihat di bawah.
+   */
   intervalVerifikasiJam: 24,
+  /**
+   * Jadwal pemeriksaan rutin ke Authority. Pencabutan, penangguhan, dan
+   * perubahan paket oleh developer harus berlaku dalam hitungan menit, bukan
+   * keesokan harinya. Satu permintaan kecil per 5 menit per deployment —
+   * dan hanya saat platform sedang dipakai.
+   */
+  intervalVerifikasiRutinMenit: 5,
   /** Selama ada permintaan menunggu, keputusan developer ingin cepat terlihat. */
   intervalVerifikasiMenungguMenit: 5,
   /** Toleransi selisih jam server ↔ Authority saat memeriksa `verified_at`. */

@@ -1,5 +1,7 @@
 'use client';
 
+import { bacaLokasiNative, diAplikasiAndroid } from './aplikasi';
+
 /**
  * lib/gps.ts — pembacaan lokasi di browser.
  *
@@ -51,6 +53,8 @@ export interface SinyalKlien {
   jumlah_sampel: number;
   /** Rentang waktu pengumpulan sampel (ms). */
   durasi_ms: number;
+  /** Laporan bertanda tangan dari aplikasi Android (lib/aplikasi.ts). */
+  native?: { payload: string; tanda: string; versi: string; mock: boolean };
 }
 
 export interface BacaanKehadiran extends Koordinat {
@@ -178,8 +182,36 @@ function perangkatSentuh(): boolean {
  * perkiraan wifi sebelum satelitnya terkunci.
  */
 export function ambilLokasiKehadiran(
-  { minSampel = 3, maksSampel = 6, durasiMs = 6000 } = {},
+  { minSampel = 3, maksSampel = 6, durasiMs = 6000, idJadwal }:
+    { minSampel?: number; maksSampel?: number; durasiMs?: number; idJadwal?: string } = {},
 ): Promise<BacaanKehadiran> {
+  // Di dalam aplikasi Android lokasi dibaca native: Android menandai lokasi
+  // dari aplikasi fake GPS, dan laporannya ditandatangani (migrasi 039).
+  if (idJadwal && diAplikasiAndroid()) {
+    return bacaLokasiNative(idJadwal).then((n) => ({
+      lat: n.lat,
+      lng: n.lng,
+      accuracy: n.accuracy,
+      altitude: n.altitude,
+      altitudeAccuracy: n.altitudeAccuracy,
+      speed: n.speed,
+      heading: n.heading,
+      waktu: n.waktu,
+      sampel: n.sampel.map((s) => ({ lat: s.lat, lng: s.lng, accuracy: s.accuracy, t: s.t })),
+      sinyal: {
+        api_asli: true,
+        objek_asli: true,
+        sentuh: true,
+        selisih_jam_ms: 0,
+        jumlah_sampel: n.sampel.length,
+        durasi_ms: n.durasi_ms,
+        native: n.native,
+      },
+    }), (e: unknown) => {
+      throw new GpsError(e instanceof Error ? e.message : 'Lokasi belum bisa dibaca.', 'GAGAL');
+    });
+  }
+
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       reject(new GpsError('Perangkat ini tidak mendukung GPS.', 'TIDAK_DIDUKUNG'));

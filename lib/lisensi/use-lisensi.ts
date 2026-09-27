@@ -92,6 +92,30 @@ export function kosongkanCacheLisensiKlien(): void {
   cache = null;
 }
 
+/** Berlangganan perubahan lisensi (dipakai penyusun menu). */
+export function dengarLisensi(f: (l: Lisensi) => void): () => void {
+  pendengar.add(f);
+  return () => { pendengar.delete(f); };
+}
+
+/*
+ * Penyegaran berkala: tab yang dibiarkan terbuka tetap mengikuti keputusan
+ * developer (cabut, tangguhkan, ubah paket) tanpa perlu dimuat ulang. Hanya
+ * satu pewaktu untuk seluruh tab, dan tidak berjalan saat tab tersembunyi.
+ */
+let pewaktu: ReturnType<typeof setInterval> | null = null;
+function pasangPenyegaran() {
+  if (pewaktu || typeof window === 'undefined') return;
+  pewaktu = setInterval(() => {
+    if (document.visibilityState === 'visible') void ambilLisensi(true);
+  }, UMUR_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && (!cache || cache.sampai - UMUR_MS + 60_000 < Date.now())) {
+      void ambilLisensi(true);
+    }
+  });
+}
+
 /** null = masih memuat. */
 export function useLisensi(aktif = true) {
   const [lisensi, setLisensi] = useState<Lisensi | null>(cache?.nilai ?? null);
@@ -101,6 +125,7 @@ export function useLisensi(aktif = true) {
     let batal = false;
     const terima = (l: Lisensi) => { if (!batal) setLisensi(l); };
     pendengar.add(terima);
+    pasangPenyegaran();
     void ambilLisensi().then((l) => { if (!batal && l) setLisensi(l); });
     return () => { batal = true; pendengar.delete(terima); };
   }, [aktif]);

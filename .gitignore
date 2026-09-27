@@ -13,15 +13,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Android (TWA) — keluaran per pelanggan & kunci penanda tangan
-android/twa-manifest.json
+# Android — hasil build dan RAHASIA per pelanggan (keystore, kunci tanda tangan)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/pelanggan.properties
 android/*.keystore
+android/*.jks
 android/*.apk
 android/*.aab
-android/app/
-android/gradle*
-android/build*
-android/settings.gradle
-android/local.properties
-android/.gradle/
-android/store_icon.png

@@ -15,6 +15,7 @@ import {
 import { Kolom, KataSandi, Teks, Tombol } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { PanelGalat, LayarMemuat, useToast } from '@/components/shared/Feedback';
+import { KartuAplikasi } from '@/components/shared/KartuAplikasi';
 
 /**
  * Profil Akun — kartu identitas lengkap, bukan sekadar formulir ganti sandi.
@@ -501,6 +502,8 @@ export default function HalamanProfil() {
                   : 'Data milik sendiri: laporan, pipeline, dan meeting yang ditugaskan kepada Anda.'}
             </p>
           </Panel>
+
+          <KartuAplikasi />
 
           <Panel ikon="📦" judul="Hak Akses Modul" jumlah={`${modul.semua.length} modul`}>
             <Teks

@@ -323,7 +323,7 @@ async function hitungStatus(paksa: boolean): Promise<StatusLisensiServer> {
     || (muatan?.requests ?? []).some((r) => r.status === 'PENDING_APPROVAL');
   const intervalMs = adaMenunggu
     ? BAWAAN_LISENSI.intervalVerifikasiMenungguMenit * 60_000
-    : BAWAAN_LISENSI.intervalVerifikasiJam * 3_600_000;
+    : BAWAAN_LISENSI.intervalVerifikasiRutinMenit * 60_000;
   const umur = baris?.last_verified_at ? sekarang.getTime() - new Date(baris.last_verified_at).getTime() : Infinity;
   const jedaCoba = baris?.last_attempt_at ? sekarang.getTime() - new Date(baris.last_attempt_at).getTime() : Infinity;
   // Rem: sekali per menit (10 detik bila dipaksa Admin) walau banyak pengguna membuka bersamaan.

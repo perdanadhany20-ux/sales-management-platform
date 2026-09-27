@@ -12,9 +12,10 @@ import { Kolom, KataSandi, Tombol } from './FormParts';
 import { LABEL_PERAN, type Peran } from '@/lib/constants';
 import { useMenuSaya, type MenuKey } from '@/lib/menu-akses';
 import { useBranding } from '@/lib/branding';
-import { useLisensi, type Lisensi } from '@/lib/lisensi/use-lisensi';
+import { ambilLisensi, useLisensi, type Lisensi } from '@/lib/lisensi/use-lisensi';
 import { FITUR_MENU, pesanKode } from '@/lib/lisensi/kontrak';
 import { HeaderAtas } from './HeaderAtas';
+import { PenjagaVersiAplikasi } from './KartuAplikasi';
 import {
   bagianUntuk, URUTAN_KELOMPOK, type KunciBagian,
 } from '@/lib/admin-bagian';
@@ -112,6 +113,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (navigasiPertama.current) { navigasiPertama.current = false; return; }
     void muatUlang();
+    // Lisensi juga diperiksa ulang per navigasi (server menyimpan hasilnya
+    // 30 detik dan bertanya ke Authority paling sering tiap 5 menit).
+    void ambilLisensi(true);
   }, [pathname, muatUlang]);
   usePantauKlikTautan();
   const sedangNavigasi = useSedangNavigasi();
@@ -158,6 +162,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           identitas platform dan lencana notifikasi harus terlihat sama di
           setiap halaman, termasuk saat sidebar disembunyikan di ponsel. */}
       <HeaderAtas pengguna={pengguna} branding={branding} />
+      <PenjagaVersiAplikasi />
 
       <div className="flex-1 flex min-h-0">
         <SidebarLebar menu={menu} pathname={pathname} pengguna={pengguna} />

@@ -157,7 +157,7 @@ export function PanelMeeting({
       // tapi beberapa sampel berurutan plus ciri sinyalnya. Tanpa itu database
       // tidak punya bahan untuk membedakan GPS sungguhan dari lokasi buatan —
       // dan memang menolak check-in yang datang tanpa laporan (migrasi 032).
-      const lok = await ambilLokasiKehadiran();
+      const lok = await ambilLokasiKehadiran({ idJadwal: meeting.id });
       const { data, error } = await supabase.rpc('sm_check_in', {
         p_schedule_id: meeting.id,
         p_lat: lok.lat,
@@ -391,6 +391,12 @@ export function PanelMeeting({
                 <p className="text-[11px] text-[#8f2c2b]/80 mt-1 tabular-nums">
                   Anda {jarak(gagalGps.jarak_m)} dari titik lokasi; batasnya {gagalGps.radius_m} m.
                 </p>
+              )}
+              {gagalGps.status === 'APP_REQUIRED' && (
+                <a href="/api/aplikasi/unduh"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-kontrol bg-[#8f2c2b] text-white text-[12px] font-bold px-3 py-2 min-h-[40px]">
+                  ⬇ Unduh aplikasi Android
+                </a>
               )}
               <p className="text-[10px] text-[#8f2c2b]/70 mt-1.5">
                 Percobaan ini tercatat pada jejak GPS.

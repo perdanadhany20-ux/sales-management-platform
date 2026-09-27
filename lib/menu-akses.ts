@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { ambilLisensi } from './lisensi/use-lisensi';
+import { ambilLisensi, dengarLisensi } from './lisensi/use-lisensi';
 import { bolehMenu } from './lisensi/kontrak';
 
 /**
@@ -99,7 +99,12 @@ export function useMenuSaya(userId: string | undefined, role: string | undefined
     let batal = false;
     setMenu(null);
     void ambilMenuEfektif(userId, role).then((m) => { if (!batal) setMenu(m); });
-    return () => { batal = true; };
+    // Lisensi berubah (dicabut, ditangguhkan, paket diubah) → menu disusun
+    // ulang saat itu juga, tanpa menunggu halaman dimuat ulang.
+    const lepas = dengarLisensi(() => {
+      void ambilMenuEfektif(userId, role).then((m) => { if (!batal) setMenu(m); });
+    });
+    return () => { batal = true; lepas(); };
   }, [userId, role]);
 
   return menu;

@@ -397,7 +397,10 @@ function KartuPermintaan({ lisensi, onBerubah }: { lisensi: Lisensi; onBerubah: 
   const toast = useToast();
   const permintaan = lisensi.detail?.permintaan ?? [];
   const menunggu = permintaan.find((p) => p.status === 'PENDING_APPROVAL');
-  const punyaLisensi = Boolean(lisensi.detail?.license_id) && lisensi.status !== 'PENDING' && lisensi.status !== null;
+  // Lisensi yang DICABUT sudah tidak bisa diperpanjang atau diubah paketnya —
+  // yang tersisa adalah mengajukan lisensi baru.
+  const punyaLisensi = Boolean(lisensi.detail?.license_id) && lisensi.status !== 'PENDING'
+    && lisensi.status !== null && lisensi.status !== 'REVOKED' && lisensi.status !== 'REPLACED';
 
   const [jenis, setJenis] = useState<JenisPermintaan | null>(null);
   const [paket, setPaket] = useState<Paket>((lisensi.detail?.paket_kode as Paket) ?? 'STARTER');
@@ -460,7 +463,27 @@ function KartuPermintaan({ lisensi, onBerubah }: { lisensi: Lisensi; onBerubah: 
       <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-3">Permintaan Lisensi</h3>
 
       {/* Hasil keputusan terakhir (§68). Alasan hanya bila memang dituliskan. */}
-      {terbaru && !menunggu && terbaru.status === 'APPROVED' && terbaru.processed_at && (
+      {/* Status lisensi SEKARANG didahulukan: permintaan yang dulu disetujui
+          tidak boleh tetap tampil hijau setelah lisensinya dicabut. */}
+      {lisensi.status === 'REVOKED' && (
+        <div className="mb-3 rounded-kontrol bg-[#e2e8f0] text-slate-700 px-3 py-2.5 text-[12px]">
+          <b>Lisensi dicabut oleh penyedia platform.</b> Modul berlisensi tidak tersedia; seluruh data tetap
+          tersimpan dan kembali terbuka bila lisensi baru disetujui.
+        </div>
+      )}
+      {lisensi.status === 'SUSPENDED' && (
+        <div className="mb-3 rounded-kontrol bg-[#fde9c4] text-[#7a5300] px-3 py-2.5 text-[12px]">
+          <b>Lisensi ditangguhkan sementara oleh penyedia platform.</b> Hubungi penyedia platform untuk
+          mengaktifkannya kembali. Data tidak terhapus.
+        </div>
+      )}
+      {lisensi.status === 'EXPIRED' && (
+        <div className="mb-3 rounded-kontrol bg-[#fce3e3] text-[#8f2c2b] px-3 py-2.5 text-[12px]">
+          <b>Lisensi sudah berakhir</b> pada {tanggalPanjang(lisensi.detail?.berakhir)}. Ajukan perpanjangan untuk
+          membuka kembali modulnya.
+        </div>
+      )}
+      {lisensi.berlaku && terbaru && !menunggu && terbaru.status === 'APPROVED' && terbaru.processed_at && (
         <div className="mb-3 rounded-kontrol bg-[#e0f2e0] text-[#0b4f0b] px-3 py-2.5 text-[12px]">
           <b>✓ Lisensi disetujui.</b> {LABEL_PAKET[terbaru.requested_package]} aktif, berlaku sampai {tanggalPanjang(lisensi.detail?.berakhir)}.
         </div>

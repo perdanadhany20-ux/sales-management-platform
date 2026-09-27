@@ -76,6 +76,8 @@ export const PESAN_GPS: Record<string, string> = {
   // adalah dugaan berdasar ciri sinyal, bukan kepastian, dan pembacaan yang
   // aneh memang bisa terjadi tanpa ada yang berniat menipu. Yang disampaikan
   // adalah apa yang terjadi pada datanya dan apa yang bisa dilakukan sekarang.
+  APP_REQUIRED:
+    'Check-in Meeting wajib lewat aplikasi Android Sales Management. Pasang atau buka aplikasinya, lalu lakukan check-in dari sana.',
   SUSPECTED_MOCK:
     'Pembacaan lokasi ini tidak menunjukkan ciri sinyal GPS sungguhan, jadi belum bisa dipakai sebagai bukti kehadiran. Matikan aplikasi pengubah lokasi bila ada, nyalakan GPS perangkat, pindah ke tempat terbuka, lalu ulangi. Bila Anda yakin tidak ada yang salah, minta atasan menyelesaikannya lewat Override.',
 };

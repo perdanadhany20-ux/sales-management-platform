@@ -1,5 +1,7 @@
 'use client';
 
+import { simpanBlobNative } from './aplikasi';
+
 /**
  * lib/ekspor-excel.ts — ekspor data ke berkas .xlsx.
  *
@@ -146,12 +148,12 @@ export async function eksporExcel<T>(opsi: OpsiEkspor<T>): Promise<void> {
   }
 
   const buffer = await wb.xlsx.writeBuffer();
-  saveAs(
-    new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    }),
-    namaBerkasBerstempel(opsi.namaBerkas),
-  );
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const nama = namaBerkasBerstempel(opsi.namaBerkas);
+  // Di aplikasi Android berkas disimpan ke folder Download lewat jembatan
+  // native; WebView tidak bisa mengunduh blob seperti browser.
+  if (await simpanBlobNative(blob, nama)) return;
+  saveAs(blob, nama);
 }
 
 /** Tanggal ISO (YYYY-MM-DD) → Date lokal untuk sel bertipe tanggal.

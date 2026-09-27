@@ -334,6 +334,7 @@ const LABEL_GAGAL: Record<string, string> = {
   SCHEDULE_MISMATCH:   'Bukan jadwal hari ini',
   NO_LOCATION:         'Lokasi belum diatur',
   SUSPECTED_MOCK:      'Lokasi diduga palsu',
+  APP_REQUIRED:        'Bukan lewat aplikasi',
 };
 
 function TajukHalaman({ nama, pengawas }: { nama?: string; pengawas: boolean }) {
