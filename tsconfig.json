@@ -15,11 +15,14 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // lib/lisensi/* mengimpor sesamanya dengan ekstensi .ts supaya bisa diuji
+    // langsung dengan `node --test --experimental-strip-types` tanpa bundler.
+    "allowImportingTsExtensions": true,
     "jsx": "preserve",
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "license-authority"]
 }
