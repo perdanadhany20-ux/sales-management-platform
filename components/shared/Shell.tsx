@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   pasangPenghitungFetch, usePantauKlikTautan, useSedangNavigasi, mulaiNavigasi,
 } from '@/lib/navigasi-muat';
@@ -89,6 +89,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const menuSaya = useMenuSaya(pengguna?.wajib_ganti_sandi ? undefined : pengguna?.id, pengguna?.role);
 
   useEffect(() => { pasangPenghitungFetch(); }, []);
+
+  // Sesi diperiksa ulang ke server tiap kali pindah menu — sesi yang dicabut
+  // Admin atau akun yang dinonaktifkan langsung terputus di navigasi
+  // berikutnya. Satu permintaan per navigasi, di latar belakang: identitas
+  // yang sedang tampil tidak dikosongkan selama pemeriksaan berjalan.
+  const navigasiPertama = useRef(true);
+  useEffect(() => {
+    if (navigasiPertama.current) { navigasiPertama.current = false; return; }
+    void muatUlang();
+  }, [pathname, muatUlang]);
   usePantauKlikTautan();
   const sedangNavigasi = useSedangNavigasi();
 
