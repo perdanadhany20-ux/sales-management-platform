@@ -35,6 +35,21 @@ VALUES ('55555555-5555-5555-5555-555555555555', current_date, 'PT Uji Coba', 'Me
         '11111111-1111-1111-1111-111111111111','44444444-4444-4444-4444-444444444444',
         '33333333-3333-3333-3333-333333333333');
 
+-- Sejak migrasi 032, check-in tanpa laporan sinyal ditolak sebagai
+-- SUSPECTED_MOCK sebelum radius dan akurasi sempat diperiksa. Pembantu ini
+-- mengirim laporan yang menyerupai fix GNSS sungguhan (titik bergoyang,
+-- ada ketinggian, akurasi pecahan) supaya uji di bawah benar-benar menguji
+-- penjaga yang dimaksud, bukan tertahan di penjaga lokasi palsu.
+CREATE FUNCTION pg_temp.cek(p_id uuid, p_lat numeric, p_lng numeric, p_acc numeric)
+RETURNS jsonb LANGUAGE sql AS $f$
+  SELECT public.sm_check_in(p_id, p_lat, p_lng, p_acc, 31.5, 6.0, NULL, NULL, now(),
+    jsonb_build_array(
+      jsonb_build_object('lat', p_lat + 0.0000031, 'lng', p_lng + 0.0000047, 'accuracy', p_acc * 0.93, 't', 1),
+      jsonb_build_object('lat', p_lat - 0.0000022, 'lng', p_lng + 0.0000012, 'accuracy', p_acc * 1.07, 't', 2),
+      jsonb_build_object('lat', p_lat + 0.0000009, 'lng', p_lng - 0.0000035, 'accuracy', p_acc * 0.98, 't', 3)),
+    '{"api_asli":true,"objek_asli":true,"sentuh":true,"selisih_jam_ms":0,"jumlah_sampel":3,"durasi_ms":6000}'::jsonb)
+$f$;
+
 -- Sampai baris di atas skrip berjalan sebagai pemilik, yang MELEWATI RLS.
 -- Mulai di sini peran diturunkan supaya policy benar-benar diuji — tanpa
 -- baris ini seluruh uji di bawah akan "lulus" tanpa arti.
@@ -47,7 +62,7 @@ INSERT INTO hasil SELECT 1,'§98 Sales B melihat jadwal Sales A','0 baris', coun
   FROM public.sm_schedules WHERE id='55555555-5555-5555-5555-555555555555';
 
 INSERT INTO hasil SELECT 2,'§98 Sales B check-in di meeting Sales A','ASSIGNMENT_MISMATCH',
-  public.sm_check_in('55555555-5555-5555-5555-555555555555',-6.1754,106.8272,10)->>'validation_status';
+  pg_temp.cek('55555555-5555-5555-5555-555555555555',-6.1754,106.8272,10)->>'validation_status';
 
 -- ══ Sebagai Sales A — yang ditugaskan ═══════════════════════════════════════
 SELECT set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","user_role":"SALES"}',true);
@@ -63,13 +78,13 @@ INSERT INTO hasil SELECT 4,'§99 selesaikan tanpa check-in','NO_ATTENDANCE',
   public.sm_complete_schedule('55555555-5555-5555-5555-555555555555')->>'reason';
 
 INSERT INTO hasil SELECT 5,'§100 check-in dari 3 km jauhnya','OUTSIDE_RADIUS',
-  public.sm_check_in('55555555-5555-5555-5555-555555555555',-6.2000,106.8160,10)->>'validation_status';
+  pg_temp.cek('55555555-5555-5555-5555-555555555555',-6.2000,106.8160,10)->>'validation_status';
 
 INSERT INTO hasil SELECT 6,'§31 check-in dengan akurasi GPS 250 m','LOW_ACCURACY',
-  public.sm_check_in('55555555-5555-5555-5555-555555555555',-6.1754,106.8272,250)->>'validation_status';
+  pg_temp.cek('55555555-5555-5555-5555-555555555555',-6.1754,106.8272,250)->>'validation_status';
 
 INSERT INTO hasil SELECT 7,'§29 check-in dari dalam radius','VALID',
-  public.sm_check_in('55555555-5555-5555-5555-555555555555',-6.1754,106.8272,10)->>'validation_status';
+  pg_temp.cek('55555555-5555-5555-5555-555555555555',-6.1754,106.8272,10)->>'validation_status';
 
 INSERT INTO hasil SELECT 8,'§101 selesaikan tanpa foto bukti','NO_EVIDENCE',
   public.sm_complete_schedule('55555555-5555-5555-5555-555555555555')->>'reason';

@@ -60,18 +60,19 @@ Ini inti platform, dan satu-satunya alur yang tidak punya jalan pintas.
 flowchart TD
     A([Jadwal kategori Meeting<br/>requires_attendance=true]) --> B[Sales membuka /meeting]
     B --> C[Tekan Mulai Check-in]
-    C --> D[lib/gps.ts membaca koordinat<br/>enableHighAccuracy, maximumAge=0]
-    D --> E[["sm_check_in(jadwal, lat, lng, akurasi)"]]
+    C --> D[lib/gps.ts mengumpulkan beberapa sampel<br/>selama ±6 detik + laporan sinyal perangkat]
+    D --> E[["sm_check_in(jadwal, lat, lng, akurasi,<br/>ketinggian, sampel, sinyal)"]]
 
     E --> F{Rantai pemeriksaan<br/>di database}
     F -- bukan yang ditugaskan --> G1[ASSIGNMENT_MISMATCH]
     F -- bukan hari ini --> G2[SCHEDULE_MISMATCH]
     F -- lokasi belum diatur --> G3[NO_LOCATION]
+    F -- ciri lokasi palsu --> G6[SUSPECTED_MOCK]
     F -- akurasi di atas ambang --> G4[LOW_ACCURACY]
     F -- di luar radius --> G5[OUTSIDE_RADIUS]
     F -- semua lolos --> H[VALID]
 
-    G1 & G2 & G3 & G4 & G5 --> T[(sm_gps_events<br/>percobaan GAGAL ikut dicatat)]
+    G1 & G2 & G3 & G6 & G4 & G5 --> T[(sm_gps_events<br/>percobaan GAGAL ikut dicatat)]
     H --> T
 
     H --> I[sm_attendance: EVIDENCE_PENDING<br/>jadwal: IN_PROGRESS]
@@ -103,8 +104,15 @@ flowchart TD
    keadaannya bisa berubah di antaranya.
 3. **Override bukan bypass.** Ia menuntut alasan tertulis, mencatat siapa yang
    menyetujui, dan meninggalkan baris permanen di `sm_exceptions`.
+4. **Lokasi palsu diperiksa sebelum radius.** Menjawab "di luar radius" untuk
+   titik palsu justru mengajari pemakainya menggeser titiknya sampai masuk.
+   Yang dinilai adalah pertentangan ciri (mengaku presisi satelit tapi titik
+   beku dan tanpa ketinggian), bukan satu nilai — fix wifi jujur di dalam
+   gedung tetap lolos. Aplikasi web tidak bisa memastikan lokasi 100% asli;
+   ini pengenalan jejak, bukan kepastian.
 
-Berkas: `supabase/migrations/004_functions.sql`, `lib/gps.ts`,
+Berkas: `supabase/migrations/004_functions.sql`, `032_gps_antipalsu.sql`,
+`033_gps_skor_perbaikan.sql`, `lib/gps.ts`,
 `lib/image-compress.ts`, `app/(app)/meeting/_components/PanelMeeting.tsx`.
 
 ---
@@ -281,14 +289,17 @@ Supabase selalu NULL di platform ini karena autentikasinya tabel sendiri, jadi
 flowchart LR
     L([Login]) --> D[Dashboard]
     D --> DR[Daily Report]
+    D --> PY[Proyek]
     D --> PL[Pipeline]
-    D --> SC[Request Schedule]
+    D --> SC[Schedule]
     SC --> MT[Meeting]
     PL --> GP[GP Calculation]
     D --> AC[Activity]
     D --> PR[Profil]
     D --> AD[Admin Panel]
 
+    PY -.-> PL
+    PY -.-> GP
     DR -.-> AC
     PL -.-> AC
     SC -.-> AC
@@ -297,10 +308,13 @@ flowchart LR
 
     AD --> AD1[Pengguna]
     AD --> AD2[Persetujuan Akun]
+    AD --> AD7[Hak Akses Menu]
     AD --> AD3[Lokasi Meeting]
+    AD --> AD8[Target Sales]
     AD --> AD4[Dashboard Setting]
     AD --> AD5[Nilai Bisnis]
     AD --> AD6[Audit Log]
+    AD8 -.-> D
 ```
 
 Garis putus-putus menuju Activity bukan aliran data melainkan pembacaan:

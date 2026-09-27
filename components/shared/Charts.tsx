@@ -37,10 +37,13 @@ export interface IrisanData {
  * Donat dengan legenda di sampingnya, angka total di tengah, dan irisan yang
  * bisa diklik untuk menyaring halaman.
  *
- * Legenda dibatasi lebarnya dan boleh turun ke bawah donat (flex-wrap). Tanpa
- * itu, pada kartu sempit legenda menyusut sampai nyaris nol sementara donatnya
- * tetap 120px — yang tersisa di layar cuma lingkaran warna tanpa keterangan,
- * alias grafik yang tidak bisa dibaca.
+ * Legenda boleh turun ke bawah donat (flex-wrap). Tanpa itu, pada kartu
+ * sempit legenda menyusut sampai nyaris nol sementara donatnya tetap 120px —
+ * yang tersisa di layar cuma lingkaran warna tanpa keterangan.
+ *
+ * Legenda TIDAK pernah digulir. Daftar lima baris dalam kotak setinggi empat
+ * baris memaksa orang menggulir kotak kecil hanya untuk membaca keterangan
+ * grafik. Kalau barisnya banyak, legenda dipecah dua kolom — bukan dipotong.
  */
 export function DonutLegenda({
   data, judul, ikon, filterAktif, onKlikIrisan,
@@ -88,11 +91,12 @@ export function DonutLegenda({
   });
 
   const bisaKlik = Boolean(onKlikIrisan);
+  const duaKolom = data.length > 5;
 
   return (
     <div className="flex flex-col gap-3">
-      <JudulKartu ikon={ikon}>{judul}</JudulKartu>
-      <div className="flex flex-wrap items-center justify-center gap-3">
+      {judul && <JudulKartu ikon={ikon}>{judul}</JudulKartu>}
+      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
         <svg
           width={ukuran} height={ukuran} viewBox="0 0 120 120"
           className="flex-shrink-0 w-[92px] h-[92px] sm:w-[120px] sm:h-[120px]"
@@ -129,9 +133,14 @@ export function DonutLegenda({
           </text>
         </svg>
 
-        <ul className="flex flex-col gap-1 flex-1 basis-[120px] min-w-[120px] sm:basis-[150px] max-w-[220px] max-h-[130px] overflow-y-auto m-0 p-0 list-none">
+        <ul
+          className={`grid gap-x-4 gap-y-0.5 flex-1 min-w-[170px] m-0 p-0 list-none ${
+            duaKolom ? 'basis-[240px] sm:grid-cols-2 max-w-[460px]' : 'basis-[170px] max-w-[280px]'
+          }`}
+        >
           {irisan.map((s) => {
             const aktif = filterAktif === s.label;
+            const persenIrisan = Math.round((s.value / total) * 100);
             return (
               <li key={s.i}>
                 <button
@@ -140,17 +149,22 @@ export function DonutLegenda({
                   onMouseEnter={() => setHov(s.i)}
                   onMouseLeave={() => setHov(null)}
                   onClick={() => onKlikIrisan?.(s.label)}
-                  className="w-full flex items-center gap-1.5 rounded-kecil px-1.5 py-1 transition-all text-left disabled:cursor-default"
+                  className="w-full flex items-center gap-2 rounded-kecil px-2 py-1.5 transition-all text-left disabled:cursor-default"
                   style={{
                     background: hov === s.i || aktif ? `${s.color}1a` : 'transparent',
                     outline: aktif ? `1px solid ${s.color}` : 'none',
                   }}
                 >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                  <span className="text-[11px] font-semibold text-slate-600 truncate flex-1">{s.label}</span>
-                  <span className="text-[11px] font-bold flex-shrink-0" style={{ color: s.color }}>
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                  <span className="text-[12px] font-medium text-slate-600 truncate flex-1 min-w-0">{s.label}</span>
+                  <span className="text-[12px] font-bold text-slate-800 tabular-nums flex-shrink-0">
                     {s.value}{akhiranNilai ?? ''}
                   </span>
+                  {!akhiranNilai && (
+                    <span className="text-[11px] text-slate-400 tabular-nums w-9 text-right flex-shrink-0">
+                      {persenIrisan}%
+                    </span>
+                  )}
                 </button>
               </li>
             );

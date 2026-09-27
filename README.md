@@ -1,62 +1,67 @@
 # Sales Management Platform
 
-Platform pengelolaan aktivitas Sales: laporan harian, pipeline peluang,
-penjadwalan, dan eksekusi meeting dengan verifikasi lokasi serta bukti foto.
+Platform pengelolaan aktivitas Sales: laporan harian, proyek, pipeline peluang,
+penjadwalan, eksekusi meeting dengan verifikasi lokasi dan bukti foto,
+perhitungan GP berjenjang, serta target penjualan per Sales.
 
 ---
 
 ## 1. Tujuan
 
 Menggantikan pencatatan aktivitas Sales yang tersebar di spreadsheet dan
-percakapan dengan satu sistem yang bisa dipertanggungjawabkan. Tiga hal yang
-jadi alasan utamanya:
+percakapan dengan satu sistem yang bisa dipertanggungjawabkan:
 
-- **Laporan harian yang terukur** — bukan sekadar terkumpul, tapi bisa dilihat
-  siapa yang belum mengirim, hari ini juga.
+- **Laporan harian yang terukur** — terlihat siapa yang belum mengirim, hari
+  ini juga. Satu Sales boleh mengirim beberapa laporan per hari.
 - **Pipeline dengan margin yang benar** — GP dan GP% dihitung database, jadi
   angka di layar manajer tidak pernah berbeda dari angka sebenarnya.
 - **Meeting yang terbukti dihadiri** — kehadiran hanya sah bila lokasi
-  terverifikasi dan bukti foto ada. Tidak ada jalan pintas, bahkan lewat
-  pemanggilan API langsung.
+  terverifikasi, tidak menunjukkan ciri lokasi palsu, dan bukti foto ada.
+- **Target yang terlihat** — capaian tiap Sales terhadap target bulan,
+  kuartal, atau tahun, dihitung dari pipeline yang WON.
 
-## 2. Arsitektur
+## 2. Modul
+
+| Modul | Isi |
+|---|---|
+| Dashboard | Ringkasan tim, tren, kepatuhan laporan, GP, pencapaian target |
+| Daily Report | Laporan kunjungan harian, ekspor Excel |
+| Proyek | Induk yang mengikat pipeline, jadwal, dan GP satu proyek |
+| Pipeline | Peluang, probabilitas, tahapan, estimasi closing |
+| Schedule | Pengajuan & penugasan jadwal, status terlewat otomatis |
+| Meeting | Check-in GPS, foto bukti, penyelesaian, override pengawas |
+| GP Calculation | Hitung GP dari item, persetujuan Manager → Director → Finance |
+| Activity | Jejak seluruh modul, termasuk check-in yang ditolak |
+| Admin Panel | Pengguna, persetujuan akun, hak akses menu, lokasi meeting, target Sales, tampilan dashboard, nilai bisnis, audit log |
+
+Setiap daftar punya pencarian, kolom yang bisa diurutkan, dan konfirmasi
+sebelum menghapus.
+
+## 3. Arsitektur
 
 ```text
 Browser (Next.js App Router, React 18)
-   │  cookie httpOnly  +  JWT PostgREST
+   │  cookie httpOnly  +  JWT PostgREST (10 menit, diperbarui otomatis)
    ▼
 Route Handler (Node)  ──service role──►  Supabase (auth kustom, sesi)
    │
    └── klien Supabase browser ──JWT user──►  PostgREST ──► RLS ──► Postgres
                                                                     │
                                                 RPC SECURITY DEFINER┘
-                                                (check-in, penyelesaian)
+                                     (check-in, penyelesaian, persetujuan GP)
 ```
 
 Keputusan yang paling menentukan: **penegakan wewenang ada di database**, bukan
 di frontend. Frontend menyembunyikan tombol demi antarmuka yang bersih; yang
 benar-benar menolak akses adalah policy RLS dan fungsi `SECURITY DEFINER`.
-
-## 3. Baseline Rujukan
-
-Dibangun dengan mengadaptasi dua platform yang sudah berjalan:
-
-| Dari | Yang diambil |
-|---|---|
-| **FieldServices Platform** | Verifikasi GPS server-side, migrasi berurutan, penerbit JWT PostgREST, pipeline evidence, alur mobile, palet sadar buta warna |
-| **Work Management PTS IVP** | Pola Daily Report, Request Schedule beserta penugasan, ekspor Excel, arsitektur notifikasi |
-
-Analisis lengkap beserta alasan tiap pilihan ada di
-[`docs/BASELINE-ANALYSIS.md`](docs/BASELINE-ANALYSIS.md). Kedua baseline hanya
-dibaca — tidak diubah, tidak di-commit, tidak di-deploy ulang.
+Diagram alur lengkap ada di [`docs/ALUR.md`](docs/ALUR.md).
 
 ## 4. Teknologi
 
 Next.js 14.2 (App Router) · React 18.3 · TypeScript 5.7 · Tailwind 3.4 ·
-Supabase (Postgres 17 + PostgREST + Storage) · bcryptjs · ExcelJS.
+Supabase (Postgres 17 + PostgREST + Storage) · bcryptjs · ExcelJS · Leaflet.
 
-Grafik digambar sebagai SVG tanpa pustaka grafik — mengikuti pola dominan kedua
-baseline dan memberi kendali penuh atas bentuk kartu bento.
+Grafik digambar sebagai SVG tanpa pustaka grafik.
 
 ## 5. Instalasi
 
@@ -81,101 +86,66 @@ masuk ke repositori. `SUPABASE_SERVICE_ROLE_KEY` melewati seluruh RLS;
 `SUPABASE_JWT_SECRET` menandatangani token identitas — tanpanya setiap query
 berangkat sebagai anon dan tabel akan terlihat kosong.
 
-## 7. Penyiapan Supabase
+## 7. Migrasi
 
-Project terpisah dari kedua baseline (§94). Tidak perlu mengaktifkan Supabase
-Auth — platform ini memakai autentikasi sendiri.
+Terapkan berurutan seluruh berkas di `supabase/migrations/` (001 sampai
+terbaru). Nomor berkas adalah urutan wajib; jangan mengubah isi migrasi yang
+sudah pernah dijalankan — perbaikan selalu ditulis sebagai migrasi baru.
+Supabase Auth tidak perlu diaktifkan: platform ini memakai autentikasi sendiri.
 
-## 8. Migrasi
+## 8. Peran & Hak
 
-Terapkan berurutan dari `supabase/migrations/`:
+`SALES`, `MANAGER`, `ADMIN`, `DIRECTOR`, `FINANCE`. Empat yang terakhir
+disebut **pengawas** dan melihat data seluruh tim.
 
-| Berkas | Isi |
-|---|---|
-| `001_core_schema.sql` | users, kredensial, sesi, audit, pengaturan |
-| `002_sales_schema.sql` | customer, kontak, Daily Report, Pipeline |
-| `003_schedule_meeting_schema.sql` | lokasi, jadwal, kehadiran, evidence, jejak GPS, exception |
-| `004_functions.sql` | helper identitas, Haversine, check-in, penyelesaian, override |
-| `005_rls.sql` | seluruh policy RLS |
-| `006_storage.sql` | bucket privat `evidence` + policy-nya |
-| `007_seed_settings.sql` | nilai bisnis awal |
-| `008_perketat_hak_eksekusi.sql` | penutupan temuan linter 0028/0029 |
-| `009_dashboard.sql` | agregat dashboard satu panggilan |
-
-## 9. RLS
-
-Menyala di seluruh tabel. Ringkasnya:
-
-- **Sales** — hanya data miliknya, plus jadwal yang ditugaskan kepadanya.
-- **Manager/Admin** — visibilitas penuh, berhak menugaskan dan meng-override.
+- **Sales** — hanya data miliknya, plus jadwal yang ditugaskan kepadanya. Boleh
+  menyunting data sendiri, tidak boleh menghapus.
+- **Admin** — boleh menyunting dan menghapus data siapa pun.
+- **GP Calculation** — pembuat dokumen tidak boleh menyetujui dokumennya
+  sendiri, dan satu orang tidak boleh mengisi dua tahap persetujuan.
 - **`user_credentials`, `user_sessions`, `login_attempts`** — tanpa policy sama
   sekali; hanya route handler lewat service role yang menyentuhnya.
 - **`audit_trail`** — bisa disisipi, tidak bisa diubah maupun dihapus siapa pun.
+- Kolom pribadi di `users` (email, telepon, alamat) tidak bisa dibaca langsung
+  dari browser; hanya lewat API profil/admin.
 
-Sales **tidak punya** policy UPDATE pada `sm_schedules`. Itu disengaja dan
-menjadi inti aturan anti-bypass — lihat §11.
+Akun yang sandinya dibuat atau direset Admin wajib mengganti sandi saat masuk
+pertama kali.
 
-## 10. Storage
+## 9. Storage
 
 Bucket privat `evidence`, jalur `evidence/{user_id}/{schedule_id}/berkas.jpg`.
-Kepemilikan terbaca dari jalurnya sendiri, sehingga policy cukup membandingkan
-satu segmen. Tidak ada policy UPDATE: berkas bukti tidak boleh ditimpa.
+Kepemilikan terbaca dari jalurnya sendiri. Tidak ada policy UPDATE: berkas
+bukti tidak boleh ditimpa.
 
-## 11. Aturan Meeting
+## 10. Pengujian
 
-```text
-Jadwal (kategori Meeting) → ditugaskan ke Sales
-   → sm_check_in(): jadwal? penugasan? akurasi? radius?
-   → foto bukti  → sm_complete_schedule(): periksa ulang semuanya
-   → COMPLETED
-```
+Tiga skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
+Supabase. Setiap skrip diakhiri `ROLLBACK`, jadi data ujinya tidak pernah
+tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 
-Setiap percobaan check-in dicatat ke `sm_gps_events`, **termasuk yang ditolak**.
-Tabel yang hanya berisi keberhasilan tidak bisa menjawab "apakah orang ini
-berkali-kali mencoba dari luar radius" — padahal justru itu yang ingin
-diketahui.
+| Berkas | Uji | Cakupan |
+|---|---|---|
+| `keamanan.sql` | 19 | Isolasi antar-Sales, manipulasi status, check-in (radius, akurasi), bukti foto, eskalasi peran |
+| `keamanan-gp.sql` | 29 | Ketepatan rumus GP terhadap berkas asli, isolasi, rantai persetujuan |
+| `keamanan-gps.sql` | 13 | Penolakan lokasi palsu — dan jaminan bahwa Sales jujur tetap lolos |
 
-Override oleh Manager/Admin tersedia untuk kasus yang sah gagal, tapi menuntut
-alasan tertulis dan meninggalkan baris permanen di `sm_exceptions`.
+Pemeriksaan kode: `npm run typecheck` dan `npm run build`.
 
-## 12. Pengguna & Peran
+## 11. Deploy
 
-`SALES`, `MANAGER`, `ADMIN`. Akun pertama dibuat langsung di database dengan
-hash bcrypt; selanjutnya lewat menu Administrasi.
+Push ke `main` memicu deployment otomatis di Vercel. Kelima variabel di §6
+harus terpasang di Vercel. Migrasi database diterapkan terpisah — terapkan
+migrasi **bersamaan** dengan kode yang membutuhkannya, karena kode lama
+terhadap fungsi database baru (atau sebaliknya) bisa gagal.
 
-## 13. Pengembangan Lokal
+## 12. Batasan yang Diketahui
 
-`npm run dev` · `npm run typecheck` · `npm run build`.
-
-## 14–15. GitHub & Vercel
-
-Repositori sendiri, terpisah dari baseline (§92). Deploy ke project Vercel
-sendiri (§93) — push ke `main` memicu deployment otomatis. Empat variabel di §6
-harus terpasang di Vercel sebelum deployment pertama bisa dipakai login.
-
-## 16. Pengujian
-
-```bash
-# Uji keamanan alur meeting — 9 pemeriksaan, jalankan di SQL Editor Supabase
-supabase/tests/keamanan.sql
-```
-
-Mencakup akses lintas-Sales, manipulasi status langsung, penyelesaian tanpa
-check-in maupun foto, check-in di luar radius, dan akurasi GPS rendah. Skrip
-tidak diakhiri COMMIT, jadi data ujinya hilang sendiri saat koneksi ditutup.
-
-## 17. Batasan yang Diketahui
-
-- **Middleware bukan lapisan keamanan.** Ia berjalan di edge runtime dan hanya
-  memeriksa keberadaan cookie. Cookie palsu lolos dari sana, lalu berhenti di
-  RLS. Penegakan sesungguhnya ada di database.
-- **Akurasi GPS bergantung perangkat.** Ambang 100 m menyaring pembacaan buruk,
-  tapi tidak bisa membuktikan seseorang benar-benar berada di sana — ia hanya
-  membuat pemalsuan jauh lebih sulit (§81).
-- **Belum ada notifikasi.** Arsitekturnya disiapkan, implementasinya belum.
-- **Ekspor Excel belum terpasang** di seluruh modul.
-
-## 18. Rencana Lanjutan
-
-Notifikasi (WhatsApp/Telegram mengikuti pola Work Management), ekspor Excel per
-modul, relasi Pipeline → Quotation → Project, dan pembungkus mobile.
+- **Middleware bukan lapisan keamanan.** Ia hanya memeriksa keberadaan cookie.
+  Penegakan sesungguhnya ada di route handler dan database.
+- **Lokasi palsu tidak bisa dipastikan 100% dari aplikasi web.** Penyedia
+  lokasi tiruan Android bekerja di tingkat sistem operasi. Platform ini
+  mengenali jejak khasnya dan mencatat seluruh laporan untuk dilihat pengawas;
+  kepastian penuh butuh aplikasi Android native.
+- **Pengurutan kolom berlaku per halaman** yang sedang tampil, bukan seluruh
+  data.
