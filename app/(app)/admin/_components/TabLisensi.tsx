@@ -63,14 +63,94 @@ export function TabLisensi() {
 
   if (!lisensi) return <KerangkaKartu tinggi={260} />;
 
+  const d = lisensi.detail;
+  const belumAktivasi = Boolean(d && !d.dikonfigurasi && !lisensi.mode_pengembangan);
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Permintaan paling atas: itulah satu-satunya tindakan Admin di halaman ini. */}
-      <KartuPermintaan lisensi={lisensi} onBerubah={muatUlang} />
+      {/* Belum ada kode: aktivasi adalah satu-satunya langkah yang bermakna. */}
+      {belumAktivasi && <KartuAktivasi onBerhasil={muatUlang} />}
+      {/* Permintaan di atas: tindakan utama Admin setelah platform terhubung. */}
+      {!belumAktivasi && <KartuPermintaan lisensi={lisensi} onBerubah={muatUlang} />}
       <KartuStatus lisensi={lisensi} onSegarkan={muatUlang} />
       <KartuFitur lisensi={lisensi} />
       <KartuRiwayat lisensi={lisensi} />
+      {!belumAktivasi && d?.sumber === 'aktivasi' && <KartuAktivasi ganti onBerhasil={muatUlang} />}
     </div>
+  );
+}
+
+/* ── Kode Aktivasi ────────────────────────────────────────────────────────── */
+
+/**
+ * Admin menempel Kode Aktivasi yang diterbitkan penyedia platform. Tidak ada
+ * yang tersimpan sebelum Kantor Pusat mengakui kodenya; kode yang tersimpan
+ * tidak pernah ditampilkan kembali.
+ */
+function KartuAktivasi({ ganti = false, onBerhasil }: { ganti?: boolean; onBerhasil: () => Promise<unknown> }) {
+  const toast = useToast();
+  const [buka, setBuka] = useState(!ganti);
+  const [kode, setKode] = useState('');
+  const [galat, setGalat] = useState<string | null>(null);
+  const [mengirim, setMengirim] = useState(false);
+
+  async function kirim(e: React.FormEvent) {
+    e.preventDefault();
+    setGalat(null);
+    setMengirim(true);
+    try {
+      const res = await fetch('/api/lisensi/aktivasi', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kode }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(data.error ?? 'Aktivasi gagal.'); return; }
+      toast('sukses', `Platform terhubung ke lisensi ${data.perusahaan}.`);
+      setKode('');
+      setBuka(false);
+      await onBerhasil();
+      // Menu dihitung ulang dari lisensi baru.
+      window.location.reload();
+    } catch {
+      setGalat('Jaringan bermasalah. Coba lagi.');
+    } finally {
+      setMengirim(false);
+    }
+  }
+
+  if (ganti && !buka) {
+    return (
+      <div className="text-right">
+        <button type="button" onClick={() => setBuka(true)}
+          className="text-[12px] font-semibold text-slate-500 hover:text-aksen-700 underline underline-offset-2">
+          Ganti Kode Aktivasi
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <section className="bg-white rounded-kartu border-2 border-aksen-200 p-4 sm:p-5">
+      <h3 className="text-[15px] font-black text-slate-900">{ganti ? 'Ganti Kode Aktivasi' : 'Aktifkan Lisensi Platform'}</h3>
+      <p className="text-[12px] text-slate-500 mt-1 mb-3 leading-relaxed max-w-2xl">
+        Tempel <b>Kode Aktivasi</b> yang Anda terima dari penyedia platform (diawali <code>SMPA1-</code>).
+        Kode diperiksa langsung ke penyedia lisensi sebelum disimpan.
+      </p>
+      <form onSubmit={kirim} className="flex flex-col gap-3 max-w-2xl">
+        <Kolom label="Kode Aktivasi" wajib galat={galat}>
+          {(id, invalid) => (
+            <AreaTeks id={id} rows={3} value={kode} aria-invalid={invalid} spellCheck={false} autoComplete="off"
+              placeholder="SMPA1-…" className="font-mono text-[12px]"
+              onChange={(e) => setKode(e.target.value)} />
+          )}
+        </Kolom>
+        <div className="flex gap-2 justify-end">
+          {ganti && <Tombol type="button" rupa="hantu" onClick={() => setBuka(false)}>Batal</Tombol>}
+          <Tombol type="submit" memuat={mengirim} disabled={!kode.trim()}>Aktifkan</Tombol>
+        </div>
+      </form>
+    </section>
   );
 }
 
@@ -144,7 +224,7 @@ function KartuStatus({ lisensi, onSegarkan }: { lisensi: Lisensi; onSegarkan: ()
           </span>
         )}
         {d && !d.dikonfigurasi && !lisensi.mode_pengembangan && (
-          <span className="text-[#8f2c2b]">Platform ini belum dihubungkan ke penyedia lisensi.</span>
+          <span className="text-[#8f2c2b]">Platform ini belum diaktifkan — masukkan Kode Aktivasi di atas.</span>
         )}
         {d && <span className="ml-auto">Versi aplikasi {d.versi}</span>}
       </footer>

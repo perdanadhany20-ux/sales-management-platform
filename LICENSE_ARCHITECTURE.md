@@ -205,15 +205,20 @@ token berikutnya. Downgrade hanya menutup akses: tidak ada baris yang dihapus da
 diubah. Jika fitur diaktifkan lagi, datanya muncul kembali utuh (uji #11–12). Kedaluwarsa juga tidak
 pernah menghapus data.
 
-## 10. Registrasi deployment
+## 10. Registrasi deployment & Kode Aktivasi
 
-1. Di dashboard Authority, buka **Registrasi deployment** dan isi nama perusahaan, paket, durasi, serta
-   pilih apakah lisensi langsung diaktifkan.
-2. Authority menerbitkan `LICENSE_DEPLOYMENT_ID`, `LICENSE_ID`, dan `LICENSE_DEPLOYMENT_KEY`. Kunci
-   deployment hanya ditampilkan sekali.
-3. Pasang nilai-nilai itu bersama `LICENSE_PUBLIC_KEY` dan `LICENSE_AUTHORITY_URL` di env Vercel pelanggan.
-4. Terapkan migrasi pelanggan (termasuk 037), lalu deploy. Admin pelanggan akan melihat status di
-   Admin → Lisensi.
+1. Di dashboard Kantor Pusat, buka **Registrasi deployment**: isi nama perusahaan, paket (fitur otomatis
+   sesuai paket; manual hanya untuk Custom), durasi, dan pilih apakah langsung aktif.
+2. Kantor Pusat menerbitkan satu **Kode Aktivasi** (`SMPA1-…`) yang memuat Deployment ID, License ID, dan
+   kunci deployment. Kode ditampilkan sekali; pusat hanya menyimpan hash kuncinya.
+3. Admin pelanggan menempelnya di **Admin → Lisensi → Aktifkan**. Kode diverifikasi ke Kantor Pusat dan baru
+   disimpan (di `sm_lisensi`, migrasi 038) bila diakui. Tidak perlu env lisensi per pelanggan: alamat dan
+   kunci PUBLIK Kantor Pusat sudah bawaan kode (`PUSAT_BAWAAN` di `lib/lisensi/server.ts`).
+4. **Satu kode = satu platform.** Verifikasi pertama mengikat kode ke sidik jari Supabase pelanggan
+   (`instance_id`); platform lain yang memakai kode yang sama ditolak (`LICENSE_IN_USE`). Pelanggan pindah
+   server → developer menekan **Lepas ikatan platform** di dashboard atau `/unbind KODE` di Telegram.
+5. Alternatif developer: isi `LICENSE_DEPLOYMENT_ID`, `LICENSE_ID`, `LICENSE_DEPLOYMENT_KEY` di Vercel
+   pelanggan — bila terisi, env menang atas Kode Aktivasi.
 
 ## 11. Pengembangan lokal
 
