@@ -1,5 +1,7 @@
 'use client';
 
+import { Fragment } from 'react';
+
 /**
  * components/shared/Bento.tsx — kerangka tata letak bento.
  *
@@ -17,7 +19,7 @@
  * layar. Kalau semua kartu menonjol, tidak ada yang menonjol.
  */
 
-type Rentang = 2 | 3 | 4 | 6 | 8 | 12;
+export type Rentang = 2 | 3 | 4 | 6 | 8 | 12;
 type Tinggi = 'pendek' | 'sedang' | 'tinggi' | 'auto';
 type Rupa = 'polos' | 'sorot' | 'gelap' | 'garis';
 
@@ -170,4 +172,74 @@ export function BarisBento({
       {kanan && <div className="flex-shrink-0 text-right">{kanan}</div>}
     </Tag>
   );
+}
+
+// ── Penata baris adaptif ─────────────────────────────────────────────────────
+
+export interface ItemBento {
+  kunci: string;
+  /** Lebar ideal dari 12 kolom. 12 = kartu selebar penuh. */
+  lebar: Rentang;
+  render: (rentang: Rentang) => React.ReactNode;
+}
+
+/** Kombinasi lebar yang enak dilihat untuk 1–4 kartu dalam satu baris. */
+const POLA_BARIS: Record<number, Rentang[][]> = {
+  1: [[12]],
+  2: [[6, 6], [4, 8], [8, 4]],
+  3: [[4, 4, 4], [6, 3, 3], [3, 6, 3], [3, 3, 6]],
+  4: [[3, 3, 3, 3]],
+};
+
+function rentangkan(lebar: Rentang[]): Rentang[] {
+  const jumlah = lebar.reduce((a, b) => a + b, 0);
+  if (jumlah === 12) return lebar;
+  const pola = POLA_BARIS[lebar.length];
+  if (!pola) return lebar;
+  // Pilih pola yang paling dekat dengan perbandingan lebar idealnya.
+  let terbaik = pola[0];
+  let selisihTerbaik = Infinity;
+  for (const p of pola) {
+    const selisih = p.reduce((n, v, i) => n + Math.abs(v - (12 * lebar[i]) / jumlah), 0);
+    if (selisih < selisihTerbaik) { terbaik = p; selisihTerbaik = selisih; }
+  }
+  return terbaik;
+}
+
+/**
+ * Susun kartu bento menjadi baris yang selalu penuh.
+ *
+ * Kartu bisa hilang karena lisensi, hak akses, atau pengaturan Admin. Dengan
+ * lebar tetap, baris yang kehilangan kartu menyisakan ruang kosong besar dan
+ * dashboard tampak rusak. Di sini kartu yang tersisa dikemas per baris (maks.
+ * 12 kolom) lalu dilebarkan proporsional sampai baris penuh. Kartu selebar
+ * penuh ditunda bila baris di atasnya belum penuh, supaya kartu kecil
+ * berikutnya bisa mengisi celah itu lebih dulu.
+ */
+export function susunBento(item: ItemBento[]): React.ReactNode[] {
+  const hasil: React.ReactNode[] = [];
+  let baris: ItemBento[] = [];
+  let tertunda: ItemBento[] = [];
+  let jumlah = 0;
+
+  const tutupBaris = () => {
+    const lebar = rentangkan(baris.map((b) => b.lebar));
+    baris.forEach((b, i) => hasil.push(<Fragment key={b.kunci}>{b.render(lebar[i])}</Fragment>));
+    tertunda.forEach((b) => hasil.push(<Fragment key={b.kunci}>{b.render(12)}</Fragment>));
+    baris = []; tertunda = []; jumlah = 0;
+  };
+
+  for (const it of item) {
+    if (it.lebar === 12) {
+      if (baris.length === 0) hasil.push(<Fragment key={it.kunci}>{it.render(12)}</Fragment>);
+      else tertunda.push(it);
+      continue;
+    }
+    if (jumlah + it.lebar > 12) tutupBaris();
+    baris.push(it);
+    jumlah += it.lebar;
+    if (jumlah === 12) tutupBaris();
+  }
+  tutupBaris();
+  return hasil;
 }
