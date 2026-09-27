@@ -1,7 +1,7 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
-import { KUNCI_FITUR, LABEL_PAKET, PAKET, REGISTRY_FITUR } from '@kontrak/kontrak.ts';
+import { PilihPaketFitur } from '../PilihPaketFitur';
 import { aksiRegistrasi, type HasilRegistrasi } from '../actions';
 
 function Kirim() {
@@ -44,19 +44,9 @@ export function FormRegistrasi() {
             <option value="development">development</option>
           </select>
         </label>
-        <label>Paket awal<br />
-          <select name="paket" defaultValue="STARTER">
-            {PAKET.map((p) => <option key={p} value={p}>{LABEL_PAKET[p]}</option>)}
-          </select>
-        </label>
         <label>Durasi (hari)<br /><input name="hari" type="number" min={1} max={3660} defaultValue={365} required /></label>
       </div>
-      <p className="muted">Fitur CUSTOM (hanya dipakai bila paket = Custom):</p>
-      <div className="grid">
-        {KUNCI_FITUR.map((k) => (
-          <label key={k}><input type="checkbox" name={`fitur_${k}`} /> {REGISTRY_FITUR.find((f) => f.key === k)?.display_name}</label>
-        ))}
-      </div>
+      <PilihPaketFitur />
       <p><label><input type="checkbox" name="aktifkan" /> Langsung aktifkan (tanpa menunggu permintaan dari Admin pelanggan)</label></p>
       <Kirim />
     </form>

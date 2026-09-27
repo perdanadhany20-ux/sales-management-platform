@@ -158,7 +158,7 @@ $$;
 --   meeting|project sm_locations (dipakai check-in dan pin lokasi proyek)
 --   project         sm_projects
 --   gp_calculation  sm_gp_calculations, sm_gp_items
---   dashboard       sm_sales_targets
+--   pipeline        sm_sales_targets (realisasi target = pipeline WON)
 
 DO $$
 DECLARE
@@ -180,7 +180,7 @@ BEGIN
       ('sm_projects',        ARRAY['project']),
       ('sm_gp_calculations', ARRAY['gp_calculation']),
       ('sm_gp_items',        ARRAY['gp_calculation']),
-      ('sm_sales_targets',   ARRAY['dashboard'])
+      ('sm_sales_targets',   ARRAY['pipeline'])
     ) AS t(tabel, fitur)
   LOOP
     IF to_regclass('public.' || r.tabel) IS NULL THEN

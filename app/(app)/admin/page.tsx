@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { usePenggunaAktif } from '@/lib/auth';
 import { useLisensi } from '@/lib/lisensi/use-lisensi';
 import { isPengawas } from '@/lib/constants';
@@ -37,15 +38,30 @@ import { TabLisensi } from './_components/TabLisensi';
  * 005). Pengelolaan akun, identitas platform, dan nilai bisnis khusus Admin.
  */
 export default function HalamanAdmin() {
+  // useSearchParams menuntut Suspense di Next 14 (halaman ini dirender statis).
+  return (
+    <Suspense fallback={<LayarMemuat />}>
+      <IsiAdmin />
+    </Suspense>
+  );
+}
+
+function IsiAdmin() {
   const { pengguna, memuat } = usePenggunaAktif();
   const { bagian, setBagian } = useBagianAdmin();
   const { lisensi } = useLisensi();
 
-  // Tautan langsung ke satu bagian (mis. banner lisensi → /admin?bagian=lisensi).
+  // Tautan langsung ke satu bagian (banner & lonceng lisensi → /admin?bagian=lisensi).
+  // Bereaksi pada SETIAP perubahan URL — juga saat halaman ini sudah terbuka —
+  // lalu membersihkan parameternya supaya tautan yang sama bisa dipakai lagi.
+  const params = useSearchParams();
+  const router = useRouter();
+  const diminta = params.get('bagian');
   useEffect(() => {
-    const diminta = new URLSearchParams(window.location.search).get('bagian');
-    if (diminta && BAGIAN_ADMIN.some((b) => b.kunci === diminta)) setBagian(diminta as KunciBagian);
-  }, [setBagian]);
+    if (!diminta) return;
+    if (BAGIAN_ADMIN.some((b) => b.kunci === diminta)) setBagian(diminta as KunciBagian);
+    router.replace('/admin', { scroll: false });
+  }, [diminta, setBagian, router]);
 
   if (memuat) return <LayarMemuat />;
   if (!pengguna) return null;

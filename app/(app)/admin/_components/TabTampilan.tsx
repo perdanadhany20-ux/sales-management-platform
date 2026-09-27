@@ -8,6 +8,8 @@ import {
   logoUntuk,
 } from '@/lib/branding';
 import { Teks, Tombol } from '@/components/shared/FormParts';
+import { useLisensi } from '@/lib/lisensi/use-lisensi';
+import { FITUR_MENU, MENU_KARTU_DASHBOARD } from '@/lib/lisensi/kontrak';
 import { KerangkaKartu, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { pesanGalat } from '@/lib/pesan-galat';
 
@@ -30,6 +32,12 @@ export function TabTampilan() {
 
   const [b, setB] = useState<Branding>(BRANDING_BAWAAN);
   const [kartu, setKartu] = useState<KartuDashboard[]>([]);
+  // Kartu untuk modul di luar lisensi tidak ditawarkan (Dashboard juga tidak
+  // akan menampilkannya). Pengaturannya tetap tersimpan utuh untuk bila
+  // lisensinya kelak ditingkatkan.
+  const { lisensi } = useLisensi();
+  const kartuBerlisensi = (key: string) =>
+    !MENU_KARTU_DASHBOARD[key] || Boolean(lisensi?.fitur.includes(FITUR_MENU[MENU_KARTU_DASHBOARD[key]]));
   const [memuat, setMemuat] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
   const [menyimpan, setMenyimpan] = useState<string | null>(null);
@@ -282,7 +290,7 @@ export function TabTampilan() {
         </p>
 
         <ul className="grid grid-cols-1 formulir:grid-cols-2 gap-x-4">
-          {kartu.map((k, i) => (
+          {kartu.map((k, i) => kartuBerlisensi(k.key) && (
             <li key={k.key}>
               <label className="flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-kontrol hover:bg-slate-50 cursor-pointer select-none transition-colors">
                 <input

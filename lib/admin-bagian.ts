@@ -60,7 +60,8 @@ export const BAGIAN_ADMIN: Bagian[] = [
   },
   {
     kunci: 'target', label: 'Target Sales', kelompok: 'ORGANISASI', ikon: '🎯',
-    fitur: ['dashboard'],
+    // Realisasi target dihitung dari pipeline WON — tanpa Pipeline, target tak bermakna.
+    fitur: ['pipeline'],
     judul: 'Target Sales',
     keterangan: 'Target bulanan nilai penjualan dan GP tiap Sales. Realisasi dihitung dari pipeline WON.',
   },

@@ -65,9 +65,10 @@ export function TabLisensi() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Permintaan paling atas: itulah satu-satunya tindakan Admin di halaman ini. */}
+      <KartuPermintaan lisensi={lisensi} onBerubah={muatUlang} />
       <KartuStatus lisensi={lisensi} onSegarkan={muatUlang} />
       <KartuFitur lisensi={lisensi} />
-      <KartuPermintaan lisensi={lisensi} onBerubah={muatUlang} />
       <KartuRiwayat lisensi={lisensi} />
     </div>
   );

@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { type PenggunaAktif } from '@/lib/auth';
 import { type Branding, logoUntuk } from '@/lib/branding';
-import { useLonceng, totalPerluTindakan } from '@/lib/use-lonceng';
+import { useLonceng, totalPerluTindakan, type Lonceng } from '@/lib/use-lonceng';
+import { useMenuSaya } from '@/lib/menu-akses';
 import { usePengingat } from '@/lib/notifikasi';
 import { isPengawas } from '@/lib/constants';
 import { tanggalPendek, rupiahRingkas, polaIlike } from '@/lib/format';
@@ -16,6 +17,19 @@ import {
 } from '@/lib/intip';
 import { DropdownMengambang } from './DropdownMengambang';
 import { useLisensi, type Lisensi } from '@/lib/lisensi/use-lisensi';
+
+/** Nolkan angka modul yang tidak boleh dibuka akun ini (peran atau lisensi). */
+function saringLonceng(l: Lonceng, boleh: (menu: string) => boolean): Lonceng {
+  const jadwal = boleh('schedule');
+  return {
+    laporanBelum: boleh('daily-report') && l.laporanBelum,
+    jadwalHariIni: jadwal ? l.jadwalHariIni : 0,
+    meetingPerlu: boleh('meeting') ? l.meetingPerlu : 0,
+    pipelineDekat: boleh('pipeline') ? l.pipelineDekat : 0,
+    terlewat: jadwal ? l.terlewat : 0,
+    belumDitugaskan: jadwal ? l.belumDitugaskan : 0,
+  };
+}
 
 /* ── Notifikasi lisensi (Admin) ───────────────────────────────────────────── */
 
@@ -75,7 +89,12 @@ export function HeaderAtas({ pengguna, branding }: {
   pengguna: PenggunaAktif;
   branding: Branding;
 }) {
-  const { lonceng, muatUlang } = useLonceng(pengguna);
+  const { lonceng: loncengMentah, muatUlang } = useLonceng(pengguna);
+  // Pintasan, lonceng, pengingat, dan pencarian hanya menyentuh modul yang
+  // boleh dibuka akun ini — hak PERAN dan hak LISENSI sekaligus (lib/menu-akses).
+  const menuSaya = useMenuSaya(pengguna.id, pengguna.role);
+  const boleh = useMemo(() => (k: string) => Boolean(menuSaya?.includes(k)), [menuSaya]);
+  const lonceng = useMemo(() => saringLonceng(loncengMentah, boleh), [loncengMentah, boleh]);
   const [bukaNotif, setBukaNotif] = useState(false);
   const [bukaCari, setBukaCari] = useState(false);
   const loncengRef = useRef<HTMLButtonElement>(null);
@@ -148,6 +167,7 @@ export function HeaderAtas({ pengguna, branding }: {
             <span className="hidden sidebar:inline">Pencarian</span>
           </button>
 
+          {boleh('daily-report') && (
           <Pintasan
             kunci="laporan" ikon="📝" label="Daily Report" href="/daily-report"
             jumlah={lonceng.laporanBelum ? '!' : 0}
@@ -156,7 +176,9 @@ export function HeaderAtas({ pengguna, branding }: {
             kosong="Belum ada laporan hari ini."
             terbuka={intip === 'laporan'} onToggle={setIntip}
             ambil={() => intipDailyReport(pengguna.id)} />
+          )}
 
+          {boleh('meeting') && (
           <Pintasan
             kunci="meeting" ikon="📍" label="Meeting" href="/meeting"
             jumlah={lonceng.meetingPerlu} warna="biru"
@@ -164,7 +186,9 @@ export function HeaderAtas({ pengguna, branding }: {
             kosong="Tidak ada meeting yang menunggu hari ini."
             terbuka={intip === 'meeting'} onToggle={setIntip}
             ambil={() => intipMeeting(pengguna.id, pengawas)} />
+          )}
 
+          {boleh('schedule') && (
           <Pintasan
             kunci="jadwal" ikon="🗓️" label="Hari Ini" href="/schedule"
             jumlah={lonceng.jadwalHariIni} warna="netral"
@@ -172,7 +196,9 @@ export function HeaderAtas({ pengguna, branding }: {
             kosong="Tidak ada jadwal yang belum selesai hari ini."
             terbuka={intip === 'jadwal'} onToggle={setIntip}
             ambil={() => intipJadwal(pengguna.id, pengawas)} />
+          )}
 
+          {boleh('pipeline') && (
           <Pintasan
             kunci="pipeline" ikon="📊" label="Closing" href="/pipeline" tersembunyiDiPonsel
             jumlah={lonceng.pipelineDekat} warna="kuning"
@@ -180,6 +206,7 @@ export function HeaderAtas({ pengguna, branding }: {
             kosong="Tidak ada peluang yang jatuh tempo pekan ini."
             terbuka={intip === 'pipeline'} onToggle={setIntip}
             ambil={() => intipPipeline(pengguna.id, pengawas)} />
+          )}
 
           {/* ── Lonceng ── */}
           {loncengBerlisensi && <div className="relative flex-shrink-0">
@@ -222,6 +249,7 @@ export function HeaderAtas({ pengguna, branding }: {
                 pengawas={pengawas}
                 peran={pengguna.role}
                 userId={pengguna.id}
+                boleh={boleh}
                 butirLisensi={notifLisensi.butir}
                 onTutup={() => setBukaNotif(false)}
               />
@@ -241,7 +269,7 @@ export function HeaderAtas({ pengguna, branding }: {
         </nav>
       </div>
 
-      {bukaCari && <ModalCari onTutup={() => setBukaCari(false)} pengawas={pengawas} />}
+      {bukaCari && <ModalCari onTutup={() => setBukaCari(false)} pengawas={pengawas} boleh={boleh} />}
     </header>
   );
 }
@@ -446,11 +474,12 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
  * mana. Kini tiap baris adalah dokumen atau jadwal yang sesungguhnya, dan
  * menekannya membawa langsung ke baris itu.
  */
-function PanelNotifikasi({ lonceng, pengawas, peran, userId, butirLisensi, onTutup }: {
+function PanelNotifikasi({ lonceng, pengawas, peran, userId, boleh, butirLisensi, onTutup }: {
   lonceng: ReturnType<typeof useLonceng>['lonceng'];
   pengawas: boolean;
   peran: string;
   userId: string;
+  boleh: (menu: string) => boolean;
   butirLisensi: ButirIntip[];
   onTutup: () => void;
 }) {
@@ -499,7 +528,9 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, butirLisensi, onTut
           .then((butir) => ({ judul: 'Belum ditugaskan', butir })));
       }
 
-      tugas.push(intipGp(peran).then((butir) => ({ judul: 'GP menunggu tanda tangan', butir })));
+      if (boleh('gp')) {
+        tugas.push(intipGp(peran).then((butir) => ({ judul: 'GP menunggu tanda tangan', butir })));
+      }
 
       if (lonceng.pipelineDekat > 0) {
         tugas.push(intipPipeline(userId, pengawas)
@@ -511,7 +542,7 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, butirLisensi, onTut
     })();
 
     return () => { batal = true; };
-  }, [lonceng, pengawas, peran, userId, butirLisensi]);
+  }, [lonceng, pengawas, peran, userId, boleh, butirLisensi]);
 
   const jumlah = (kelompok ?? []).reduce((t, k) => t + k.butir.length, 0);
 
@@ -599,7 +630,9 @@ interface Temuan { id: string; jenis: string; judul: string; keterangan: string;
  * karena yang dicari orang hampir selalu justru yang TIDAK ada di layar.
  * Hasilnya tetap tunduk RLS: Sales hanya menemukan barisnya sendiri.
  */
-function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boolean }) {
+function ModalCari({ onTutup, pengawas, boleh }: {
+  onTutup: () => void; pengawas: boolean; boleh: (menu: string) => boolean;
+}) {
   const [kata, setKata] = useState('');
   const [tertunda, setTertunda] = useState('');
   const [hasil, setHasil] = useState<Temuan[]>([]);
@@ -629,20 +662,32 @@ function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boole
       const k = `%${tertunda}%`;
       const p = polaIlike(tertunda);
 
+      // Modul yang tidak boleh dibuka akun ini (peran atau lisensi) tidak
+      // ikut dicari sama sekali — bukan dicari lalu disembunyikan.
+      const kosong = Promise.resolve({ data: [] as unknown[] });
+      const tujuanCustomer = boleh('pipeline') ? '/pipeline' : boleh('daily-report') ? '/daily-report' : null;
       const [pelanggan, jadwal, pipeline, laporan] = await Promise.all([
-        supabase.from('sm_customers').select('id, name, city, address').ilike('name', k).limit(5),
-        supabase.from('sm_schedules')
-          .select('id, customer_name, category, schedule_date, status')
-          .or(`customer_name.ilike.${p},project.ilike.${p}`)
-          .order('schedule_date', { ascending: false }).limit(5),
-        supabase.from('sm_pipeline')
-          .select('id, customer_name, project_detail, project_value')
-          .or(`customer_name.ilike.${p},project_detail.ilike.${p}`)
-          .order('pipeline_date', { ascending: false }).limit(5),
-        supabase.from('sm_daily_reports')
-          .select('id, customer_name, activity, report_date')
-          .or(`customer_name.ilike.${p},activity.ilike.${p}`)
-          .order('report_date', { ascending: false }).limit(5),
+        tujuanCustomer
+          ? supabase.from('sm_customers').select('id, name, city, address').ilike('name', k).limit(5)
+          : kosong,
+        boleh('schedule') || boleh('meeting')
+          ? supabase.from('sm_schedules')
+            .select('id, customer_name, category, schedule_date, status')
+            .or(`customer_name.ilike.${p},project.ilike.${p}`)
+            .order('schedule_date', { ascending: false }).limit(5)
+          : kosong,
+        boleh('pipeline')
+          ? supabase.from('sm_pipeline')
+            .select('id, customer_name, project_detail, project_value')
+            .or(`customer_name.ilike.${p},project_detail.ilike.${p}`)
+            .order('pipeline_date', { ascending: false }).limit(5)
+          : kosong,
+        boleh('daily-report')
+          ? supabase.from('sm_daily_reports')
+            .select('id, customer_name, activity, report_date')
+            .or(`customer_name.ilike.${p},activity.ilike.${p}`)
+            .order('report_date', { ascending: false }).limit(5)
+          : kosong,
       ]);
 
       if (batal) return;
@@ -652,13 +697,13 @@ function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boole
           .map((c) => ({
             id: `c-${c.id}`, jenis: 'Customer', judul: c.name,
             keterangan: c.city || c.address || 'Data pelanggan',
-            href: '/pipeline',
+            href: tujuanCustomer ?? '/profil',
           })),
         ...((jadwal.data ?? []) as { id: string; customer_name: string; category: string; schedule_date: string }[])
           .map((s) => ({
             id: `s-${s.id}`, jenis: 'Jadwal', judul: s.customer_name,
             keterangan: `${s.category} · ${tanggalPendek(s.schedule_date)}`,
-            href: '/schedule',
+            href: boleh('schedule') ? '/schedule' : '/meeting',
           })),
         ...((pipeline.data ?? []) as { id: string; customer_name: string; project_detail: string; project_value: number }[])
           .map((p) => ({
@@ -679,7 +724,7 @@ function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boole
     })();
 
     return () => { batal = true; };
-  }, [tertunda, pengawas]);
+  }, [tertunda, pengawas, boleh]);
 
   const dikelompokkan = useMemo(() => {
     const peta = new Map<string, Temuan[]>();

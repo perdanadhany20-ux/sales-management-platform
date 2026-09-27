@@ -1,9 +1,12 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { useDashboard } from '@/lib/use-dashboard';
 import { usePenggunaAktif } from '@/lib/auth';
 import { usePengaturan } from '@/lib/use-settings';
+import { useMenuSaya } from '@/lib/menu-akses';
+import { MENU_KARTU_DASHBOARD } from '@/lib/lisensi/kontrak';
 import { BentoGrid, BentoCard, AngkaJangkar, BarisBento } from '@/components/shared/Bento';
 import {
   DonutLegenda, CincinCapaian, CorongTingkat, BatangPeriode, Sparkline, Meter, LencanaTren,
@@ -33,6 +36,8 @@ export default function HalamanDashboard() {
   const { pengaturan } = usePengaturan();
 
   const pengawas = isPengawas(pengguna?.role);
+  const menuSaya = useMenuSaya(pengguna?.id, pengguna?.role);
+  const boleh = useMemo(() => (menu: string) => Boolean(menuSaya?.includes(menu)), [menuSaya]);
 
   /**
    * Kartu mana yang boleh tampil, diatur Admin lewat Administrasi → Tampilan.
@@ -41,8 +46,12 @@ export default function HalamanDashboard() {
    * disengaja: menambah kartu baru di kode tidak boleh membuatnya tersembunyi
    * diam-diam hanya karena baris pengaturannya belum menyebutnya.
    */
+  // Kartu modul yang tidak boleh dibuka akun ini (peran atau lisensi) tidak
+  // tampil, apa pun pengaturan Admin — Dashboard tidak boleh menjadi pintu
+  // belakang ke angka modul yang tidak dilisensikan.
   const tampil = (key: string) =>
-    pengaturan.dashboard_widgets.find((k) => k.key === key)?.aktif ?? true;
+    (!MENU_KARTU_DASHBOARD[key] || boleh(MENU_KARTU_DASHBOARD[key]))
+    && (pengaturan.dashboard_widgets.find((k) => k.key === key)?.aktif ?? true);
 
   if (galat) {
     return (
@@ -86,7 +95,7 @@ export default function HalamanDashboard() {
   const daftarGpsGagal = Object.entries(gps_gagal).filter(([, n]) => n > 0);
 
   const agenda = tampil('agenda') && pengguna
-    ? <KartuAgenda userId={pengguna.id} peran={pengguna.role} pengawas={pengawas} />
+    ? <KartuAgenda userId={pengguna.id} peran={pengguna.role} pengawas={pengawas} boleh={boleh} />
     : null;
 
   return (

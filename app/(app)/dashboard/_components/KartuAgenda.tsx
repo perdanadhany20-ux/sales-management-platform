@@ -33,8 +33,10 @@ interface Bagian {
   kosong?: string;
 }
 
-export function KartuAgenda({ userId, peran, pengawas }: {
+export function KartuAgenda({ userId, peran, pengawas, boleh }: {
   userId: string; peran: string; pengawas: boolean;
+  /** Menu yang boleh dibuka akun ini (peran + lisensi). */
+  boleh: (menu: string) => boolean;
 }) {
   const [bagian, setBagian] = useState<Bagian[] | null>(null);
   const [laporanBelum, setLaporanBelum] = useState(false);
@@ -44,18 +46,25 @@ export function KartuAgenda({ userId, peran, pengawas }: {
 
     async function muat() {
       // Semua dipanggil bersamaan — tidak ada yang menunggu yang lain.
+      const kosong = Promise.resolve([] as ButirIntip[]);
+      const jadwalBoleh = boleh('schedule');
       const [laporan, jadwal, terlewat, closing, gp, belumTugas] = await Promise.all([
-        pengawas ? Promise.resolve([]) : intipDailyReport(userId),
-        intipJadwal(userId, pengawas),
-        intipTerlewat(userId, pengawas),
-        intipPipeline(userId, pengawas),
-        pengawas ? intipGp(peran) : Promise.resolve([]),
-        pengawas ? intipBelumDitugaskan() : Promise.resolve([]),
+        pengawas || !boleh('daily-report') ? kosong : intipDailyReport(userId),
+        jadwalBoleh || boleh('meeting') ? intipJadwal(userId, pengawas) : kosong,
+        jadwalBoleh ? intipTerlewat(userId, pengawas) : kosong,
+        boleh('pipeline') ? intipPipeline(userId, pengawas) : kosong,
+        pengawas && boleh('gp') ? intipGp(peran) : kosong,
+        pengawas && jadwalBoleh ? intipBelumDitugaskan() : kosong,
       ]);
       if (batal) return;
 
       setLaporanBelum(!pengawas && laporan.length === 1 && laporan[0].id === 'kosong');
-      setBagian([
+      // Bagian untuk modul yang tidak boleh dibuka tidak ditampilkan sama sekali.
+      const menuBagian: Record<string, boolean> = {
+        jadwal: jadwalBoleh || boleh('meeting'), terlewat: jadwalBoleh, closing: boleh('pipeline'),
+        gp: boleh('gp'), tugas: jadwalBoleh,
+      };
+      setBagian(([
         { kunci: 'jadwal', judul: 'Hari Ini', warna: '#2a78d6', butir: jadwal,
           semua: '/schedule', kosong: 'Tidak ada jadwal atau meeting hari ini.' },
         { kunci: 'terlewat', judul: 'Terlewat', warna: '#e34948', butir: terlewat,
@@ -66,7 +75,7 @@ export function KartuAgenda({ userId, peran, pengawas }: {
           semua: '/gp' },
         { kunci: 'tugas', judul: 'Belum Ditugaskan', warna: '#eda100', butir: belumTugas,
           semua: '/schedule' },
-      ]);
+      ] as Bagian[]).filter((b) => menuBagian[b.kunci]));
     }
 
     void muat();
@@ -74,7 +83,7 @@ export function KartuAgenda({ userId, peran, pengawas }: {
     const segarkan = () => { void muat(); };
     window.addEventListener(PERISTIWA_DATA_BERUBAH, segarkan);
     return () => { batal = true; window.removeEventListener(PERISTIWA_DATA_BERUBAH, segarkan); };
-  }, [userId, peran, pengawas]);
+  }, [userId, peran, pengawas, boleh]);
 
   const tampil = (bagian ?? []).filter((b) => b.butir.length > 0 || b.kosong);
   const semuaBeres = bagian !== null && !laporanBelum
