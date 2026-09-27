@@ -63,6 +63,8 @@ export async function GET(request: NextRequest) {
         fitur_peta: m?.features ?? null,
         permintaan: m?.requests ?? [],
         dikonfigurasi: s.dikonfigurasi,
+        // 'env' = diatur penyedia lewat Vercel; Admin tidak bisa mengganti kodenya.
+        sumber: s.sumber,
         terakhir_terverifikasi: s.terakhirTerverifikasi,
         terakhir_gagal: s.terakhirGagal,
         galat_terakhir: s.galatTerakhir ? pesanKode(s.galatTerakhir).judul : null,

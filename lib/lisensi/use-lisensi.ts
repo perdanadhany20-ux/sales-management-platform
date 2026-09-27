@@ -34,6 +34,7 @@ export interface DetailLisensi {
   fitur_peta: Record<string, boolean> | null;
   permintaan: RingkasanPermintaan[];
   dikonfigurasi: boolean;
+  sumber: 'env' | 'aktivasi' | null;
   terakhir_terverifikasi: string | null;
   terakhir_gagal: string | null;
   galat_terakhir: string | null;

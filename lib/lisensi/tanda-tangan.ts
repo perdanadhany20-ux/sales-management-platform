@@ -81,6 +81,41 @@ export function buatPasanganKunci(): { publik: string; privat: string } {
   };
 }
 
+/* ── Kode Aktivasi ──────────────────────────────────────────────────────────
+ * Satu string yang diterbitkan Kantor Pusat saat registrasi dan ditempel Admin
+ * pelanggan di Admin → Lisensi. Isinya identitas + kunci deployment:
+ *   SMPA1-<base64url(JSON {d, l, k})>
+ * Rahasia seperti kata sandi: siapa pun yang memegangnya bisa mengaktifkan
+ * satu platform — karena itu Kantor Pusat mengikat kode ke platform pertama
+ * yang memakainya (instance_id).
+ */
+export interface KredensialAktivasi { deploymentId: string; licenseId: string; deploymentKey: string }
+
+const AWALAN_AKTIVASI = 'SMPA1-';
+const POLA_KODE_ID = /^[A-Z0-9][A-Z0-9-]{3,63}$/;
+
+export function buatKodeAktivasi(k: KredensialAktivasi): string {
+  return AWALAN_AKTIVASI + b64url(Buffer.from(JSON.stringify({ d: k.deploymentId, l: k.licenseId, k: k.deploymentKey }), 'utf8'));
+}
+
+export function bacaKodeAktivasi(kode: string): KredensialAktivasi | null {
+  const t = kode.replace(/\s+/g, '');
+  if (!t.startsWith(AWALAN_AKTIVASI) || t.length > 400) return null;
+  try {
+    const o = JSON.parse(dariB64url(t.slice(AWALAN_AKTIVASI.length)).toString('utf8')) as { d?: unknown; l?: unknown; k?: unknown };
+    if (typeof o.d !== 'string' || typeof o.l !== 'string' || typeof o.k !== 'string') return null;
+    if (!POLA_KODE_ID.test(o.d) || !POLA_KODE_ID.test(o.l) || o.k.length < 32 || o.k.length > 200) return null;
+    return { deploymentId: o.d, licenseId: o.l, deploymentKey: o.k };
+  } catch {
+    return null;
+  }
+}
+
+/** Sidik jari platform: hash URL Supabase-nya. Stabil per pelanggan, tidak membocorkan URL-nya. */
+export function sidikPlatform(supabaseUrl: string): string {
+  return crypto.createHash('sha256').update(`smp-instance:${supabaseUrl.trim().replace(/\/+$/, '').toLowerCase()}`).digest('hex');
+}
+
 export function hashKunciDeployment(kunci: string): string {
   return crypto.createHash('sha256').update(kunci, 'utf8').digest('hex');
 }

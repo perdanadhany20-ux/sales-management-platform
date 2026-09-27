@@ -126,6 +126,7 @@ export type KodeLisensi =
   | 'LICENSE_VERIFICATION_FAILED'
   | 'LICENSE_AUTHORITY_UNAVAILABLE'
   | 'FEATURE_NOT_LICENSED'
+  | 'LICENSE_IN_USE'
   | 'LICENSE_DEVELOPMENT';
 
 /* ── Bawaan komersial (§77) — konfigurasi, bukan asumsi yang ditebar ─────── */
@@ -331,7 +332,8 @@ export function pesanKode(kode: KodeLisensi): { judul: string; keterangan: strin
   switch (kode) {
     case 'LICENSE_OK':          return { judul: 'Lisensi aktif', keterangan: 'Platform Anda berlisensi resmi.' };
     case 'LICENSE_DEVELOPMENT': return { judul: 'Mode pengembangan', keterangan: 'Seluruh fitur terbuka untuk pengembangan lokal.' };
-    case 'LICENSE_NOT_FOUND':   return { judul: 'Lisensi belum diaktifkan', keterangan: 'Platform ini belum memiliki lisensi yang terverifikasi. Admin dapat mengajukan lisensi dari halaman Lisensi.' };
+    case 'LICENSE_NOT_FOUND':   return { judul: 'Lisensi belum diaktifkan', keterangan: 'Platform ini belum memiliki lisensi yang terverifikasi. Admin dapat memasukkan Kode Aktivasi dari penyedia platform di halaman Lisensi.' };
+    case 'LICENSE_IN_USE':      return { judul: 'Kode aktivasi sudah dipakai', keterangan: 'Kode aktivasi ini sudah terikat ke platform lain. Hubungi penyedia platform.' };
     case 'LICENSE_PENDING':     return { judul: 'Menunggu persetujuan', keterangan: 'Lisensi Anda sedang menunggu persetujuan penyedia platform.' };
     case 'LICENSE_EXPIRED':     return { judul: 'Lisensi telah berakhir', keterangan: 'Masa berlaku lisensi sudah habis. Data Anda tetap aman; ajukan perpanjangan untuk membuka kembali seluruh fitur.' };
     case 'LICENSE_SUSPENDED':   return { judul: 'Lisensi ditangguhkan', keterangan: 'Lisensi sedang ditangguhkan sementara oleh penyedia platform. Hubungi penyedia platform.' };

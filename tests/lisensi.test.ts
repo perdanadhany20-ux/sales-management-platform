@@ -11,7 +11,9 @@ import {
   peristiwaPerubahan, statusEfektif, versiDidukung,
   type MuatanLisensi, type Paket, type StatusDasar,
 } from '../lib/lisensi/kontrak.ts';
-import { buatPasanganKunci, periksaToken, tandatangani } from '../lib/lisensi/tanda-tangan.ts';
+import {
+  bacaKodeAktivasi, buatKodeAktivasi, buatPasanganKunci, periksaToken, sidikPlatform, tandatangani,
+} from '../lib/lisensi/tanda-tangan.ts';
 
 const SEKARANG = new Date('2026-09-27T10:00:00Z');
 const HARI = 86_400_000;
@@ -243,4 +245,25 @@ test('Rentang versi', () => {
   assert.equal(versiDidukung('1.2.0', '1.0.0', '2.0.0'), true);
   assert.equal(versiDidukung('0.9.9', '1.0.0', null), false);
   assert.equal(versiDidukung('2.1', null, '2.0.0'), false);
+});
+
+/* ── Kode Aktivasi ────────────────────────────────────────────────────────── */
+
+test('Kode Aktivasi: bolak-balik utuh, toleran spasi/baris baru saat ditempel', () => {
+  const k = { deploymentId: 'SMA-ABC-2026-001', licenseId: 'LIC-SMA-2026-0001', deploymentKey: 'x'.repeat(43) };
+  const kode = buatKodeAktivasi(k);
+  assert.match(kode, /^SMPA1-/);
+  assert.deepEqual(bacaKodeAktivasi(kode), k);
+  assert.deepEqual(bacaKodeAktivasi(`  ${kode.slice(0, 20)}\n${kode.slice(20)}  `), k);
+});
+
+test('Kode Aktivasi rusak/karangan ditolak', () => {
+  for (const t of ['', 'SMPA1-', 'SMPA1-abc', 'LICENSE_ID=LIC-1', buatKodeAktivasi({ deploymentId: 'x', licenseId: 'LIC-SMA-2026-0001', deploymentKey: 'k'.repeat(40) })]) {
+    assert.equal(bacaKodeAktivasi(t), null, t);
+  }
+});
+
+test('Sidik platform stabil dan berbeda per Supabase', () => {
+  assert.equal(sidikPlatform('https://a.supabase.co/'), sidikPlatform('https://A.supabase.co'));
+  assert.notEqual(sidikPlatform('https://a.supabase.co'), sidikPlatform('https://b.supabase.co'));
 });
