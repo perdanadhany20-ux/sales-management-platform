@@ -12,6 +12,7 @@ import { KerangkaKartu, PanelGalat, Kosong } from '@/components/shared/Feedback'
 import { rupiahRingkas, angka, persen, hitungDelta } from '@/lib/format';
 import { WARNA_PROBABILITY, PESAN_GPS, isPengawas } from '@/lib/constants';
 import { KartuTarget } from './_components/KartuTarget';
+import { KartuAgenda } from './_components/KartuAgenda';
 
 /**
  * Dashboard — ikhtisar operasional, bukan hiasan (§9).
@@ -84,11 +85,21 @@ export default function HalamanDashboard() {
 
   const daftarGpsGagal = Object.entries(gps_gagal).filter(([, n]) => n > 0);
 
+  const agenda = tampil('agenda') && pengguna
+    ? <KartuAgenda userId={pengguna.id} peran={pengguna.role} pengawas={pengawas} />
+    : null;
+
   return (
     <div className="flex flex-col gap-4">
       <TajukHalaman nama={pengguna?.full_name} pengawas={pengawas} />
 
       <BentoGrid>
+
+        {/* ── Agenda: yang harus dikerjakan sekarang ──
+            Sales membuka aplikasi untuk tahu apa yang harus dikerjakan hari
+            ini, jadi agendanya di paling atas. Pengawas lebih dulu melihat
+            ikhtisar tim; agendanya menyusul setelah baris pertama. */}
+        {!pengawas && agenda}
 
         {/* ── Jangkar: kepatuhan laporan harian ── */}
         {tampil('kepatuhan') && (
@@ -158,6 +169,8 @@ export default function HalamanDashboard() {
           </div>
         </BentoCard>
         )}
+
+        {pengawas && agenda}
 
         {tampil('target') && <KartuTarget pengawas={pengawas} />}
 

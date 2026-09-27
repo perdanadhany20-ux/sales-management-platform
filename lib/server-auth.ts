@@ -80,7 +80,12 @@ export function isAdmin(role: string | null | undefined): boolean {
   return (role ?? '').toUpperCase() === 'ADMIN';
 }
 
-/** Manager DAN Admin — padanan sm_is_pengawas() di database. */
+/**
+ * Peran pengawas — HARUS sama dengan sm_is_pengawas() di database dan
+ * isPengawas() di lib/constants.ts. Dulu versi server ini hanya memuat Manager
+ * dan Admin, sehingga Director/Finance melihat tombol yang lalu ditolak API,
+ * padahal RLS sudah mengizinkan mereka.
+ */
 export function isPengawas(role: string | null | undefined): boolean {
-  return ['MANAGER', 'ADMIN'].includes((role ?? '').toUpperCase());
+  return ['MANAGER', 'ADMIN', 'DIRECTOR', 'FINANCE'].includes((role ?? '').toUpperCase());
 }

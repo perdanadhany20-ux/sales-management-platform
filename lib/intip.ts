@@ -116,7 +116,7 @@ export async function intipJadwal(userId: string, pengawas: boolean): Promise<Bu
 
   let q = supabase
     .from('sm_schedules')
-    .select('id, customer_name, category, schedule_time, status')
+    .select('id, customer_name, category, schedule_time, status, requires_attendance')
     .eq('schedule_date', hariIni)
     .in('status', ['UPCOMING', 'IN_PROGRESS'])
     .order('schedule_time', { ascending: true, nullsFirst: false })
@@ -128,13 +128,15 @@ export async function intipJadwal(userId: string, pengawas: boolean): Promise<Bu
 
   return ((data ?? []) as {
     id: string; customer_name: string; category: string;
-    schedule_time: string | null; status: string;
+    schedule_time: string | null; status: string; requires_attendance: boolean;
   }[]).map((s) => ({
     id: s.id,
     judul: s.customer_name,
     keterangan: s.category,
     kanan: s.schedule_time?.slice(0, 5) ?? '—',
-    href: hrefFokus('/schedule', s.id),
+    // Meeting dibuka di halaman Meeting — di sanalah check-in dan foto bukti
+    // dikerjakan. Menautkannya ke Schedule memaksa satu klik pindah menu lagi.
+    href: hrefFokus(s.requires_attendance ? '/meeting' : '/schedule', s.id),
     warna: STATUS_JADWAL[s.status as StatusJadwal]?.color,
   }));
 }

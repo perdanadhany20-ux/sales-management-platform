@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { getSessionUser, isPengawas } from '@/lib/server-auth';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Sesi tidak ditemukan.' }, { status: 401 });
   }
   if (!isPengawas(pemanggil.role)) {
-    return NextResponse.json({ error: 'Hanya Manager/Admin yang boleh memutuskan lokasi.' }, { status: 403 });
+    return NextResponse.json({ error: 'Hanya pengawas (Manager, Admin, Director, Finance) yang boleh memutuskan lokasi.' }, { status: 403 });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -51,7 +52,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { error } = await db.from('sm_locations').update(perubahan).eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
 
   await db.from('audit_trail').insert({
     actor_id: pemanggil.id, actor_name: pemanggil.full_name,

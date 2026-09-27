@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { tanggalISO } from './format';
+import { pesanGalat } from './pesan-galat';
 
 /**
  * lib/use-dashboard.ts — satu panggilan RPC untuk seluruh angka dashboard.
@@ -53,7 +54,7 @@ export function useDashboard(hariKeBelakang = 29) {
       p_sampai: tanggalISO(sampai),
     });
 
-    if (error) setGalat(error.message);
+    if (error) setGalat(pesanGalat(error));
     else setData(hasil as DataDashboard);
 
     setMemuat(false);

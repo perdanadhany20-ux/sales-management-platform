@@ -7,6 +7,7 @@ import { MENU_KEYS, LABEL_MENU, type MenuKey } from '@/lib/menu-akses';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Tombol, Lencana } from '@/components/shared/FormParts';
 import { KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 const PERAN: Peran[] = ['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN'];
 
@@ -58,7 +59,7 @@ export function TabHakAkses() {
 
       setPengguna((us.users ?? []) as Pengguna[]);
     } catch (err) {
-      setGalat(err instanceof Error ? err.message : 'Gagal memuat.');
+      setGalat(pesanGalat(err, 'Gagal memuat.'));
     } finally {
       setMemuat(false);
     }
@@ -73,7 +74,7 @@ export function TabHakAkses() {
       ? await supabase.from('sm_role_menu').insert({ role, menu_key: kunci })
       : await supabase.from('sm_role_menu').delete().eq('role', role).eq('menu_key', kunci);
     setSibuk(null);
-    if (error) { toast('galat', error.message); return; }
+    if (error) { toast('galat', pesanGalat(error)); return; }
     setRoleMenu((p) => {
       const baru = { ...p, [role]: new Set(p[role]) };
       if (aktif) baru[role].add(kunci); else baru[role].delete(kunci);
@@ -107,7 +108,7 @@ export function TabHakAkses() {
       toast('sukses', 'Pengecualian akun disimpan.');
       void muat();
     } catch (err) {
-      toast('galat', err instanceof Error ? err.message : 'Gagal menyimpan.');
+      toast('galat', pesanGalat(err, 'Gagal menyimpan.'));
     } finally {
       setSibuk(null);
     }
@@ -118,7 +119,7 @@ export function TabHakAkses() {
     setSibuk('hapus-akun');
     const { error } = await supabase.from('sm_user_menu').delete().eq('user_id', akunDipilih);
     setSibuk(null);
-    if (error) { toast('galat', error.message); return; }
+    if (error) { toast('galat', pesanGalat(error)); return; }
     toast('sukses', 'Pengecualian dihapus — akun ini kembali mengikuti default perannya.');
     if (akun) setDraftAkun(new Set(roleMenu[akun.role] ?? []));
     void muat();

@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { kosongkanCachePengaturan } from '@/lib/use-settings';
+import { kosongkanCachePengaturan, lengkapiKartuDashboard, type KartuDashboard } from '@/lib/use-settings';
 import {
   BRANDING_BAWAAN, kosongkanCacheBranding, terapkanWarna, type Branding,
 } from '@/lib/branding';
 import { Teks, Tombol } from '@/components/shared/FormParts';
 import { KerangkaKartu, PanelGalat, useToast } from '@/components/shared/Feedback';
+import { pesanGalat } from '@/lib/pesan-galat';
 
-interface KartuDashboard { key: string; label: string; aktif: boolean }
 
 /**
  * Administrasi → Tampilan.
@@ -42,13 +42,13 @@ export function TabTampilan() {
     setGalat(null);
     const { data, error } = await supabase.from('sm_settings')
       .select('key, value').in('key', ['branding', 'dashboard_widgets']);
-    if (error) { setGalat(error.message); setMemuat(false); return; }
+    if (error) { setGalat(pesanGalat(error)); setMemuat(false); return; }
 
     const peta = Object.fromEntries(
       ((data ?? []) as { key: string; value: unknown }[]).map((r) => [r.key, r.value]),
     );
     setB({ ...BRANDING_BAWAAN, ...((peta.branding ?? {}) as Partial<Branding>) });
-    setKartu((peta.dashboard_widgets ?? []) as KartuDashboard[]);
+    setKartu(lengkapiKartuDashboard((peta.dashboard_widgets ?? []) as KartuDashboard[]));
     setMemuat(false);
   }, []);
 
@@ -71,7 +71,7 @@ export function TabTampilan() {
       .eq('key', 'branding');
     setMenyimpan(null);
 
-    if (error) { toast('galat', `Gagal menyimpan: ${error.message}`); return; }
+    if (error) { toast('galat', `Gagal menyimpan: ${pesanGalat(error)}`); return; }
 
     kosongkanCacheBranding();
     terapkanWarna(b);
@@ -85,7 +85,7 @@ export function TabTampilan() {
       .eq('key', 'dashboard_widgets');
     setMenyimpan(null);
 
-    if (error) { toast('galat', `Gagal menyimpan: ${error.message}`); return; }
+    if (error) { toast('galat', `Gagal menyimpan: ${pesanGalat(error)}`); return; }
     kosongkanCachePengaturan();
     toast('sukses', 'Tampilan dashboard disimpan.');
   }
@@ -112,7 +112,7 @@ export function TabTampilan() {
       ubah(kunci, data.publicUrl);
       toast('info', 'Berkas terunggah. Tekan Simpan agar dipakai platform.');
     } catch (e) {
-      toast('galat', e instanceof Error ? e.message : 'Gagal mengunggah berkas.');
+      toast('galat', pesanGalat(e, 'Gagal mengunggah berkas.'));
     } finally {
       setMengunggah(null);
       if (refLogo.current) refLogo.current.value = '';

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { eksporExcel, BATAS_BARIS_EKSPOR, type OpsiEkspor } from '@/lib/ekspor-excel';
 import { useToast } from './Feedback';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * components/shared/TombolEkspor.tsx — satu tombol ekspor untuk semua modul.
@@ -51,7 +52,7 @@ export function TombolEkspor<T>({ ambil, susun, label = 'Ekspor Excel', classNam
         toast('sukses', `${baris.length} baris diekspor.`);
       }
     } catch (e) {
-      toast('galat', e instanceof Error ? e.message : 'Gagal membuat berkas Excel.');
+      toast('galat', pesanGalat(e, 'Gagal membuat berkas Excel.'));
     } finally {
       setSibuk(false);
     }

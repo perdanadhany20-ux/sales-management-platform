@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { getSessionUser, COOKIE_SESI, hashToken } from '@/lib/server-auth';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,7 +123,7 @@ export async function PATCH(request: NextRequest) {
     .select(KOLOM_PROFIL)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
 
   await db.from('audit_trail').insert({
     actor_id: pengguna.id,

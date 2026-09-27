@@ -20,6 +20,7 @@ import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { FormProyek } from './_components/FormProyek';
 import { PanelProyek } from './_components/PanelProyek';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * Proyek — penyatu seluruh modul.
@@ -86,7 +87,7 @@ export default function HalamanProyek() {
     }
 
     const { data, error, count } = await q;
-    if (error) { setGalat(error.message); setMemuat(false); return; }
+    if (error) { setGalat(pesanGalat(error)); setMemuat(false); return; }
 
     setDaftar((data ?? []) as ProyekRingkasan[]);
     setTotal(count ?? 0);
@@ -139,7 +140,7 @@ export default function HalamanProyek() {
     setMenghapus(true);
     const { error } = await supabase.from('sm_projects').delete().eq('id', akanHapus.id);
     setMenghapus(false);
-    if (error) { toast('galat', `Gagal menghapus: ${error.message}`); return; }
+    if (error) { toast('galat', `Gagal menghapus: ${pesanGalat(error)}`); return; }
     toast('sukses', 'Proyek dihapus.');
     setAkanHapus(null);
     void muat();

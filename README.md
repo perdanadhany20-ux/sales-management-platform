@@ -24,7 +24,7 @@ percakapan dengan satu sistem yang bisa dipertanggungjawabkan:
 
 | Modul | Isi |
 |---|---|
-| Dashboard | Ringkasan tim, tren, kepatuhan laporan, GP, pencapaian target |
+| Dashboard | Agenda & tindak lanjut hari ini, ringkasan tim, tren, kepatuhan laporan, GP, pencapaian target |
 | Daily Report | Laporan kunjungan harian, ekspor Excel |
 | Proyek | Induk yang mengikat pipeline, jadwal, dan GP satu proyek |
 | Pipeline | Peluang, probabilitas, tahapan, estimasi closing |
@@ -35,7 +35,13 @@ percakapan dengan satu sistem yang bisa dipertanggungjawabkan:
 | Admin Panel | Pengguna, persetujuan akun, hak akses menu, lokasi meeting, target Sales, tampilan dashboard, nilai bisnis, audit log |
 
 Setiap daftar punya pencarian, kolom yang bisa diurutkan, dan konfirmasi
-sebelum menghapus.
+sebelum menghapus. Menu di sidebar dikelompokkan menurut pekerjaan (Kerja
+Harian, Penjualan, Pemantauan, Sistem) dan hanya menampilkan menu yang boleh
+dibuka peran tersebut.
+
+**Proyek adalah simpul penghubung.** Pipeline, jadwal/meeting, laporan harian,
+dan GP Calculation ditautkan ke proyek; detail Proyek dan detail Pipeline
+menampilkan data terkait itu tanpa perlu berpindah menu.
 
 ## 3. Arsitektur
 
@@ -112,6 +118,15 @@ disebut **pengawas** dan melihat data seluruh tim.
 Akun yang sandinya dibuat atau direset Admin wajib mengganti sandi saat masuk
 pertama kali.
 
+Definisi "pengawas" ada di tiga tempat dan harus selalu sama:
+`sm_is_pengawas()` (database), `isPengawas()` di `lib/constants.ts` (tampilan),
+dan `isPengawas()` di `lib/server-auth.ts` (route handler).
+
+Pesan galat ke pengguna selalu lewat `pesanGalat()` (`lib/pesan-galat.ts`):
+galat teknis Postgres/PostgREST diterjemahkan ke kalimat biasa dan rinciannya
+dicatat ke console; pesan yang memang ditulis untuk manusia (RAISE EXCEPTION
+fungsi kita sendiri) diteruskan apa adanya.
+
 ## 9. Storage
 
 Bucket privat `evidence`, jalur `evidence/{user_id}/{schedule_id}/berkas.jpg`.
@@ -120,7 +135,7 @@ bukti tidak boleh ditimpa.
 
 ## 10. Pengujian
 
-Tiga skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
+Empat skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
 Supabase. Setiap skrip diakhiri `ROLLBACK`, jadi data ujinya tidak pernah
 tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 
@@ -129,6 +144,7 @@ tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 | `keamanan.sql` | 19 | Isolasi antar-Sales, manipulasi status, check-in (radius, akurasi), bukti foto, eskalasi peran |
 | `keamanan-gp.sql` | 29 | Ketepatan rumus GP terhadap berkas asli, isolasi, rantai persetujuan |
 | `keamanan-gps.sql` | 13 | Penolakan lokasi palsu — dan jaminan bahwa Sales jujur tetap lolos |
+| `keamanan-hak.sql` | 20 | Sales menyunting tapi tidak menghapus miliknya, hanya Admin mengubah data orang lain, isolasi Target Sales, kolom pribadi `users` |
 
 Pemeriksaan kode: `npm run typecheck` dan `npm run build`.
 

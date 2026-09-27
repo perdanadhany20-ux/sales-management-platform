@@ -18,6 +18,7 @@ import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { FormJadwal, type Jadwal } from './_components/FormJadwal';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 const PER_HALAMAN = 20;
 
@@ -102,7 +103,7 @@ export default function HalamanSchedule() {
     }
 
     const { data, error, count } = await q;
-    if (error) { setGalat(error.message); setMemuat(false); return; }
+    if (error) { setGalat(pesanGalat(error)); setMemuat(false); return; }
 
     setDaftar((data ?? []) as Jadwal[]);
     setTotal(count ?? 0);
@@ -178,7 +179,7 @@ export default function HalamanSchedule() {
     });
     setMemproses(false);
 
-    if (error) { toast('galat', error.message); return; }
+    if (error) { toast('galat', pesanGalat(error)); return; }
 
     const hasil = data as { ok: boolean; message?: string };
     if (!hasil.ok) {
@@ -196,7 +197,7 @@ export default function HalamanSchedule() {
     setMenghapus(true);
     const { error } = await supabase.from('sm_schedules').delete().eq('id', akanHapus.id);
     setMenghapus(false);
-    if (error) { toast('galat', `Gagal menghapus: ${error.message}`); return; }
+    if (error) { toast('galat', `Gagal menghapus: ${pesanGalat(error)}`); return; }
     toast('sukses', 'Jadwal dihapus.');
     setAkanHapus(null);
     void muat();

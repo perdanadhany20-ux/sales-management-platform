@@ -8,6 +8,7 @@ import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared
 import { Tabel } from '@/components/shared/Tabel';
 import { BatangTarget, warnaCapaian } from '@/components/shared/Charts';
 import { ambilPencapaian, type Pencapaian } from '@/lib/target';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 interface Isian { nilai: number; gp: number }
 
@@ -47,7 +48,7 @@ export function TabTarget({ pemanggilId }: { pemanggilId: string }) {
       setIsian(peta);
       setAwal(peta);
     } catch (e) {
-      setGalat(e instanceof Error ? e.message : 'Gagal memuat target.');
+      setGalat(pesanGalat(e, 'Gagal memuat target.'));
     } finally {
       setMemuat(false);
     }
@@ -75,7 +76,7 @@ export function TabTarget({ pemanggilId }: { pemanggilId: string }) {
     const { data: rows, error } = await supabase
       .from('sm_sales_targets').select('sales_user_id, target_nilai, target_gp').eq('periode', lalu);
     setMenyalin(false);
-    if (error) { toast('galat', error.message); return; }
+    if (error) { toast('galat', pesanGalat(error)); return; }
     if (!rows || rows.length === 0) { toast('info', 'Bulan lalu belum punya target untuk disalin.'); return; }
     setIsian((s) => {
       const baru = { ...s };
@@ -110,7 +111,7 @@ export function TabTarget({ pemanggilId }: { pemanggilId: string }) {
       toast('sukses', `Target ${labelBulan} disimpan untuk ${berubah.length} Sales.`);
       await muat();
     } catch (e) {
-      toast('galat', e instanceof Error ? e.message : 'Gagal menyimpan target.');
+      toast('galat', pesanGalat(e, 'Gagal menyimpan target.'));
     } finally {
       setMenyimpan(false);
     }

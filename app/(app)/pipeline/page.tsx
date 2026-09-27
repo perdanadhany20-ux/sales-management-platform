@@ -15,8 +15,10 @@ import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared
 import { Modal, Konfirmasi } from '@/components/shared/Modal';
 import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { FormPipeline, type Peluang } from './_components/FormPipeline';
+import { KonteksPipeline } from './_components/KonteksPipeline';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 const PER_HALAMAN = 20;
 
@@ -95,7 +97,7 @@ export default function HalamanPipeline() {
     }
 
     const { data, error, count } = await q;
-    if (error) { setGalat(error.message); setMemuat(false); return; }
+    if (error) { setGalat(pesanGalat(error)); setMemuat(false); return; }
 
     setDaftar((data ?? []) as Peluang[]);
     setTotal(count ?? 0);
@@ -184,7 +186,7 @@ export default function HalamanPipeline() {
     setMenghapus(true);
     const { error } = await supabase.from('sm_pipeline').delete().eq('id', akanHapus.id);
     setMenghapus(false);
-    if (error) { toast('galat', `Gagal menghapus: ${error.message}`); return; }
+    if (error) { toast('galat', `Gagal menghapus: ${pesanGalat(error)}`); return; }
     toast('sukses', 'Peluang dihapus.');
     setAkanHapus(null);
     void muat();
@@ -485,7 +487,7 @@ export default function HalamanPipeline() {
           buka={Boolean(dilihat)}
           onTutup={() => setDilihat(null)}
           judul={dilihat.customer_name}
-          keterangan={`Closing ${tanggalPendek(dilihat.estimated_closing)}`}
+          keterangan={`${(GAYA_STAGE[dilihat.stage] ?? GAYA_STAGE.OPEN).label} · Closing ${tanggalPendek(dilihat.estimated_closing)}`}
           kaki={<Tombol rupa="kedua" onClick={() => setDilihat(null)} className="text-[12px] py-2">Tutup</Tombol>}
         >
           <div className="flex flex-col gap-3">
@@ -508,6 +510,12 @@ export default function HalamanPipeline() {
                 label="Tingkat keyakinan"
               />
             </div>
+            <KonteksPipeline
+              peluangId={dilihat.id}
+              proyekId={dilihat.project_id}
+              bisaSunting={dilihat.sales_user_id === pengguna?.id || admin}
+              onSunting={() => { setSedangSunting(dilihat); setDilihat(null); setFormBuka(true); }}
+            />
           </div>
         </Modal>
       )}

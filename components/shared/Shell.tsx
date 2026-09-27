@@ -58,7 +58,18 @@ export interface Menu {
   ikon: React.ReactNode;
   /** Muncul di bilah bawah ponsel (maksimal 5 supaya tetap bisa disentuh). */
   utama?: boolean;
+  /** Kelompok di sidebar — disusun menurut pekerjaan, bukan menurut tabel. */
+  kelompok: KelompokMenu;
 }
+
+/**
+ * Sidebar dikelompokkan menurut PEKERJAAN, bukan struktur database: apa yang
+ * dikerjakan tiap hari, alur penjualan dari peluang sampai GP, pemantauan,
+ * lalu pengaturan sistem. Urutan di dalam Penjualan mengikuti alurnya:
+ * peluang (Pipeline) → proyek yang mengikatnya → perhitungan GP.
+ */
+type KelompokMenu = 'Kerja Harian' | 'Penjualan' | 'Pemantauan' | 'Sistem';
+const URUTAN_KELOMPOK_MENU: KelompokMenu[] = ['Kerja Harian', 'Penjualan', 'Pemantauan', 'Sistem'];
 
 const I = (d: string) => (
   <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -67,15 +78,15 @@ const I = (d: string) => (
 );
 
 export const MENU_APLIKASI: Menu[] = [
-  { href: '/dashboard',    label: 'Dashboard',    kunci: 'dashboard',     utama: true,  ikon: I('M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z') },
-  { href: '/daily-report', label: 'Daily Report', kunci: 'daily-report',  utama: true,  ikon: I('M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4') },
-  { href: '/proyek',       label: 'Proyek',       kunci: 'proyek',        ikon: I('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
-  { href: '/pipeline',     label: 'Pipeline',     kunci: 'pipeline',      ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
-  { href: '/schedule',     label: 'Schedule',     kunci: 'schedule',      utama: true,  ikon: I('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z') },
-  { href: '/meeting',      label: 'Meeting',      kunci: 'meeting',       utama: true,  ikon: I('M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
-  { href: '/gp',           label: 'GP Calculation', kunci: 'gp',          ikon: I('M9 7h6M9 11h6M9 15h3M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z') },
-  { href: '/activity',     label: 'Activity',     kunci: 'activity',      ikon: I('M3 12h4l3 8 4-16 3 8h4') },
-  { href: '/admin',        label: 'Admin Panel',  kunci: 'admin',         ikon: I('M10.3 4.3a1.9 1.9 0 013.4 0l.5 1a1.9 1.9 0 002.3 1l1-.3a1.9 1.9 0 012.1 2.9l-.6.9a1.9 1.9 0 000 2.4l.6.9a1.9 1.9 0 01-2.1 2.9l-1-.3a1.9 1.9 0 00-2.3 1l-.5 1a1.9 1.9 0 01-3.4 0l-.5-1a1.9 1.9 0 00-2.3-1l-1 .3a1.9 1.9 0 01-2.1-2.9l.6-.9a1.9 1.9 0 000-2.4l-.6-.9a1.9 1.9 0 012.1-2.9l1 .3a1.9 1.9 0 002.3-1l.5-1z M12 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
+  { kelompok: 'Kerja Harian', href: '/dashboard',    label: 'Dashboard',    kunci: 'dashboard',     utama: true,  ikon: I('M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z') },
+  { kelompok: 'Kerja Harian', href: '/daily-report', label: 'Daily Report', kunci: 'daily-report',  utama: true,  ikon: I('M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4') },
+  { kelompok: 'Kerja Harian', href: '/schedule',     label: 'Schedule',     kunci: 'schedule',      utama: true,  ikon: I('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z') },
+  { kelompok: 'Kerja Harian', href: '/meeting',      label: 'Meeting',      kunci: 'meeting',       utama: true,  ikon: I('M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
+  { kelompok: 'Penjualan', href: '/pipeline',     label: 'Pipeline',     kunci: 'pipeline',      ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
+  { kelompok: 'Penjualan', href: '/proyek',       label: 'Proyek',       kunci: 'proyek',        ikon: I('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
+  { kelompok: 'Penjualan', href: '/gp',           label: 'GP Calculation', kunci: 'gp',          ikon: I('M9 7h6M9 11h6M9 15h3M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z') },
+  { kelompok: 'Pemantauan', href: '/activity',     label: 'Activity',     kunci: 'activity',      ikon: I('M3 12h4l3 8 4-16 3 8h4') },
+  { kelompok: 'Sistem', href: '/admin',        label: 'Admin Panel',  kunci: 'admin',         ikon: I('M10.3 4.3a1.9 1.9 0 013.4 0l.5 1a1.9 1.9 0 002.3 1l1-.3a1.9 1.9 0 012.1 2.9l-.6.9a1.9 1.9 0 000 2.4l.6.9a1.9 1.9 0 01-2.1 2.9l-1-.3a1.9 1.9 0 00-2.3 1l-.5 1a1.9 1.9 0 01-3.4 0l-.5-1a1.9 1.9 0 00-2.3-1l-1 .3a1.9 1.9 0 01-2.1-2.9l.6-.9a1.9 1.9 0 000-2.4l-.6-.9a1.9 1.9 0 012.1-2.9l1 .3a1.9 1.9 0 002.3-1l.5-1z M12 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -276,19 +287,33 @@ function SidebarLebar({ menu, pathname, pengguna }: {
     <aside className="hidden sidebar:flex w-[228px] flex-shrink-0 flex-col bg-white border-r border-slate-200
                       sticky top-14 h-[calc(100dvh-3.5rem)]">
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5">
-        <p className="px-3 pb-1 text-[9px] font-bold text-slate-400 uppercase tracking-[0.14em]">Menu</p>
-        {menu.map((m) => (
-          <div key={m.href}>
-            <TautanMenu menu={m} aktif={pathname.startsWith(m.href)} />
-            {/* Sub-menu Admin Panel muncul DI SINI, menempel pada menu
-                induknya di sidebar — bukan sebagai panel terpisah di dalam
-                area isi. Panel navigasi yang mengambang di tengah halaman
-                terbaca sebagai bagian dari isi, bukan sebagai navigasi. */}
-            {m.href === '/admin' && pathname.startsWith('/admin') && (
-              <SubMenuAdmin peran={pengguna.role} />
-            )}
-          </div>
-        ))}
+        {URUTAN_KELOMPOK_MENU.map((kelompok) => {
+          // Kelompok tanpa satu pun menu yang boleh dibuka peran ini tidak
+          // ditampilkan sama sekali — judul kelompok kosong hanya membingungkan.
+          const isi = menu.filter((m) => m.kelompok === kelompok);
+          if (isi.length === 0) return null;
+          return (
+            <div key={kelompok} role="group" aria-labelledby={`kelompok-${kelompok.replace(' ', '-')}`}
+              className="flex flex-col gap-0.5 mb-2 last:mb-0">
+              <p id={`kelompok-${kelompok.replace(' ', '-')}`}
+                className="px-3 pt-1 pb-1 text-[9px] font-bold text-slate-400 uppercase tracking-[0.14em]">
+                {kelompok}
+              </p>
+              {isi.map((m) => (
+                <div key={m.href}>
+                  <TautanMenu menu={m} aktif={pathname.startsWith(m.href)} />
+                  {/* Sub-menu Admin Panel muncul DI SINI, menempel pada menu
+                      induknya di sidebar — bukan sebagai panel terpisah di dalam
+                      area isi. Panel navigasi yang mengambang di tengah halaman
+                      terbaca sebagai bagian dari isi, bukan sebagai navigasi. */}
+                  {m.href === '/admin' && pathname.startsWith('/admin') && (
+                    <SubMenuAdmin peran={pengguna.role} />
+                  )}
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </nav>
 
       <KartuPengguna pengguna={pengguna} />
@@ -398,6 +423,14 @@ function Inisial({ nama }: { nama: string }) {
 function BilahBawah({ menu, lainnya, pathname }: { menu: Menu[]; lainnya: Menu[]; pathname: string }) {
   const [buka, setBuka] = useState(false);
   const lainnyaAktif = lainnya.some((m) => pathname.startsWith(m.href));
+
+  // Escape menutup panel, seperti dialog lain di aplikasi ini.
+  useEffect(() => {
+    if (!buka) return;
+    const tutup = (e: KeyboardEvent) => { if (e.key === 'Escape') setBuka(false); };
+    window.addEventListener('keydown', tutup);
+    return () => window.removeEventListener('keydown', tutup);
+  }, [buka]);
 
   return (
     <>

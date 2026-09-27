@@ -11,6 +11,7 @@ import {
   ambilPencapaian, ambilUkuran, rentangPeriode, LABEL_PERIODE,
   type JenisPeriode, type Pencapaian, type Ukuran,
 } from '@/lib/target';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * Pencapaian target penjualan — "masih jauh atau sudah over?".
@@ -38,7 +39,7 @@ export function KartuTarget({ pengawas }: { pengawas: boolean }) {
     setGalat(null);
     ambilPencapaian(rentang.dari, rentang.sampai)
       .then((d) => { if (!batal) setData(d); })
-      .catch((e: Error) => { if (!batal) setGalat(e.message); });
+      .catch((e: Error) => { if (!batal) setGalat(pesanGalat(e)); });
     return () => { batal = true; };
   }, [rentang]);
 

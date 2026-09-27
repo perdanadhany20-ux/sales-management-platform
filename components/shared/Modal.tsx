@@ -27,10 +27,35 @@ export function Modal({
 
   useEffect(() => setTerpasang(true), []);
 
+  // onTutup hampir selalu fungsi baru di setiap render induknya. Kalau ia ikut
+  // menjadi dependensi efek di bawah, efeknya berjalan ulang setiap kali induk
+  // render ulang — dan panel merebut fokus dari isian yang sedang diketik.
+  const onTutupRef = useRef(onTutup);
+  useEffect(() => { onTutupRef.current = onTutup; }, [onTutup]);
+
   useEffect(() => {
     if (!buka) return;
 
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onTutup(); };
+    // Kembalikan fokus ke tombol yang membuka modal begitu ditutup — tanpa
+    // itu, pengguna keyboard dan pembaca layar terlempar ke awal halaman.
+    const asal = document.activeElement as HTMLElement | null;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onTutupRef.current(); return; }
+      // Jebakan fokus: Tab tidak boleh keluar ke halaman di belakang modal.
+      if (e.key !== 'Tab' || !panelRef.current) return;
+      const bisaFokus = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )).filter((el) => el.offsetParent !== null);
+      if (bisaFokus.length === 0) return;
+      const pertama = bisaFokus[0];
+      const terakhir = bisaFokus[bisaFokus.length - 1];
+      if (e.shiftKey && (document.activeElement === pertama || document.activeElement === panelRef.current)) {
+        e.preventDefault(); terakhir.focus();
+      } else if (!e.shiftKey && document.activeElement === terakhir) {
+        e.preventDefault(); pertama.focus();
+      }
+    };
     document.addEventListener('keydown', onKey);
 
     // Halaman di belakang dikunci supaya jari yang menggulir di ponsel tidak
@@ -44,8 +69,9 @@ export function Modal({
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = overflowAsli;
+      if (asal && document.contains(asal)) asal.focus();
     };
-  }, [buka, onTutup]);
+  }, [buka]);
 
   if (!terpasang || !buka) return null;
 

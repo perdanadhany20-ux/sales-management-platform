@@ -13,6 +13,7 @@ import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback'
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { Tabel } from '@/components/shared/Tabel';
 import { BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * Activity — riwayat aktivitas dalam satu urutan waktu.
@@ -113,7 +114,7 @@ export default function HalamanActivity() {
     }
 
     const { data, error, count } = await q;
-    if (error) { setGalat(error.message); setMemuat(false); return; }
+    if (error) { setGalat(pesanGalat(error)); setMemuat(false); return; }
 
     setDaftar((data ?? []) as Aktivitas[]);
     setTotal(count ?? 0);

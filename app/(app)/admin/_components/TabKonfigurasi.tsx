@@ -6,6 +6,7 @@ import { kosongkanCachePengaturan } from '@/lib/use-settings';
 import { Teks, Tombol } from '@/components/shared/FormParts';
 import { KerangkaKartu, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { BentoGrid, BentoCard } from '@/components/shared/Bento';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 interface KategoriJadwal { name: string; requires_attendance: boolean }
 
@@ -43,7 +44,7 @@ export function TabKonfigurasi() {
     setMemuat(true);
     setGalat(null);
     const { data, error } = await supabase.from('sm_settings').select('key, value');
-    if (error) { setGalat(error.message); setMemuat(false); return; }
+    if (error) { setGalat(pesanGalat(error)); setMemuat(false); return; }
 
     const peta: Record<string, unknown> = Object.fromEntries(
       ((data ?? []) as { key: string; value: unknown }[]).map((b) => [b.key, b.value]),
@@ -66,7 +67,7 @@ export function TabKonfigurasi() {
       .eq('key', key);
     setMenyimpan(null);
 
-    if (error) { toast('galat', `Gagal menyimpan ${label}: ${error.message}`); return; }
+    if (error) { toast('galat', `Gagal menyimpan ${label}: ${pesanGalat(error)}`); return; }
 
     // Cache pengaturan dikosongkan supaya halaman lain di tab ini ikut segar
     // tanpa perlu memuat ulang peramban.

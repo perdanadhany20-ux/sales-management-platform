@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getAdminClient } from '@/lib/supabase-admin';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
   }).select('id, username, full_name').single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
   }
 
   const { error: galatSandi } = await db.from('user_credentials').insert({
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
     // tidak bisa diperbaiki admin tanpa menyentuh database. Lebih baik
     // dibatalkan seluruhnya supaya orangnya bisa mendaftar ulang.
     await db.from('users').delete().eq('id', user.id);
-    return NextResponse.json({ error: galatSandi.message }, { status: 500 });
+    return NextResponse.json({ error: pesanGalat(galatSandi) }, { status: 500 });
   }
 
   await db.from('audit_trail').insert({

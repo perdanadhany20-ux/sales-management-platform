@@ -46,6 +46,7 @@ const BAWAAN: Pengaturan = {
   // Bawaan: semua kartu tampil. Kalau baris pengaturannya belum ada, dashboard
   // harus tetap lengkap — bukan kosong.
   dashboard_widgets: [
+    { key: 'agenda', label: 'Agenda & Tindak Lanjut', aktif: true },
     { key: 'kepatuhan', label: 'Kepatuhan Laporan Hari Ini', aktif: true },
     { key: 'nilai_pipeline', label: 'Nilai Pipeline', aktif: true },
     { key: 'gross_profit', label: 'Gross Profit', aktif: true },
@@ -62,6 +63,17 @@ const BAWAAN: Pengaturan = {
 // setiap halaman membutuhkannya. Tanpa cache di level modul, berpindah menu
 // memicu query yang sama berulang kali — pemborosan yang §62 minta dihindari.
 let cache: Pengaturan | null = null;
+
+/**
+ * Daftar kartu dashboard yang dikenal kode. Pengaturan tersimpan bisa lebih
+ * tua daripada kode — kartu yang baru ditambahkan belum ada di barisnya.
+ * Penyunting di Admin memakai ini untuk menambahkan kartu yang belum
+ * tercatat, supaya kartu baru tetap bisa diatur tanpa migrasi data.
+ */
+export function lengkapiKartuDashboard(tersimpan: KartuDashboard[]): KartuDashboard[] {
+  const ada = new Set(tersimpan.map((k) => k.key));
+  return [...tersimpan, ...BAWAAN.dashboard_widgets.filter((k) => !ada.has(k.key))];
+}
 
 export function usePengaturan() {
   const [data, setData] = useState<Pengaturan>(cache ?? BAWAAN);

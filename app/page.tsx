@@ -8,6 +8,7 @@ import { setDbToken } from '@/lib/supabase';
 import { KataSandi } from '@/components/shared/FormParts';
 import { useBranding, type Branding } from '@/lib/branding';
 import { FormDaftar } from './_components/FormDaftar';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * Halaman masuk — tata letak dua sisi mengikuti pola Work Management (§60):
@@ -62,7 +63,7 @@ export default function HalamanMasuk() {
       setBerhasil(true);
       setTimeout(() => router.replace(tujuan), 450);
     } catch (err) {
-      setGalat(err instanceof Error ? err.message : 'Gagal masuk.');
+      setGalat(pesanGalat(err, 'Gagal masuk.'));
       setMemproses(false);
     }
   }

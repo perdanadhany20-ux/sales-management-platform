@@ -21,6 +21,7 @@ import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { FormGp } from './_components/FormGp';
 import { PanelGp } from './_components/PanelGp';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * GP Calculation (§ tambahan — permintaan langsung pemilik platform).
@@ -100,7 +101,7 @@ export default function HalamanGp() {
     }
 
     const { data, error, count } = await q;
-    if (error) { setGalat(error.message); setMemuat(false); return; }
+    if (error) { setGalat(pesanGalat(error)); setMemuat(false); return; }
 
     setDaftar((data ?? []) as GpRingkasan[]);
     setTotal(count ?? 0);
@@ -187,7 +188,7 @@ export default function HalamanGp() {
     setMenghapus(true);
     const { error } = await supabase.from('sm_gp_calculations').delete().eq('id', akanHapus.id);
     setMenghapus(false);
-    if (error) { toast('galat', `Gagal menghapus: ${error.message}`); return; }
+    if (error) { toast('galat', `Gagal menghapus: ${pesanGalat(error)}`); return; }
     toast('sukses', 'Perhitungan GP dihapus.');
     setAkanHapus(null);
     void muat();

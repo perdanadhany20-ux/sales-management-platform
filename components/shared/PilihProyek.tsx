@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { rupiahRingkas, polaIlike } from '@/lib/format';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * components/shared/PilihProyek.tsx — menautkan catatan ke sebuah proyek.
@@ -119,7 +120,7 @@ export function PilihProyek({
       owner_user_id: ownerId,
     }).select('id, kode, name, customer_name, status').single();
 
-    if (error) { setGalat(error.message); return; }
+    if (error) { setGalat(pesanGalat(error)); return; }
 
     setNamaBaru('');
     pilih(data as ProyekRingkas);

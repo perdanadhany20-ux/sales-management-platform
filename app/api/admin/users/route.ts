@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { getSessionUser, isAdmin } from '@/lib/server-auth';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
              address, manager_id`)
     .order('full_name');
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
   return NextResponse.json({ users: data ?? [] });
 }
 
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (galatUser.code === '23505') {
       return NextResponse.json({ error: `Username "${username}" sudah dipakai.` }, { status: 409 });
     }
-    return NextResponse.json({ error: galatUser.message }, { status: 500 });
+    return NextResponse.json({ error: pesanGalat(galatUser) }, { status: 500 });
   }
 
   const { error: galatKredensial } = await db.from('user_credentials').insert({
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
     // dibatalkan seluruhnya daripada meninggalkan baris setengah jadi yang
     // tampak ada di daftar tapi selalu gagal masuk.
     await db.from('users').delete().eq('id', baru.id);
-    return NextResponse.json({ error: galatKredensial.message }, { status: 500 });
+    return NextResponse.json({ error: pesanGalat(galatKredensial) }, { status: 500 });
   }
 
   await db.from('audit_trail').insert({
@@ -225,7 +226,7 @@ export async function PATCH(request: NextRequest) {
 
   if (Object.keys(perubahan).length > 0) {
     const { error } = await db.from('users').update(perubahan).eq('id', id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
   }
 
   // Reset sandi ditangani terpisah: nilainya tidak boleh ikut tercatat di
@@ -240,7 +241,7 @@ export async function PATCH(request: NextRequest) {
       must_change: true,
       updated_at: new Date().toISOString(),
     });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
 
     // Sesi lama dibunuh agar sandi baru benar-benar berlaku seketika.
     // Tanpa ini, orang yang sandinya direset karena akunnya diduga bocor

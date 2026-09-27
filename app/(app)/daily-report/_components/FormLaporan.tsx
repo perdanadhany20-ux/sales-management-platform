@@ -8,6 +8,7 @@ import { Kolom, Teks, AreaTeks, Tombol } from '@/components/shared/FormParts';
 import { PilihCustomer, pastikanCustomer } from '@/components/shared/PilihCustomer';
 import { PilihProyek } from '@/components/shared/PilihProyek';
 import { PanelGalat, useToast } from '@/components/shared/Feedback';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 export interface Laporan {
   id: string;
@@ -120,7 +121,7 @@ export function FormLaporan({
         : await supabase.from('sm_daily_reports').insert({ ...isi, sales_user_id: userId });
 
       if (error) {
-        setGalat(error.message);
+        setGalat(pesanGalat(error));
         return;
       }
 
@@ -128,7 +129,7 @@ export function FormLaporan({
       onTersimpan();
       onTutup();
     } catch (err) {
-      setGalat(err instanceof Error ? err.message : 'Gagal menyimpan laporan.');
+      setGalat(pesanGalat(err, 'Gagal menyimpan laporan.'));
     } finally {
       setMenyimpan(false);
     }

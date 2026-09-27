@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { getSessionUser, isPengawas } from '@/lib/server-auth';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
   // project_id yang dikirim klien memang milik pemanggil.
   const { data: proyek, error: galatProyek } = await db
     .from('sm_projects').select('id, owner_user_id').eq('id', projectId).maybeSingle();
-  if (galatProyek) return NextResponse.json({ error: galatProyek.message }, { status: 500 });
+  if (galatProyek) return NextResponse.json({ error: pesanGalat(galatProyek) }, { status: 500 });
   if (!proyek) return NextResponse.json({ error: 'Proyek tidak ditemukan.' }, { status: 404 });
   if (proyek.owner_user_id !== pemanggil.id && !isPengawas(pemanggil.role)) {
     return NextResponse.json({ error: 'Anda tidak berhak menautkan lokasi ke proyek ini.' }, { status: 403 });
@@ -76,11 +77,11 @@ export async function POST(request: NextRequest) {
     .select('id, name, address, latitude, longitude, gps_radius_m, active, approval_status')
     .single();
 
-  if (galatLokasi) return NextResponse.json({ error: galatLokasi.message }, { status: 500 });
+  if (galatLokasi) return NextResponse.json({ error: pesanGalat(galatLokasi) }, { status: 500 });
 
   const { error: galatTaut } = await db
     .from('sm_projects').update({ location_id: lokasi.id }).eq('id', projectId);
-  if (galatTaut) return NextResponse.json({ error: galatTaut.message }, { status: 500 });
+  if (galatTaut) return NextResponse.json({ error: pesanGalat(galatTaut) }, { status: 500 });
 
   await db.from('audit_trail').insert({
     actor_id: pemanggil.id, actor_name: pemanggil.full_name,

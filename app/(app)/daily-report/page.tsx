@@ -16,6 +16,7 @@ import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { FormLaporan, type Laporan } from './_components/FormLaporan';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 const PER_HALAMAN = 20;
 
@@ -90,7 +91,7 @@ export default function HalamanDailyReport() {
 
     const { data, error, count } = await q;
 
-    if (error) { setGalat(error.message); setMemuat(false); return; }
+    if (error) { setGalat(pesanGalat(error)); setMemuat(false); return; }
 
     setDaftar((data ?? []) as Laporan[]);
     setTotal(count ?? 0);
@@ -209,7 +210,7 @@ export default function HalamanDailyReport() {
     setMenghapus(true);
     const { error } = await supabase.from('sm_daily_reports').delete().eq('id', akanHapus.id);
     setMenghapus(false);
-    if (error) { toast('galat', `Gagal menghapus: ${error.message}`); return; }
+    if (error) { toast('galat', `Gagal menghapus: ${pesanGalat(error)}`); return; }
     toast('sukses', 'Laporan dihapus.');
     setAkanHapus(null);
     void muat();

@@ -9,6 +9,7 @@ import { Modal, Konfirmasi } from '@/components/shared/Modal';
 import { Kolom, Teks, AreaTeks, Tombol, Lencana } from '@/components/shared/FormParts';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Tabel, TombolIkon } from '@/components/shared/Tabel';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 // Leaflet menyentuh `window` saat modulnya dimuat, jadi ia tidak boleh ikut
 // dirender di server — `ssr:false` membuat Next.js hanya memuatnya di
@@ -68,7 +69,7 @@ export function TabLokasi() {
       .from('sm_locations')
       .select('id, name, address, latitude, longitude, gps_radius_m, active, project_id, approval_status, rejection_reason')
       .order('name');
-    if (error) setGalat(error.message);
+    if (error) setGalat(pesanGalat(error));
     else setDaftar((data ?? []) as Lokasi[]);
     setMemuat(false);
   }, []);
@@ -113,7 +114,7 @@ export function TabLokasi() {
     const { error } = await supabase.from('sm_locations')
       .update({ active: !akanUbahAktif.active }).eq('id', akanUbahAktif.id);
     setMemproses(false);
-    if (error) { toast('galat', error.message); return; }
+    if (error) { toast('galat', pesanGalat(error)); return; }
     toast('sukses', akanUbahAktif.active ? 'Lokasi dinonaktifkan.' : 'Lokasi diaktifkan.');
     setAkanUbahAktif(null);
     void muat();
@@ -350,7 +351,7 @@ function FormLokasi({
       : await supabase.from('sm_locations').insert(isi);
 
     setMemproses(false);
-    if (error) { setGalat(error.message); return; }
+    if (error) { setGalat(pesanGalat(error)); return; }
 
     toast('sukses', awal ? 'Lokasi diperbarui.' : 'Lokasi ditambahkan.');
     onTersimpan();

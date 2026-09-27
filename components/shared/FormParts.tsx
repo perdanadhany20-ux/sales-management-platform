@@ -35,7 +35,10 @@ export function Kolom({
     <div className={`flex flex-col gap-1.5 min-w-0 ${className}`}>
       <label htmlFor={id} className="text-[12px] font-semibold text-slate-700">
         {label}
-        {wajib && <span className="text-[#e34948] ml-0.5" aria-hidden="true">*</span>}
+        {/* Bintang untuk mata, kata "wajib" untuk pembaca layar — bintang
+            yang disembunyikan tanpa pengganti membuat isian wajib tak terbedakan. */}
+        {wajib && <><span className="text-[#e34948] ml-0.5" aria-hidden="true">*</span>
+          <span className="sr-only"> (wajib)</span></>}
       </label>
       {children(id, invalid)}
       {galat

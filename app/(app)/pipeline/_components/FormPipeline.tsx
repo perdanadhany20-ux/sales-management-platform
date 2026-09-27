@@ -10,6 +10,7 @@ import { PilihCari } from '@/components/shared/PilihCari';
 import { PilihCustomer, pastikanCustomer } from '@/components/shared/PilihCustomer';
 import { PilihProyek } from '@/components/shared/PilihProyek';
 import { PanelGalat, useToast } from '@/components/shared/Feedback';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 export interface Peluang {
   id: string;
@@ -183,13 +184,13 @@ export function FormPipeline({
         ? await supabase.from('sm_pipeline').update(isi).eq('id', awal.id)
         : await supabase.from('sm_pipeline').insert({ ...isi, sales_user_id: userId });
 
-      if (error) { setGalat(error.message); return; }
+      if (error) { setGalat(pesanGalat(error)); return; }
 
       toast('sukses', awal ? 'Peluang diperbarui.' : 'Peluang tersimpan.');
       onTersimpan();
       onTutup();
     } catch (err) {
-      setGalat(err instanceof Error ? err.message : 'Gagal menyimpan peluang.');
+      setGalat(pesanGalat(err, 'Gagal menyimpan peluang.'));
     } finally {
       setMenyimpan(false);
     }

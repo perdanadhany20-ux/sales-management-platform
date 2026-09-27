@@ -19,6 +19,7 @@ import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { PanelMeeting, type Meeting, type Lokasi } from './_components/PanelMeeting';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * Halaman Meeting (§28–§39) — tempat jadwal berkehadiran DIEKSEKUSI.
@@ -123,7 +124,7 @@ export default function HalamanMeeting() {
     }
 
     const { data, error, count } = await q;
-    if (error) { setGalat(error.message); setMemuat(false); return; }
+    if (error) { setGalat(pesanGalat(error)); setMemuat(false); return; }
 
     setDaftar(((data ?? []) as unknown[]).map((r) => {
       const baris = r as Record<string, unknown>;

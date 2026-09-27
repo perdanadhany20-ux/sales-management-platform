@@ -11,6 +11,7 @@ import { PilihCustomer } from '@/components/shared/PilihCustomer';
 import { PilihProyek } from '@/components/shared/PilihProyek';
 import { baaGpDariExcel } from '@/lib/gp-impor';
 import { useToast } from '@/components/shared/Feedback';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * Formulir GP Calculation.
@@ -167,7 +168,7 @@ export function FormGp({ buka, onTutup, onTersimpan, awal, awalItem }: {
       setCatatanImpor(h.catatan);
       toast('sukses', `${h.item.length} item terbaca dari berkas. Periksa angkanya sebelum menyimpan.`);
     } catch (e) {
-      setGalat(e instanceof Error ? e.message : 'Berkas tidak bisa dibaca.');
+      setGalat(pesanGalat(e, 'Berkas tidak bisa dibaca.'));
     } finally {
       setMengimpor(false);
     }
@@ -258,7 +259,7 @@ export function FormGp({ buka, onTutup, onTersimpan, awal, awalItem }: {
       onTersimpan(id);
       onTutup();
     } catch (err) {
-      setGalat(err instanceof Error ? err.message : 'Gagal menyimpan perhitungan.');
+      setGalat(pesanGalat(err, 'Gagal menyimpan perhitungan.'));
     } finally {
       setMenyimpan(false);
     }

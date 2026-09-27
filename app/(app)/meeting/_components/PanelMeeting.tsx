@@ -12,6 +12,7 @@ import { jarak, tanggalPendek, waktuPendek, tanggalISO } from '@/lib/format';
 import { Modal } from '@/components/shared/Modal';
 import { Tombol, Lencana, AreaTeks, Kolom } from '@/components/shared/FormParts';
 import { useToast } from '@/components/shared/Feedback';
+import { pesanGalat as terjemahkanGalat } from '@/lib/pesan-galat';
 
 /**
  * Panel eksekusi Meeting (§28–§39).
@@ -192,9 +193,7 @@ export function PanelMeeting({
       await muat();
       onBerubah();
     } catch (e) {
-      setPesanGalat(e instanceof GpsError || e instanceof Error
-        ? e.message
-        : 'Check-in gagal. Coba lagi.');
+      setPesanGalat(terjemahkanGalat(e, 'Check-in gagal. Coba lagi.'));
     } finally {
       setSibuk(null);
     }
@@ -242,7 +241,7 @@ export function PanelMeeting({
       await muat();
       onBerubah();
     } catch (e) {
-      setPesanGalat(e instanceof Error ? e.message : 'Gagal mengunggah foto.');
+      setPesanGalat(terjemahkanGalat(e, 'Gagal mengunggah foto.'));
     } finally {
       setSibuk(null);
       if (berkasRef.current) berkasRef.current.value = '';
@@ -259,7 +258,7 @@ export function PanelMeeting({
     });
     setSibuk(null);
 
-    if (error) { setPesanGalat(error.message); return; }
+    if (error) { setPesanGalat(terjemahkanGalat(error)); return; }
 
     const hasil = data as { ok: boolean; reason?: string; message?: string };
     if (!hasil.ok) {
@@ -284,7 +283,7 @@ export function PanelMeeting({
     });
     setSibuk(null);
 
-    if (error) { toast('galat', error.message); return; }
+    if (error) { toast('galat', terjemahkanGalat(error)); return; }
 
     toast('sukses', 'Meeting diselesaikan lewat override. Alasannya tercatat permanen.');
     setFormOverride(false);

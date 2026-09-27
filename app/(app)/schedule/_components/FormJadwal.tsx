@@ -10,6 +10,7 @@ import { PilihCari } from '@/components/shared/PilihCari';
 import { PilihCustomer, pastikanCustomer } from '@/components/shared/PilihCustomer';
 import { PilihProyek } from '@/components/shared/PilihProyek';
 import { PanelGalat, useToast } from '@/components/shared/Feedback';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 export interface Jadwal {
   id: string;
@@ -198,7 +199,7 @@ export function FormJadwal({
         if (error.code === '42501') {
           setGalat('Anda tidak berhak menyimpan perubahan ini. Pengajuan jadwal akan ditugaskan oleh Manager atau Admin.');
         } else {
-          setGalat(error.message);
+          setGalat(pesanGalat(error));
         }
         return;
       }
@@ -207,7 +208,7 @@ export function FormJadwal({
       onTersimpan();
       onTutup();
     } catch (err) {
-      setGalat(err instanceof Error ? err.message : 'Gagal menyimpan jadwal.');
+      setGalat(pesanGalat(err, 'Gagal menyimpan jadwal.'));
     } finally {
       setMenyimpan(false);
     }

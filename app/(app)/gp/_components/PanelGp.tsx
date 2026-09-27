@@ -12,6 +12,7 @@ import { eksporGpExcel } from '@/lib/gp-excel';
 import { Modal } from '@/components/shared/Modal';
 import { Tombol, Lencana, AreaTeks, Kolom } from '@/components/shared/FormParts';
 import { useToast } from '@/components/shared/Feedback';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 /**
  * Panel detail GP Calculation — tampilan baca, rantai persetujuan, dan ekspor.
@@ -59,7 +60,7 @@ export function PanelGp({ buka, onTutup, gp, item, peran, userId, namaOrang, onB
     const { data, error } = await supabase.rpc(fungsi, args);
     setSibuk(null);
 
-    if (error) { toast('galat', error.message); return; }
+    if (error) { toast('galat', pesanGalat(error)); return; }
 
     const hasil = data as { ok: boolean; message?: string; status?: string };
     if (!hasil.ok) { toast('galat', hasil.message ?? 'Tindakan belum bisa dijalankan.'); return; }
@@ -80,7 +81,7 @@ export function PanelGp({ buka, onTutup, gp, item, peran, userId, namaOrang, onB
       });
       toast('sukses', 'Berkas Excel diunduh.');
     } catch (e) {
-      toast('galat', e instanceof Error ? e.message : 'Gagal membuat berkas.');
+      toast('galat', pesanGalat(e, 'Gagal membuat berkas.'));
     } finally {
       setSibuk(null);
     }

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { getSessionUser, COOKIE_SESI, hashToken } from '@/lib/server-auth';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
     updated_at: new Date().toISOString(),
   }).eq('user_id', pengguna.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
 
   // Semua sesi LAIN dihapus; sesi yang sedang dipakai dipertahankan supaya
   // orangnya tidak terlempar keluar tepat setelah berhasil mengganti sandi.

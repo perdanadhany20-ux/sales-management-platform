@@ -11,6 +11,7 @@ import { Kolom, Teks, AreaTeks, Tombol, Uang, Lencana } from '@/components/share
 import { PilihCari } from '@/components/shared/PilihCari';
 import { PilihCustomer } from '@/components/shared/PilihCustomer';
 import { useToast } from '@/components/shared/Feedback';
+import { pesanGalat } from '@/lib/pesan-galat';
 
 // ssr:false — lihat catatan yang sama di admin/_components/TabLokasi.tsx.
 const PetaLokasi = dynamic(
@@ -119,7 +120,7 @@ export function FormProyek({ buka, onTutup, onTersimpan, awal }: {
 
     if (error) {
       setMenyimpan(false);
-      setGalat(error.message);
+      setGalat(pesanGalat(error));
       return;
     }
 
