@@ -479,6 +479,56 @@ export async function batalkanPermintaan(id: string, pelaku: { id: string; nama:
 
 /* ── Aktivasi dengan Kode (Admin → Lisensi) ────────────────────────────────── */
 
+export type HasilPengajuan = { ok: true } | { ok: false; status: number; code: string; error: string };
+
+export interface MasukanPengajuan {
+  perusahaan: string;
+  kontak: string;
+  paket: Paket;
+  trial: boolean;
+  durasiHari: number | null;
+  catatan: string | null;
+}
+
+/**
+ * Platform yang BELUM punya Kode Aktivasi mengajukan lisensi. Pengajuan hanya
+ * diteruskan ke Telegram developer (Kantor Pusat); tidak ada yang tersimpan
+ * atau berubah di sini. Kode Aktivasi tetap dikirim developer secara manual.
+ */
+export async function ajukanPendaftaran(m: MasukanPengajuan, pelaku: { id: string; nama: string }): Promise<HasilPengajuan> {
+  const cfg = konfigurasiLisensi(await bacaKredensial());
+  if (cfg.lengkap) {
+    return { ok: false, status: 409, code: 'ALREADY_CONFIGURED', error: 'Platform ini sudah terhubung ke lisensi. Gunakan formulir permintaan lisensi.' };
+  }
+  let res: Response;
+  try {
+    res = await fetch(`${cfg.authorityUrl}/api/v1/enroll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        company: m.perusahaan, contact: m.kontak, package: m.paket,
+        license_type: m.trial ? 'TRIAL' : 'STANDARD', duration_days: m.trial ? null : m.durasiHari,
+        notes: m.catatan, requested_by: pelaku.nama, instance_id: cfg.instance, application_version: cfg.versi,
+      }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    return { ok: false, status: 503, code: 'LICENSE_AUTHORITY_UNAVAILABLE', error: 'Penyedia platform sedang tidak terjangkau. Coba lagi beberapa saat lagi.' };
+  }
+  if (res.status === 429) {
+    return { ok: false, status: 429, code: 'TOO_FAST', error: 'Pengajuan sudah terkirim. Tunggu 15 menit sebelum mengajukan lagi.' };
+  }
+  if (!res.ok) {
+    return { ok: false, status: 502, code: 'ENROLL_FAILED', error: 'Pengajuan belum dapat dikirim. Coba lagi nanti atau hubungi penyedia platform.' };
+  }
+  await catat('license_enroll_requested', null, {
+    judul: 'Pengajuan lisensi dikirim',
+    keterangan: `${m.perusahaan} mengajukan ${m.trial ? 'trial' : 'lisensi'} paket ${m.paket} ke penyedia platform.`,
+  }, pelaku);
+  return { ok: true };
+}
+
 export type HasilAktivasi =
   | { ok: true; perusahaan: string; status: string }
   | { ok: false; status: number; code: string; error: string };

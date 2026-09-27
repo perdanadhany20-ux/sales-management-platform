@@ -243,6 +243,14 @@ lisensi penuh; developer menyetujui lewat Telegram (**⭐ Trial → Penuh**) ata
 5. Alternatif developer: isi `LICENSE_DEPLOYMENT_ID`, `LICENSE_ID`, `LICENSE_DEPLOYMENT_KEY` di Vercel
    pelanggan — bila terisi, env menang atas Kode Aktivasi.
 
+### 10a. Pengajuan dari platform yang belum punya kode
+
+Admin → Lisensi menampilkan formulir **Ajukan lisensi** selama platform belum punya Kode Aktivasi
+(`POST /api/lisensi/pengajuan`, hanya Admin → Kantor Pusat `POST /api/v1/enroll`). Kantor Pusat hanya
+meneruskannya ke Telegram developer (tanpa menyimpan atau menerbitkan apa pun, tanpa mengembalikan
+kode). Kode Aktivasi tetap dibuat developer lewat dashboard dan dikirim manual ke pelanggan. Dibatasi
+1 pengajuan per platform per 15 menit dan 20 per jam secara total.
+
 ## 11. Pengembangan lokal
 
 Isi `LICENSE_MODE=development` di `.env.local`. Nilai ini **hanya** berlaku di `next dev`
