@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { tanggalPendek, waktuPendek } from '@/lib/format';
-import { Tombol, Lencana, AreaTeks, Kolom, Pilihan } from '@/components/shared/FormParts';
+import { Tombol, Lencana, AreaTeks, Kolom, Pilihan, Teks } from '@/components/shared/FormParts';
 import { Kosong, KerangkaKartu, useToast } from '@/components/shared/Feedback';
 import { useLisensi, type Lisensi } from '@/lib/lisensi/use-lisensi';
 import {
@@ -71,6 +71,7 @@ export function TabLisensi() {
     <div className="flex flex-col gap-4">
       {/* Belum ada kode: aktivasi adalah satu-satunya langkah yang bermakna. */}
       {belumAktivasi && <KartuAktivasi onBerhasil={muatUlang} />}
+      {belumAktivasi && <KartuPengajuan />}
       {/* Permintaan di atas: tindakan utama Admin setelah platform terhubung. */}
       {!belumAktivasi && <KartuPermintaan lisensi={lisensi} onBerubah={muatUlang} />}
       <KartuStatus lisensi={lisensi} onSegarkan={muatUlang} />
@@ -149,6 +150,109 @@ function KartuAktivasi({ ganti = false, onBerhasil }: { ganti?: boolean; onBerha
         <div className="flex gap-2 justify-end">
           {ganti && <Tombol type="button" rupa="hantu" onClick={() => setBuka(false)}>Batal</Tombol>}
           <Tombol type="submit" memuat={mengirim} disabled={!kode.trim()}>Aktifkan</Tombol>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+/**
+ * Belum punya Kode Aktivasi: ajukan ke penyedia platform. Pengajuan hanya
+ * menjadi pemberitahuan Telegram bagi developer — Kode Aktivasi tetap
+ * diterbitkan dan dikirim developer secara manual, lalu ditempel di atas.
+ */
+function KartuPengajuan() {
+  const [perusahaan, setPerusahaan] = useState('');
+  const [kontak, setKontak] = useState('');
+  const [paket, setPaket] = useState<Paket>('PROFESSIONAL');
+  const [jenis, setJenis] = useState<'TRIAL' | 'STANDARD'>('TRIAL');
+  const [durasi, setDurasi] = useState(365);
+  const [catatan, setCatatan] = useState('');
+  const [galat, setGalat] = useState<string | null>(null);
+  const [mengirim, setMengirim] = useState(false);
+  const [terkirim, setTerkirim] = useState(false);
+
+  async function kirim(e: React.FormEvent) {
+    e.preventDefault();
+    setGalat(null);
+    setMengirim(true);
+    try {
+      const res = await fetch('/api/lisensi/pengajuan', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ perusahaan, kontak, paket, jenis, durasi_hari: durasi, catatan }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(data.error ?? 'Pengajuan gagal dikirim.'); return; }
+      setTerkirim(true);
+    } catch {
+      setGalat('Jaringan bermasalah. Coba lagi.');
+    } finally {
+      setMengirim(false);
+    }
+  }
+
+  if (terkirim) {
+    return (
+      <section className="bg-white rounded-kartu border border-slate-200 p-4 sm:p-5">
+        <h3 className="text-[15px] font-black text-slate-900">✓ Pengajuan terkirim</h3>
+        <p className="text-[12px] text-slate-500 mt-1 leading-relaxed max-w-2xl">
+          Penyedia platform akan meninjau pengajuan Anda dan mengirimkan <b>Kode Aktivasi</b> lewat kontak
+          <b> {kontak}</b>. Setelah diterima, tempel kodenya pada kolom Kode Aktivasi di atas.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bg-white rounded-kartu border border-slate-200 p-4 sm:p-5">
+      <h3 className="text-[15px] font-black text-slate-900">Belum punya Kode Aktivasi? Ajukan lisensi</h3>
+      <p className="text-[12px] text-slate-500 mt-1 mb-3 leading-relaxed max-w-2xl">
+        Pengajuan dikirim ke penyedia platform. Kode Aktivasi akan dikirim penyedia ke kontak Anda setelah disetujui.
+      </p>
+      <form onSubmit={kirim} className="grid gap-3 sm:grid-cols-2 max-w-2xl">
+        <Kolom label="Nama perusahaan" wajib>
+          {(id) => <Teks id={id} value={perusahaan} maxLength={160} placeholder="PT ABC" onChange={(e) => setPerusahaan(e.target.value)} />}
+        </Kolom>
+        <Kolom label="Kontak (WhatsApp / email)" wajib>
+          {(id) => <Teks id={id} value={kontak} maxLength={120} placeholder="0812… / nama@perusahaan.com" onChange={(e) => setKontak(e.target.value)} />}
+        </Kolom>
+        <Kolom label="Paket lisensi" wajib>
+          {(id) => (
+            <Pilihan id={id} value={paket} onChange={(e) => setPaket(e.target.value as Paket)}>
+              {PAKET.map((p) => <option key={p} value={p}>{LABEL_PAKET[p]}</option>)}
+            </Pilihan>
+          )}
+        </Kolom>
+        <Kolom label="Jenis" wajib>
+          {(id) => (
+            <Pilihan id={id} value={jenis} onChange={(e) => setJenis(e.target.value as 'TRIAL' | 'STANDARD')}>
+              <option value="TRIAL">Trial (masa coba ditentukan penyedia)</option>
+              <option value="STANDARD">Berlangganan</option>
+            </Pilihan>
+          )}
+        </Kolom>
+        {jenis === 'STANDARD' && (
+          <Kolom label="Durasi" wajib>
+            {(id) => (
+              <Pilihan id={id} value={durasi} onChange={(e) => setDurasi(Number(e.target.value))}>
+                {DURASI.map((d) => <option key={d.hari} value={d.hari}>{d.label}</option>)}
+              </Pilihan>
+            )}
+          </Kolom>
+        )}
+        <div className="sm:col-span-2">
+          <Kolom label="Catatan (opsional)" galat={galat}>
+            {(id, invalid) => (
+              <AreaTeks id={id} rows={2} value={catatan} maxLength={500} aria-invalid={invalid}
+                onChange={(e) => setCatatan(e.target.value)} />
+            )}
+          </Kolom>
+        </div>
+        <div className="sm:col-span-2 flex justify-end">
+          <Tombol type="submit" memuat={mengirim} disabled={perusahaan.trim().length < 2 || kontak.trim().length < 3}>
+            Kirim pengajuan
+          </Tombol>
         </div>
       </form>
     </section>
