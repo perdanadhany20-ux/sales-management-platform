@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { type PenggunaAktif } from '@/lib/auth';
-import { type Branding } from '@/lib/branding';
+import { type Branding, logoUntuk } from '@/lib/branding';
 import { useLonceng, totalPerluTindakan } from '@/lib/use-lonceng';
 import { usePengingat } from '@/lib/notifikasi';
 import { isPengawas } from '@/lib/constants';
@@ -15,6 +15,48 @@ import {
   intipTerlewat, intipBelumDitugaskan, intipGp, type ButirIntip,
 } from '@/lib/intip';
 import { DropdownMengambang } from './DropdownMengambang';
+import { useLisensi, type Lisensi } from '@/lib/lisensi/use-lisensi';
+
+/* ── Notifikasi lisensi (Admin) ───────────────────────────────────────────── */
+
+const KUNCI_LISENSI_DILIHAT = 'smp_lisensi_dilihat';
+
+function bacaDilihat(): number {
+  try { return Number(window.localStorage.getItem(KUNCI_LISENSI_DILIHAT) ?? 0) || 0; } catch { return 0; }
+}
+
+function tandaiDilihat(): void {
+  try { window.localStorage.setItem(KUNCI_LISENSI_DILIHAT, String(Date.now())); } catch { /* diblokir */ }
+}
+
+/**
+ * Butir lonceng dari lisensi: peringatan yang masih berlaku (selalu tampil
+ * sampai keadaannya berubah) dan pemberitahuan 14 hari terakhir. Hanya
+ * peringatan dan pemberitahuan yang BELUM dilihat yang ikut dihitung di
+ * lencana — penanda "dilihat" per peramban hanya soal tampilan, bukan data.
+ */
+function butirLisensi(lisensi: Lisensi | null): { butir: ButirIntip[]; baru: number } {
+  if (!lisensi || lisensi.mode_pengembangan) return { butir: [], baru: 0 };
+  const dilihat = typeof window === 'undefined' ? 0 : bacaDilihat();
+  const batas = Date.now() - 14 * 86_400_000;
+  const warna = { bahaya: '#e34948', waspada: '#eda100', info: '#1d4ed8' } as const;
+
+  const peringatan: ButirIntip[] = lisensi.peringatan.map((p) => ({
+    id: `lisensi-${p.kode}`, judul: p.judul, keterangan: p.keterangan,
+    href: '/admin?bagian=lisensi', warna: warna[p.tingkat],
+  }));
+  const peristiwa = (lisensi.peristiwa ?? [])
+    .filter((e) => e.detail?.judul && new Date(e.created_at).getTime() > batas)
+    .slice(0, 5)
+    .map((e) => ({
+      id: `lisensi-e-${e.id}`, judul: String(e.detail!.judul), keterangan: String(e.detail?.keterangan ?? ''),
+      href: '/admin?bagian=lisensi', kanan: tanggalPendek(e.created_at),
+      warna: new Date(e.created_at).getTime() > dilihat ? '#1d4ed8' : '#94a3b8',
+    }));
+  const baru = peringatan.filter((p) => p.warna !== warna.info).length
+    + (lisensi.peristiwa ?? []).filter((e) => e.detail?.judul && new Date(e.created_at).getTime() > Math.max(dilihat, batas)).length;
+  return { butir: [...peringatan, ...peristiwa], baru };
+}
 
 /**
  * components/shared/HeaderAtas.tsx — bilah judul + lencana di puncak halaman.
@@ -46,7 +88,20 @@ export function HeaderAtas({ pengguna, branding }: {
   // jadi keduanya mustahil menyebut jumlah yang berbeda.
   usePengingat(lonceng, pengawas);
 
-  const total = totalPerluTindakan(lonceng);
+  const { lisensi } = useLisensi();
+  const admin = pengguna.role.toUpperCase() === 'ADMIN';
+  const [detak, setDetak] = useState(0);
+  const notifLisensi = useMemo(
+    () => (admin ? butirLisensi(lisensi) : { butir: [], baru: 0 }),
+    // detak: dihitung ulang setelah lonceng dibuka dan pemberitahuan ditandai dilihat.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [admin, lisensi, detak],
+  );
+  // Modul Notifications ikut lisensi. Selama lisensi belum dimuat lonceng
+  // tetap tampil — menyembunyikan lalu memunculkannya membuat header melompat.
+  const loncengBerlisensi = !lisensi || lisensi.fitur.includes('notifications');
+
+  const total = totalPerluTindakan(lonceng) + notifLisensi.baru;
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
@@ -127,11 +182,16 @@ export function HeaderAtas({ pengguna, branding }: {
             ambil={() => intipPipeline(pengguna.id, pengawas)} />
 
           {/* ── Lonceng ── */}
-          <div className="relative flex-shrink-0">
+          {loncengBerlisensi && <div className="relative flex-shrink-0">
             <button
               ref={loncengRef}
               type="button"
-              onClick={() => { setIntip(null); setBukaNotif((b) => !b); void muatUlang(); }}
+              onClick={() => {
+                setIntip(null);
+                setBukaNotif((b) => !b);
+                void muatUlang();
+                if (admin && !bukaNotif) { tandaiDilihat(); setDetak((d) => d + 1); }
+              }}
               aria-expanded={bukaNotif}
               aria-label={`Notifikasi, ${total} perlu tindakan`}
               className={`inline-flex items-center gap-1.5 rounded-kontrol px-3 py-1.5 min-h-[34px]
@@ -162,10 +222,11 @@ export function HeaderAtas({ pengguna, branding }: {
                 pengawas={pengawas}
                 peran={pengguna.role}
                 userId={pengguna.id}
+                butirLisensi={notifLisensi.butir}
                 onTutup={() => setBukaNotif(false)}
               />
             </DropdownMengambang>
-          </div>
+          </div>}
 
           {/*
             Menuju Profil, BUKAN langsung keluar. Sebelumnya avatar semacam ini
@@ -197,25 +258,14 @@ function Inisial({ nama }: { nama: string }) {
 /* ── Logo ─────────────────────────────────────────────────────────────────── */
 
 export function LogoMerek({ branding, ukuran }: { branding: Branding; ukuran: number }) {
-  if (branding.logo_url) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={branding.logo_url} alt={branding.nama_platform}
-        className="rounded-kontrol object-contain flex-shrink-0 bg-white"
-        style={{ width: ukuran, height: ukuran }}
-      />
-    );
-  }
+  // Logo unggahan Admin didahulukan; tanpa itu, logo resmi platform.
   return (
-    <span
-      className="rounded-kontrol bg-gradient-to-br from-aksen-700 to-aksen-500 grid place-items-center flex-shrink-0"
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={logoUntuk(branding)} alt={branding.nama_platform}
+      className="rounded-kontrol object-contain flex-shrink-0 bg-white"
       style={{ width: ukuran, height: ukuran }}
-    >
-      <svg width={ukuran * 0.47} height={ukuran * 0.47} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 19V10M10 19V5M16 19v-6M22 19H2" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-    </span>
+    />
   );
 }
 
@@ -396,11 +446,12 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
  * mana. Kini tiap baris adalah dokumen atau jadwal yang sesungguhnya, dan
  * menekannya membawa langsung ke baris itu.
  */
-function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
+function PanelNotifikasi({ lonceng, pengawas, peran, userId, butirLisensi, onTutup }: {
   lonceng: ReturnType<typeof useLonceng>['lonceng'];
   pengawas: boolean;
   peran: string;
   userId: string;
+  butirLisensi: ButirIntip[];
   onTutup: () => void;
 }) {
   const [kelompok, setKelompok] = useState<{ judul: string; butir: ButirIntip[] }[] | null>(null);
@@ -415,6 +466,10 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
       // sudah tahu jumlahnya, jadi memanggil query untuk kelompok yang pasti
       // kosong hanya memperlambat panel tanpa menambah satu baris pun.
       const tugas: Promise<{ judul: string; butir: ButirIntip[] }>[] = [];
+
+      if (butirLisensi.length > 0) {
+        tugas.push(Promise.resolve({ judul: 'Lisensi', butir: butirLisensi }));
+      }
 
       if (lonceng.laporanBelum) {
         tugas.push(Promise.resolve({
@@ -456,7 +511,7 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
     })();
 
     return () => { batal = true; };
-  }, [lonceng, pengawas, peran, userId]);
+  }, [lonceng, pengawas, peran, userId, butirLisensi]);
 
   const jumlah = (kelompok ?? []).reduce((t, k) => t + k.butir.length, 0);
 

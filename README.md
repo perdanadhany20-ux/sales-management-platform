@@ -86,6 +86,12 @@ npm run dev
 | `SUPABASE_SERVICE_ROLE_KEY` | **rahasia** | Supabase → Settings → API |
 | `SUPABASE_JWT_SECRET` | **rahasia** | Supabase → Settings → API → JWT Secret |
 | `NEXT_PUBLIC_APP_URL` | publik | URL publik aplikasi |
+| `LICENSE_AUTHORITY_URL`, `LICENSE_DEPLOYMENT_ID`, `LICENSE_ID` | server | Registrasi deployment di License Authority |
+| `LICENSE_DEPLOYMENT_KEY` | **rahasia** | Ditampilkan sekali saat registrasi |
+| `LICENSE_PUBLIC_KEY` | server (publik) | `npm run keys` di `license-authority/` |
+| `LICENSE_MODE` | server | `production` (bawaan); `development` hanya berlaku di `next dev` |
+| `CRON_SECRET` | **rahasia** | Acak; dipakai Vercel Cron untuk verifikasi lisensi harian |
+| `ANDROID_PACKAGE_ID`, `ANDROID_CERT_SHA256` | server | Opsional — aplikasi Android (`android/README.md`) |
 
 Dua yang bertanda rahasia tidak boleh diawali `NEXT_PUBLIC_` dan tidak boleh
 masuk ke repositori. `SUPABASE_SERVICE_ROLE_KEY` melewati seluruh RLS;
@@ -98,6 +104,10 @@ Terapkan berurutan seluruh berkas di `supabase/migrations/` (001 sampai
 terbaru). Nomor berkas adalah urutan wajib; jangan mengubah isi migrasi yang
 sudah pernah dijalankan — perbaikan selalu ditulis sebagai migrasi baru.
 Supabase Auth tidak perlu diaktifkan: platform ini memakai autentikasi sendiri.
+
+**Lisensi.** Migrasi 037 mengunci modul bisnis sampai lisensi pertama
+terverifikasi. Siapkan License Authority dan variabel `LICENSE_*` lebih dulu —
+lihat [LICENSE_ARCHITECTURE.md](LICENSE_ARCHITECTURE.md) → Checklist produksi.
 
 ## 8. Posisi & Struktur Organisasi
 
@@ -157,7 +167,7 @@ bukti tidak boleh ditimpa.
 
 ## 11. Pengujian
 
-Enam skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
+Tujuh skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
 Supabase. Setiap skrip diakhiri `ROLLBACK`, jadi data ujinya tidak pernah
 tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 
@@ -169,8 +179,11 @@ tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 | `keamanan-customer.sql` | 15 | Customer hanya terlihat oleh Sales pemiliknya dan garis atasannya; nama unik per Sales |
 | `keamanan-struktur.sql` | 13 | Jenjang posisi dan pohon organisasi: atasan harus lebih tinggi, tanpa lingkaran, tidak menurunkan posisi selagi membawahi yang setara |
 | `keamanan-hak.sql` | 20 | Sales menyunting tapi tidak menghapus miliknya, hanya Admin mengubah data orang lain, isolasi Target Sales, kolom pribadi `users` |
+| `keamanan-lisensi.sql` | 20 | Admin pelanggan tidak bisa mengubah lisensi, fitur tak berlisensi tertutup di database (termasuk lewat fungsi DEFINER), kedaluwarsa/penangguhan/tenggang, downgrade tanpa kehilangan data |
 
-Pemeriksaan kode: `npm run typecheck` dan `npm run build`.
+Uji Authority pusat: `license-authority/supabase/tests/authority.sql` (22 uji).
+
+Pemeriksaan kode: `npm run typecheck`, `npm test` (uji unit lisensi, Node ≥ 22.6) dan `npm run build`.
 
 ## 12. Deploy
 
@@ -179,7 +192,19 @@ harus terpasang di Vercel. Migrasi database diterapkan terpisah — terapkan
 migrasi **bersamaan** dengan kode yang membutuhkannya, karena kode lama
 terhadap fungsi database baru (atau sebaliknya) bisa gagal.
 
-## 13. Batasan yang Diketahui
+## 13. Lisensi, Logo, dan Aplikasi Android
+
+- **Lisensi**: satu pelanggan = satu deployment = satu lisensi, dikendalikan
+  License Authority pusat (`license-authority/`) dengan persetujuan lewat
+  Telegram. Admin melihat status dan mengajukan permintaan di Admin → Lisensi.
+  Rincian: [LICENSE_ARCHITECTURE.md](LICENSE_ARCHITECTURE.md).
+- **Logo**: logo resmi ada di `public/brand/`; favicon, ikon PWA, dan ikon
+  Android diturunkan darinya. Logo unggahan Admin (Dashboard Setting) tetap
+  didahulukan bila ada.
+- **Android**: APK/AAB dibangun sebagai TWA dari PWA ini — lihat
+  [android/README.md](android/README.md).
+
+## 14. Batasan yang Diketahui
 
 - **Middleware bukan lapisan keamanan.** Ia hanya memeriksa keberadaan cookie.
   Penegakan sesungguhnya ada di route handler dan database.

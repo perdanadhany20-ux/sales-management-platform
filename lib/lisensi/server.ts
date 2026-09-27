@@ -1,0 +1,407 @@
+import { NextResponse } from 'next/server';
+import { getAdminClient } from '@/lib/supabase-admin';
+import paketAplikasi from '@/package.json';
+import {
+  BAWAAN_LISENSI, KUNCI_FITUR, evaluasiLisensi, peristiwaPerubahan, peringatanLisensi, pesanKode,
+  type HasilEvaluasi, type JenisPermintaan, type KodeLisensi, type KunciFitur, type MuatanLisensi,
+  type Paket, type PeristiwaLisensi,
+} from './kontrak.ts';
+import { buatNonce, periksaToken } from './tanda-tangan.ts';
+
+/**
+ * lib/lisensi/server.ts — LicenseService sisi deployment pelanggan. SERVER-ONLY.
+ *
+ *   getLicense()         → statusLisensi()
+ *   isLicenseActive()    → (await statusLisensi()).evaluasi.berlaku
+ *   isFeatureEnabled(k)  → fiturTersedia(k)
+ *   getEnabledFeatures() → (await statusLisensi()).evaluasi.fitur
+ *   getRemainingDays()   → (await statusLisensi()).evaluasi.sisaHari
+ *   getLicenseWarnings() → peringatanLisensi(evaluasi)
+ *   verifyLicense()      → statusLisensi({ paksa: true })
+ *
+ * Alurnya (§13, §38): baca salinan terverifikasi dari sm_lisensi → periksa
+ * ulang tanda tangannya → bila jatuh tempo (24 jam; 5 menit selama ada
+ * permintaan menunggu) hubungi License Authority → periksa respons
+ * bertanda tangan + nonce → simpan → catat peristiwa → terapkan.
+ *
+ * Tidak ada jalan pintas "gagal ⇒ buka semua" (§65). Authority tak
+ * terjangkau ⇒ status terakhir yang sah tetap dipakai sampai masa tenggang
+ * habis, sesudah itu keadaan terbatas.
+ */
+
+/* ── Konfigurasi ──────────────────────────────────────────────────────────── */
+
+export interface KonfigurasiLisensi {
+  authorityUrl: string;
+  deploymentId: string;
+  licenseId: string;
+  deploymentKey: string;
+  publicKey: string;
+  modePengembangan: boolean;
+  versi: string;
+  lengkap: boolean;
+}
+
+let peringatanModeDicetak = false;
+
+export function konfigurasiLisensi(): KonfigurasiLisensi {
+  const produksi = process.env.NODE_ENV === 'production';
+  const diminta = (process.env.LICENSE_MODE ?? 'production').trim().toLowerCase() === 'development';
+
+  // §64/§71: mode pengembangan HANYA untuk `next dev`. Build produksi
+  // mengabaikannya — tidak ada saklar rahasia yang bisa terbawa ke produksi.
+  if (diminta && produksi && !peringatanModeDicetak) {
+    peringatanModeDicetak = true;
+    console.error('[lisensi] LICENSE_MODE=development DIABAIKAN: build produksi selalu memverifikasi lisensi.');
+  }
+
+  const cfg = {
+    authorityUrl: (process.env.LICENSE_AUTHORITY_URL ?? '').trim().replace(/\/+$/, ''),
+    deploymentId: (process.env.LICENSE_DEPLOYMENT_ID ?? '').trim(),
+    licenseId: (process.env.LICENSE_ID ?? '').trim(),
+    deploymentKey: (process.env.LICENSE_DEPLOYMENT_KEY ?? '').trim(),
+    publicKey: (process.env.LICENSE_PUBLIC_KEY ?? '').trim(),
+    modePengembangan: diminta && !produksi,
+    versi: String((paketAplikasi as { version?: string }).version ?? '0.0.0'),
+  };
+  return {
+    ...cfg,
+    lengkap: Boolean(cfg.authorityUrl && cfg.deploymentId && cfg.licenseId && cfg.deploymentKey && cfg.publicKey),
+  };
+}
+
+/* ── Baris salinan ────────────────────────────────────────────────────────── */
+
+interface BarisLisensi {
+  mode: 'production' | 'development';
+  deployment_id: string | null;
+  license_id: string | null;
+  token: string | null;
+  status: string | null;
+  last_verified_at: string | null;
+  last_attempt_at: string | null;
+  last_failed_at: string | null;
+  last_error: string | null;
+}
+
+export interface StatusLisensiServer {
+  evaluasi: HasilEvaluasi;
+  muatan: MuatanLisensi | null;
+  dikonfigurasi: boolean;
+  modePengembangan: boolean;
+  terakhirTerverifikasi: string | null;
+  terakhirGagal: string | null;
+  galatTerakhir: KodeLisensi | null;
+  versi: string;
+}
+
+function muatanPengembangan(cfg: KonfigurasiLisensi): Record<string, unknown> {
+  const semua = Object.fromEntries(KUNCI_FITUR.map((k) => [k, true]));
+  return {
+    id: true, mode: 'development', deployment_id: cfg.deploymentId || 'DEV-LOCAL', license_id: cfg.licenseId || 'DEV-LOCAL',
+    token: null, company_name: 'Pengembangan lokal', status: 'ACTIVE', package: 'CUSTOM', license_type: 'STANDARD',
+    features: semua, issued_at: null, starts_at: null, expires_at: null, requests: [],
+    last_verified_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString(),
+  };
+}
+
+/** Kolom sm_lisensi dari muatan yang SUDAH lolos pemeriksaan tanda tangan. */
+function kolomDariMuatan(token: string, m: MuatanLisensi, sekarang: string): Record<string, unknown> {
+  return {
+    id: true, mode: 'production', deployment_id: m.deployment_id, license_id: m.license_id, token,
+    company_name: m.company_name, status: m.status, package: m.package, license_type: m.license_type,
+    features: m.features, issued_at: m.issued_at, starts_at: m.starts_at, expires_at: m.expires_at,
+    grace_period_days: m.grace_period_days, warning_days: m.warning_days, requests: m.requests,
+    last_verified_at: sekarang, last_attempt_at: sekarang, last_error: null, updated_at: sekarang,
+  };
+}
+
+/* ── Audit & notifikasi (memakai audit_trail yang sudah ada) ─────────────── */
+
+async function catat(aksi: string, entityId: string | null, detail: Record<string, unknown>, pelaku?: { id: string; nama: string }) {
+  await getAdminClient().from('audit_trail').insert({
+    actor_id: pelaku?.id ?? null,
+    actor_name: pelaku?.nama ?? 'Sistem Lisensi',
+    action: aksi,
+    entity: 'lisensi',
+    entity_id: entityId,
+    detail,
+  });
+}
+
+async function catatPeristiwa(peristiwa: PeristiwaLisensi[], licenseId: string) {
+  for (const p of peristiwa) {
+    await catat(p.aksi, licenseId, { judul: p.judul, keterangan: p.keterangan, ...p.detail });
+  }
+}
+
+/* ── Panggilan ke License Authority ───────────────────────────────────────── */
+
+type HasilPanggil =
+  | { ok: true; token: string; muatan: MuatanLisensi }
+  | { ok: false; kode: KodeLisensi; alasan: string };
+
+async function panggilAuthority(cfg: KonfigurasiLisensi, jalur: string, badan: Record<string, unknown>): Promise<Response> {
+  return fetch(`${cfg.authorityUrl}${jalur}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${cfg.deploymentKey}`,
+    },
+    body: JSON.stringify({
+      deployment_id: cfg.deploymentId,
+      license_id: cfg.licenseId,
+      application_version: cfg.versi,
+      ...badan,
+    }),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
+  });
+}
+
+async function verifikasiKeAuthority(cfg: KonfigurasiLisensi): Promise<HasilPanggil> {
+  const nonce = buatNonce();
+  let res: Response;
+  try {
+    res = await panggilAuthority(cfg, '/api/v1/verify', { nonce, timestamp: new Date().toISOString() });
+  } catch {
+    return { ok: false, kode: 'LICENSE_AUTHORITY_UNAVAILABLE', alasan: 'jaringan' };
+  }
+
+  if (res.status === 401 || res.status === 403 || res.status === 404) {
+    return { ok: false, kode: 'LICENSE_NOT_FOUND', alasan: `ditolak_${res.status}` };
+  }
+  if (!res.ok) return { ok: false, kode: 'LICENSE_AUTHORITY_UNAVAILABLE', alasan: `http_${res.status}` };
+
+  const data = await res.json().catch(() => null) as { token?: unknown } | null;
+  if (!data || typeof data.token !== 'string') {
+    return { ok: false, kode: 'LICENSE_VERIFICATION_FAILED', alasan: 'respons_tanpa_token' };
+  }
+
+  // §15/§39 kasus E: respons yang tidak lolos pemeriksaan TIDAK dipercaya.
+  const periksa = periksaToken(data.token, cfg.publicKey);
+  if (!periksa.sah) return { ok: false, kode: 'LICENSE_VERIFICATION_FAILED', alasan: `token_${periksa.alasan}` };
+
+  const m = periksa.muatan;
+  if (m.nonce !== nonce) return { ok: false, kode: 'LICENSE_VERIFICATION_FAILED', alasan: 'nonce' };
+  if (m.deployment_id !== cfg.deploymentId || m.license_id !== cfg.licenseId) {
+    return { ok: false, kode: 'LICENSE_VERIFICATION_FAILED', alasan: 'identitas' };
+  }
+  const selisih = Math.abs(Date.now() - new Date(m.verified_at).getTime());
+  if (!Number.isFinite(selisih) || selisih > BAWAAN_LISENSI.toleransiJamMenit * 60_000) {
+    return { ok: false, kode: 'LICENSE_VERIFICATION_FAILED', alasan: 'waktu' };
+  }
+
+  return { ok: true, token: data.token, muatan: m };
+}
+
+/* ── Status (dengan cache singkat per instance) ──────────────────────────── */
+
+let cache: { nilai: StatusLisensiServer; sampai: number } | null = null;
+let berjalan: Promise<StatusLisensiServer> | null = null;
+const UMUR_CACHE_MS = 30_000;
+
+export function kosongkanCacheLisensi() {
+  cache = null;
+}
+
+export async function statusLisensi(opsi: { paksa?: boolean } = {}): Promise<StatusLisensiServer> {
+  if (!opsi.paksa && cache && cache.sampai > Date.now()) return cache.nilai;
+  if (berjalan) return berjalan;
+
+  berjalan = (async () => {
+    try {
+      const nilai = await hitungStatus(Boolean(opsi.paksa));
+      cache = { nilai, sampai: Date.now() + UMUR_CACHE_MS };
+      return nilai;
+    } finally {
+      berjalan = null;
+    }
+  })();
+  return berjalan;
+}
+
+async function hitungStatus(paksa: boolean): Promise<StatusLisensiServer> {
+  const cfg = konfigurasiLisensi();
+  const db = getAdminClient();
+  const sekarang = new Date();
+
+  const { data } = await db.from('sm_lisensi').select(
+    'mode, deployment_id, license_id, token, status, last_verified_at, last_attempt_at, last_failed_at, last_error',
+  ).maybeSingle();
+  let baris = data as BarisLisensi | null;
+
+  const dasar = {
+    dikonfigurasi: cfg.lengkap, modePengembangan: cfg.modePengembangan, versi: cfg.versi,
+  };
+
+  // ── Mode pengembangan (hanya `next dev`) ──
+  if (cfg.modePengembangan) {
+    if (baris?.mode !== 'development') {
+      await db.from('sm_lisensi').upsert(muatanPengembangan(cfg));
+    }
+    return {
+      ...dasar,
+      evaluasi: evaluasiLisensi({ muatan: null, tandaTanganSah: false, terakhirTerverifikasi: null, sekarang, modePengembangan: true }),
+      muatan: null, terakhirTerverifikasi: sekarang.toISOString(), terakhirGagal: null, galatTerakhir: null,
+    };
+  }
+
+  // Baris pengembangan tidak boleh terbawa ke produksi: dikosongkan.
+  if (baris?.mode === 'development') {
+    await db.from('sm_lisensi').update({
+      mode: 'production', token: null, status: null, features: {}, last_verified_at: null,
+      updated_at: sekarang.toISOString(),
+    }).eq('id', true);
+    baris = { ...baris, mode: 'production', token: null, status: null, last_verified_at: null };
+  }
+
+  // ── Periksa ulang salinan tersimpan ──
+  let muatan: MuatanLisensi | null = null;
+  let tandaTanganSah = false;
+  if (baris?.token) {
+    const p = periksaToken(baris.token, cfg.publicKey);
+    if (p.sah && p.muatan.deployment_id === cfg.deploymentId && p.muatan.license_id === cfg.licenseId) {
+      muatan = p.muatan;
+      tandaTanganSah = true;
+    } else if (baris.status !== 'INVALID') {
+      // Salinan diubah di luar server, atau kunci/identitas tidak cocok:
+      // tutup di database juga, supaya RLS sejalan dengan keputusan ini.
+      await db.from('sm_lisensi').update({
+        status: 'INVALID', last_error: 'LICENSE_VERIFICATION_FAILED', updated_at: sekarang.toISOString(),
+      }).eq('id', true);
+      await catat('license_verification_failed', cfg.licenseId || null, { alasan: 'salinan_tidak_sah' });
+    }
+  }
+
+  // ── Jatuh tempo verifikasi? ──
+  const adaMenunggu = muatan?.status === 'PENDING'
+    || (muatan?.requests ?? []).some((r) => r.status === 'PENDING_APPROVAL');
+  const intervalMs = adaMenunggu
+    ? BAWAAN_LISENSI.intervalVerifikasiMenungguMenit * 60_000
+    : BAWAAN_LISENSI.intervalVerifikasiJam * 3_600_000;
+  const umur = baris?.last_verified_at ? sekarang.getTime() - new Date(baris.last_verified_at).getTime() : Infinity;
+  const jedaCoba = baris?.last_attempt_at ? sekarang.getTime() - new Date(baris.last_attempt_at).getTime() : Infinity;
+  // Rem: sekali per menit (10 detik bila dipaksa Admin) walau banyak pengguna membuka bersamaan.
+  const bolehCoba = jedaCoba > (paksa ? 10_000 : 60_000);
+  const jatuhTempo = paksa || !tandaTanganSah || umur > intervalMs;
+
+  let terakhirTerverifikasi = baris?.last_verified_at ?? null;
+  let terakhirGagal = baris?.last_failed_at ?? null;
+  let galatTerakhir = (baris?.last_error as KodeLisensi | null) ?? null;
+
+  if (cfg.lengkap && jatuhTempo && bolehCoba) {
+    const stempel = sekarang.toISOString();
+    await db.from('sm_lisensi').upsert({ id: true, last_attempt_at: stempel }, { onConflict: 'id' });
+
+    const hasil = await verifikasiKeAuthority(cfg);
+    if (hasil.ok) {
+      const peristiwa = peristiwaPerubahan(muatan, hasil.muatan);
+      await db.from('sm_lisensi').upsert(kolomDariMuatan(hasil.token, hasil.muatan, stempel));
+      await catatPeristiwa(peristiwa, hasil.muatan.license_id);
+      muatan = hasil.muatan;
+      tandaTanganSah = true;
+      terakhirTerverifikasi = stempel;
+      galatTerakhir = null;
+    } else {
+      // Kegagalan dicatat ke audit paling sering sekali sehari per jenisnya —
+      // Authority yang mati semalaman tidak boleh membanjiri Audit Log.
+      const sudahDicatat = baris?.last_error === hasil.kode && baris?.last_failed_at
+        && sekarang.getTime() - new Date(baris.last_failed_at).getTime() < 86_400_000;
+      await db.from('sm_lisensi').update({
+        last_failed_at: stempel, last_error: hasil.kode, updated_at: stempel,
+      }).eq('id', true);
+      if (!sudahDicatat) {
+        await catat('license_verification_failed', cfg.licenseId || null, { kode: hasil.kode, alasan: hasil.alasan });
+      }
+      terakhirGagal = stempel;
+      galatTerakhir = hasil.kode;
+    }
+  }
+
+  const evaluasi = evaluasiLisensi({ muatan, tandaTanganSah, terakhirTerverifikasi, sekarang });
+  if (!cfg.lengkap && !muatan) evaluasi.kode = 'LICENSE_NOT_FOUND';
+
+  return { ...dasar, evaluasi, muatan, terakhirTerverifikasi, terakhirGagal, galatTerakhir };
+}
+
+/* ── Pemeriksaan fitur untuk route handler ────────────────────────────────── */
+
+export async function fiturTersedia(fitur: KunciFitur): Promise<boolean> {
+  const s = await statusLisensi();
+  return s.evaluasi.fitur.includes(fitur);
+}
+
+/**
+ * Untuk route handler yang memakai service role (melewati RLS). Mengembalikan
+ * respons 403 siap kirim bila TIDAK SATU PUN fitur yang disebut berlisensi,
+ * atau null bila boleh lanjut.
+ */
+export async function tolakJikaTakBerlisensi(...fitur: KunciFitur[]): Promise<NextResponse | null> {
+  const s = await statusLisensi();
+  if (fitur.some((f) => s.evaluasi.fitur.includes(f))) return null;
+  const pesan = pesanKode('FEATURE_NOT_LICENSED');
+  return NextResponse.json({ error: pesan.keterangan, code: 'FEATURE_NOT_LICENSED' }, { status: 403 });
+}
+
+/* ── Permintaan lisensi (§23, §66, §67) ───────────────────────────────────── */
+
+export interface MasukanPermintaan {
+  kind: JenisPermintaan;
+  requested_package: Paket;
+  duration_days: number | null;
+  requested_features?: Partial<Record<KunciFitur, boolean>>;
+  notes: string | null;
+}
+
+export type HasilPermintaan =
+  | { ok: true; id: string }
+  | { ok: false; status: number; code: string; error: string };
+
+export async function ajukanPermintaan(
+  masukan: MasukanPermintaan, pelaku: { id: string; nama: string },
+): Promise<HasilPermintaan> {
+  const cfg = konfigurasiLisensi();
+  if (!cfg.lengkap) {
+    return { ok: false, status: 409, code: 'LICENSE_NOT_CONFIGURED', error: 'Platform ini belum terhubung ke penyedia lisensi. Hubungi penyedia platform.' };
+  }
+
+  let res: Response;
+  try {
+    res = await panggilAuthority(cfg, '/api/v1/requests', { ...masukan, requested_by: pelaku.nama });
+  } catch {
+    return { ok: false, status: 503, code: 'LICENSE_AUTHORITY_UNAVAILABLE', error: 'Server lisensi sedang tidak terjangkau. Coba lagi beberapa saat lagi.' };
+  }
+
+  const data = await res.json().catch(() => ({})) as { id?: string; code?: string };
+  if (res.status === 409 && data.code === 'REQUEST_ALREADY_PENDING') {
+    return { ok: false, status: 409, code: 'REQUEST_ALREADY_PENDING', error: 'Sebuah permintaan masih menunggu persetujuan penyedia platform.' };
+  }
+  if (!res.ok || !data.id) {
+    return { ok: false, status: 502, code: data.code ?? 'REQUEST_FAILED', error: 'Permintaan tidak dapat dikirim. Coba lagi beberapa saat lagi.' };
+  }
+
+  await catat('license_requested', cfg.licenseId, {
+    request_id: data.id, kind: masukan.kind, package: masukan.requested_package, duration_days: masukan.duration_days,
+  }, pelaku);
+  // Segarkan salinan supaya permintaan yang baru tampil dengan status resminya.
+  await statusLisensi({ paksa: true }).catch(() => null);
+  return { ok: true, id: data.id };
+}
+
+export async function batalkanPermintaan(id: string, pelaku: { id: string; nama: string }): Promise<HasilPermintaan> {
+  const cfg = konfigurasiLisensi();
+  if (!cfg.lengkap) return { ok: false, status: 409, code: 'LICENSE_NOT_CONFIGURED', error: 'Platform ini belum terhubung ke penyedia lisensi.' };
+  let res: Response;
+  try {
+    res = await panggilAuthority(cfg, '/api/v1/requests/cancel', { request_id: id });
+  } catch {
+    return { ok: false, status: 503, code: 'LICENSE_AUTHORITY_UNAVAILABLE', error: 'Server lisensi sedang tidak terjangkau.' };
+  }
+  if (!res.ok) return { ok: false, status: res.status === 409 ? 409 : 502, code: 'CANCEL_FAILED', error: 'Permintaan ini sudah diproses dan tidak dapat dibatalkan.' };
+  await catat('license_request_cancelled', cfg.licenseId, { request_id: id }, pelaku);
+  await statusLisensi({ paksa: true }).catch(() => null);
+  return { ok: true, id };
+}
+
+export { peringatanLisensi };

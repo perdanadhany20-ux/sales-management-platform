@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { tolakJikaTakBerlisensi } from '@/lib/lisensi/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { getSessionUser, isPengawas } from '@/lib/server-auth';
 import { pesanGalat } from '@/lib/pesan-galat';
@@ -22,6 +23,8 @@ export async function PATCH(request: NextRequest) {
   if (!isPengawas(pemanggil.role)) {
     return NextResponse.json({ error: 'Hanya pengawas (Manager, Admin, Director, Finance) yang boleh memutuskan lokasi.' }, { status: 403 });
   }
+  const tolak = await tolakJikaTakBerlisensi('meeting', 'project');
+  if (tolak) return tolak;
 
   const body = await request.json().catch(() => ({}));
   const id = String(body.id ?? '');

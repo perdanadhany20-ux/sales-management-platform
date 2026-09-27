@@ -12,3 +12,16 @@ yarn-error.log*
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# Android (TWA) — keluaran per pelanggan & kunci penanda tangan
+android/twa-manifest.json
+android/*.keystore
+android/*.apk
+android/*.aab
+android/app/
+android/gradle*
+android/build*
+android/settings.gradle
+android/local.properties
+android/.gradle/
+android/store_icon.png

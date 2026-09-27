@@ -12,6 +12,8 @@ import { Kolom, KataSandi, Tombol } from './FormParts';
 import { LABEL_PERAN, type Peran } from '@/lib/constants';
 import { useMenuSaya, type MenuKey } from '@/lib/menu-akses';
 import { useBranding } from '@/lib/branding';
+import { useLisensi, type Lisensi } from '@/lib/lisensi/use-lisensi';
+import { FITUR_MENU, pesanKode } from '@/lib/lisensi/kontrak';
 import { HeaderAtas } from './HeaderAtas';
 import {
   bagianUntuk, URUTAN_KELOMPOK, type KunciBagian,
@@ -98,6 +100,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const konteks = useMemo(() => ({ bagian, setBagian }), [bagian]);
 
   const menuSaya = useMenuSaya(pengguna?.wajib_ganti_sandi ? undefined : pengguna?.id, pengguna?.role);
+  const { lisensi } = useLisensi(Boolean(pengguna) && !pengguna?.wajib_ganti_sandi);
 
   useEffect(() => { pasangPenghitungFetch(); }, []);
 
@@ -137,6 +140,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
   // Halaman yang tidak terdaftar sebagai menu (mis. /profil) selalu terbuka.
   const menuHalamanIni = MENU_APLIKASI.find((m) => pathname.startsWith(m.href));
   const diblokir = Boolean(menuHalamanIni && !menuSaya!.includes(menuHalamanIni.kunci));
+  // Alasan penolakan dibedakan: modul di luar lisensi mendapat pesan lisensi
+  // (§11, §37), bukan "hak akses akun Anda" yang menyesatkan Admin.
+  const butuhFitur = menuHalamanIni ? FITUR_MENU[menuHalamanIni.kunci] : undefined;
+  const karenaLisensi = Boolean(diblokir && butuhFitur && !lisensi?.fitur.includes(butuhFitur));
 
   return (
     <KonteksBagian.Provider value={konteks}>
@@ -161,7 +168,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <main aria-busy={sedangNavigasi}
             className="relative flex-1 px-3 sm:px-5 py-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sidebar:pb-6 max-w-[1500px] w-full mx-auto">
             <div className={`transition-opacity duration-150 ${sedangNavigasi ? 'opacity-40 pointer-events-none select-none' : ''}`}>
-              {diblokir ? <ModulTidakTersedia label={menuHalamanIni!.label} /> : children}
+              <BannerLisensi lisensi={lisensi} admin={pengguna.role.toUpperCase() === 'ADMIN'} />
+              {diblokir
+                ? (karenaLisensi ? <FiturTidakBerlisensi /> : <ModulTidakTersedia label={menuHalamanIni!.label} />)
+                : children}
             </div>
             {sedangNavigasi && (
               <div className="absolute inset-x-0 top-24 flex justify-center pointer-events-none">
@@ -195,6 +205,51 @@ function ModulTidakTersedia({ label }: { label: string }) {
         judul={`${label} tidak tersedia`}
         keterangan="Modul ini tidak termasuk dalam hak akses akun Anda. Hubungi Admin kalau menurut Anda ini keliru."
       />
+    </div>
+  );
+}
+
+/** Modul yang tidak termasuk lisensi deployment ini (§37). Tanpa detail teknis. */
+function FiturTidakBerlisensi() {
+  const p = pesanKode('FEATURE_NOT_LICENSED');
+  return (
+    <div className="bg-white rounded-kartu border border-slate-200 max-w-lg mx-auto mt-8">
+      <Kosong judul={p.judul} keterangan={p.keterangan} />
+    </div>
+  );
+}
+
+/**
+ * Pita keadaan lisensi di atas isi halaman. Semua pengguna melihatnya saat
+ * platform dalam keadaan terbatas; peringatan masa berlaku hanya untuk Admin,
+ * karena hanya Admin yang bisa menindaklanjutinya.
+ */
+function BannerLisensi({ lisensi, admin }: { lisensi: Lisensi | null; admin: boolean }) {
+  if (!lisensi || lisensi.mode_pengembangan) return null;
+  const p = lisensi.peringatan[0];
+  if (!p) return null;
+  if (lisensi.berlaku && !admin) return null;
+
+  const gaya = p.tingkat === 'bahaya'
+    ? 'bg-[#fce3e3] border-[#f3b9b8] text-[#8f2c2b]'
+    : p.tingkat === 'waspada'
+      ? 'bg-[#fff4d6] border-[#f5dc97] text-[#7a5300]'
+      : 'bg-aksen-50 border-aksen-100 text-aksen-800';
+
+  return (
+    <div role="status" className={`mb-4 rounded-kartu border px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1 ${gaya}`}>
+      <span aria-hidden="true">🔑</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-bold leading-snug">{p.judul}</p>
+        <p className="text-[12px] leading-snug opacity-90">
+          {admin ? p.keterangan : 'Sebagian modul sedang tidak tersedia. Hubungi administrator platform Anda.'}
+        </p>
+      </div>
+      {admin && (
+        <Link href="/admin?bagian=lisensi" className="text-[12px] font-bold underline underline-offset-2 whitespace-nowrap">
+          Buka Lisensi
+        </Link>
+      )}
     </div>
   );
 }
@@ -323,7 +378,8 @@ function SidebarLebar({ menu, pathname, pengguna }: {
 
 function SubMenuAdmin({ peran }: { peran: string }) {
   const { bagian, setBagian } = useBagianAdmin();
-  const tersedia = bagianUntuk(peran);
+  const { lisensi } = useLisensi();
+  const tersedia = bagianUntuk(peran, lisensi?.fitur ?? null);
 
   return (
     <div className="ml-4 mt-1 mb-1 pl-2.5 border-l border-slate-200 flex flex-col gap-0.5">

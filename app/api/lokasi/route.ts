@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { tolakJikaTakBerlisensi } from '@/lib/lisensi/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { getSessionUser, isPengawas } from '@/lib/server-auth';
 import { pesanGalat } from '@/lib/pesan-galat';
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
   if (!pemanggil) {
     return NextResponse.json({ error: 'Sesi tidak ditemukan.' }, { status: 401 });
   }
+  // Service role melewati RLS, jadi lisensi diperiksa di sini (migrasi 037 menutup jalur PostgREST).
+  const tolak = await tolakJikaTakBerlisensi('project', 'meeting');
+  if (tolak) return tolak;
 
   const body = await request.json().catch(() => ({}));
   const name = String(body.name ?? '').trim();

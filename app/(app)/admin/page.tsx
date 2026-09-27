@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect } from 'react';
 import { usePenggunaAktif } from '@/lib/auth';
+import { useLisensi } from '@/lib/lisensi/use-lisensi';
 import { isPengawas } from '@/lib/constants';
-import { bagianUntuk } from '@/lib/admin-bagian';
+import { bagianUntuk, BAGIAN_ADMIN, type KunciBagian } from '@/lib/admin-bagian';
 import { mulaiNavigasi } from '@/lib/navigasi-muat';
 import { LayarMemuat, Kosong } from '@/components/shared/Feedback';
 import { useBagianAdmin } from '@/components/shared/Shell';
@@ -15,6 +17,7 @@ import { TabStruktur } from './_components/TabStruktur';
 import { TabKonfigurasi } from './_components/TabKonfigurasi';
 import { TabTampilan } from './_components/TabTampilan';
 import { TabAudit } from './_components/TabAudit';
+import { TabLisensi } from './_components/TabLisensi';
 
 /**
  * Admin Panel.
@@ -36,6 +39,13 @@ import { TabAudit } from './_components/TabAudit';
 export default function HalamanAdmin() {
   const { pengguna, memuat } = usePenggunaAktif();
   const { bagian, setBagian } = useBagianAdmin();
+  const { lisensi } = useLisensi();
+
+  // Tautan langsung ke satu bagian (mis. banner lisensi → /admin?bagian=lisensi).
+  useEffect(() => {
+    const diminta = new URLSearchParams(window.location.search).get('bagian');
+    if (diminta && BAGIAN_ADMIN.some((b) => b.kunci === diminta)) setBagian(diminta as KunciBagian);
+  }, [setBagian]);
 
   if (memuat) return <LayarMemuat />;
   if (!pengguna) return null;
@@ -51,7 +61,7 @@ export default function HalamanAdmin() {
     );
   }
 
-  const tersedia = bagianUntuk(pengguna.role);
+  const tersedia = bagianUntuk(pengguna.role, lisensi?.fitur ?? null);
   // Manager mendarat di bagian pertama yang memang boleh ia buka, bukan di
   // "Pengguna" yang tidak ada dalam daftarnya.
   const aktif = tersedia.find((b) => b.kunci === bagian) ?? tersedia[0];
@@ -103,6 +113,7 @@ export default function HalamanAdmin() {
         {aktif.kunci === 'target' && <TabTarget pemanggilId={pengguna.id} />}
         {aktif.kunci === 'tampilan' && <TabTampilan />}
         {aktif.kunci === 'konfigurasi' && <TabKonfigurasi />}
+        {aktif.kunci === 'lisensi' && <TabLisensi />}
         {aktif.kunci === 'audit' && <TabAudit />}
       </div>
     </div>

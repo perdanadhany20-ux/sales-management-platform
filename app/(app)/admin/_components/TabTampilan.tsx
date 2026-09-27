@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { kosongkanCachePengaturan, lengkapiKartuDashboard, type KartuDashboard } from '@/lib/use-settings';
 import {
   BRANDING_BAWAAN, kosongkanCacheBranding, terapkanWarna, type Branding,
+  logoUntuk,
 } from '@/lib/branding';
 import { Teks, Tombol } from '@/components/shared/FormParts';
 import { KerangkaKartu, PanelGalat, useToast } from '@/components/shared/Feedback';
@@ -131,17 +132,8 @@ export function TabTampilan() {
 
         <Label>Pratinjau</Label>
         <div className="rounded-kartu border border-slate-200 bg-white px-4 py-3 flex items-center gap-3 mb-4">
-          {b.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={b.logo_url} alt="" className="w-10 h-10 rounded-kontrol object-contain" />
-          ) : (
-            <span className="w-10 h-10 rounded-kontrol grid place-items-center flex-shrink-0"
-              style={{ background: `linear-gradient(135deg, ${b.warna_utama_2}, ${b.warna_utama})` }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 19V10M10 19V5M16 19v-6M22 19H2" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
-              </svg>
-            </span>
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoUntuk(b)} alt="" className="w-10 h-10 rounded-kontrol object-contain" />
           <div className="min-w-0">
             <p className="text-[15px] font-black text-slate-900 leading-tight truncate">
               {b.nama_platform || 'Nama platform'}

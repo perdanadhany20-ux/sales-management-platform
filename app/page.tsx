@@ -6,7 +6,7 @@ import { masuk } from '@/lib/auth';
 import { halamanAwal } from '@/lib/menu-akses';
 import { setDbToken } from '@/lib/supabase';
 import { KataSandi } from '@/components/shared/FormParts';
-import { useBranding, type Branding } from '@/lib/branding';
+import { useBranding, logoUntuk, type Branding } from '@/lib/branding';
 import { FormDaftar } from './_components/FormDaftar';
 import { pesanGalat } from '@/lib/pesan-galat';
 
@@ -300,44 +300,19 @@ function BentukLatar() {
 }
 
 /**
- * Logo pada halaman masuk. Memakai berkas yang diunggah admin bila ada;
- * kalau belum, lencana bawaan — bukan kotak kosong yang terlihat seperti
- * gambar yang gagal dimuat.
+ * Logo pada halaman masuk: berkas yang diunggah admin bila ada, selain itu
+ * logo resmi platform.
  */
-function LogoLogin({ branding, ukuran, biru }: {
+function LogoLogin({ branding, ukuran }: {
   branding: Branding; ukuran: number; biru?: boolean;
 }) {
-  if (branding.logo_url) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={branding.logo_url} alt={branding.nama_platform}
-        className="rounded-kontrol object-contain flex-shrink-0 bg-white/90"
-        style={{ width: ukuran, height: ukuran }}
-      />
-    );
-  }
-  return <LogoKotak ukuran={ukuran} biru={biru} warna={branding.warna_utama} />;
-}
-
-function LogoKotak({ ukuran, biru, warna = '#1d4ed8' }: {
-  ukuran: number; biru?: boolean; warna?: string;
-}) {
   return (
-    <span
-      className="rounded-kontrol grid place-items-center flex-shrink-0"
-      style={{
-        width: ukuran, height: ukuran,
-        background: biru
-          ? `linear-gradient(135deg, ${warna}, ${warna}cc)`
-          : 'rgba(255,255,255,0.16)',
-        border: biru ? 'none' : '1px solid rgba(255,255,255,0.22)',
-      }}
-    >
-      <svg width={ukuran * 0.46} height={ukuran * 0.46} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 19V10M10 19V5M16 19v-6M22 19H2" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={logoUntuk(branding)} alt={branding.nama_platform}
+      className="rounded-kontrol object-contain flex-shrink-0 bg-white/90 p-[3px]"
+      style={{ width: ukuran, height: ukuran }}
+    />
   );
 }
 
