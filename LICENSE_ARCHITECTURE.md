@@ -13,7 +13,7 @@ SATU PELANGGAN = SATU DEPLOYMENT = SATU PROYEK VERCEL + SATU PROYEK SUPABASE + S
   isinya hanya catatan kendali lisensi.
 
 ```
-Developer ──Telegram──► License Authority (Vercel + Supabase PUSAT, repo: license-authority/)
+Developer ──Telegram──► License Authority (Vercel + Supabase PUSAT, repo PRIVAT sales-license-authority)
                                ▲  token bertanda tangan Ed25519
           ┌────────────────────┼────────────────────┐
      Deployment A         Deployment B         Deployment C
@@ -22,15 +22,15 @@ Developer ──Telegram──► License Authority (Vercel + Supabase PUSAT, re
 
 ## 2. License Authority pusat
 
-Lokasinya `license-authority/`, sebuah proyek Next.js tersendiri. Proyek ini dideploy ke **proyek Vercel
+Kodenya ada di **repo privat terpisah** `sales-license-authority` milik developer (akun GitHub, Vercel, dan Supabase developer, bukan akun pelanggan), sebuah proyek Next.js tersendiri. Proyek ini dideploy ke **proyek Vercel
 milik developer** dengan **proyek Supabase milik developer**. Proyek ini tidak ikut ter-deploy bersama
 aplikasi pelanggan.
 
 | Bagian | Berkas |
 |---|---|
-| Skema pusat & aturan transisi | `license-authority/supabase/migrations/001_license_authority.sql` |
-| LicenseService (satu jalur perubahan) | `license-authority/lib/license-service.ts` |
-| TelegramApprovalService | `license-authority/lib/telegram.ts` |
+| Skema pusat & aturan transisi | `sales-license-authority/supabase/migrations/001_license_authority.sql` |
+| LicenseService (satu jalur perubahan) | `sales-license-authority/lib/license-service.ts` |
+| TelegramApprovalService | `sales-license-authority/lib/telegram.ts` |
 | API deployment | `POST /api/v1/verify`, `POST /api/v1/requests`, `POST /api/v1/requests/cancel` |
 | Webhook Telegram | `POST /api/telegram/webhook` |
 | Peringatan kedaluwarsa | `GET /api/cron` (Vercel Cron harian) |
@@ -232,18 +232,18 @@ induk, URL rahasia, atau saklar localStorage.
 | "Lisensi tidak dapat dipastikan" | `LICENSE_PUBLIC_KEY` tidak berpasangan dengan `LICENSE_PRIVATE_KEY` pusat, atau ID deployment/lisensi salah ketik |
 | "Pemeriksaan lisensi tertunda" | Authority tidak terjangkau. Platform tetap berjalan sampai 7 hari. Periksa deployment pusat |
 | Persetujuan belum terlihat | Tekan **Periksa sekarang** di Admin → Lisensi (dibatasi sekali per 10 detik) |
-| Bot Telegram diam | Periksa `setWebhook` (`license-authority/scripts/set-telegram-webhook.mjs`), `TELEGRAM_WEBHOOK_SECRET`, dan apakah ID Anda ada di `TELEGRAM_DEVELOPER_ID` |
+| Bot Telegram diam | Periksa `setWebhook` (`sales-license-authority/scripts/set-telegram-webhook.mjs`), `TELEGRAM_WEBHOOK_SECRET`, dan apakah ID Anda ada di `TELEGRAM_DEVELOPER_ID` |
 | Galat "Fitur ini tidak termasuk dalam lisensi" saat menyimpan | Database menolak penulisan ke modul yang tidak berlisensi. Ini perilaku yang diharapkan |
 
 ## 13. Checklist produksi
 
 **Sekali (developer):**
 
-1. Buat proyek Supabase **pusat**, lalu jalankan `license-authority/supabase/migrations/001_license_authority.sql`.
-2. Jalankan `cd license-authority && npm run keys`. Simpan `LICENSE_PRIVATE_KEY` di tempat aman dan catat
+1. Buat proyek Supabase **pusat**, lalu jalankan `sales-license-authority/supabase/migrations/001_license_authority.sql`.
+2. Jalankan `npm run keys` di repo sales-license-authority. Simpan `LICENSE_PRIVATE_KEY` di tempat aman dan catat
    `LICENSE_PUBLIC_KEY`.
-3. Buat proyek Vercel dengan Root Directory `license-authority` dan biarkan opsi "Include files outside
-   Root Directory" menyala. Isi env seperti di §6.
+3. Buat proyek Vercel (akun developer) dari repo privat sales-license-authority, Root Directory dibiarkan
+   kosong. Isi env seperti di §6.
 4. Buat bot di @BotFather. Masukkan `TELEGRAM_BOT_TOKEN` ke env Vercel pusat. Jangan pernah menaruhnya di
    repo, karena repo ini publik.
 5. Isi `TELEGRAM_DEVELOPER_ID` dengan ID numerik Telegram Anda (bisa dilihat lewat @userinfobot).

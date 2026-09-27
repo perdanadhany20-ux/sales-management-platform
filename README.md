@@ -88,7 +88,7 @@ npm run dev
 | `NEXT_PUBLIC_APP_URL` | publik | URL publik aplikasi |
 | `LICENSE_AUTHORITY_URL`, `LICENSE_DEPLOYMENT_ID`, `LICENSE_ID` | server | Registrasi deployment di License Authority |
 | `LICENSE_DEPLOYMENT_KEY` | **rahasia** | Ditampilkan sekali saat registrasi |
-| `LICENSE_PUBLIC_KEY` | server (publik) | `npm run keys` di `license-authority/` |
+| `LICENSE_PUBLIC_KEY` | server (publik) | `npm run keys` di repo privat sales-license-authority |
 | `LICENSE_MODE` | server | `production` (bawaan); `development` hanya berlaku di `next dev` |
 | `CRON_SECRET` | **rahasia** | Acak; dipakai Vercel Cron untuk verifikasi lisensi harian |
 | `ANDROID_PACKAGE_ID`, `ANDROID_CERT_SHA256` | server | Opsional — aplikasi Android (`android/README.md`) |
@@ -181,7 +181,7 @@ tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 | `keamanan-hak.sql` | 20 | Sales menyunting tapi tidak menghapus miliknya, hanya Admin mengubah data orang lain, isolasi Target Sales, kolom pribadi `users` |
 | `keamanan-lisensi.sql` | 20 | Admin pelanggan tidak bisa mengubah lisensi, fitur tak berlisensi tertutup di database (termasuk lewat fungsi DEFINER), kedaluwarsa/penangguhan/tenggang, downgrade tanpa kehilangan data |
 
-Uji Authority pusat: `license-authority/supabase/tests/authority.sql` (22 uji).
+Uji Authority pusat: `supabase/tests/authority.sql` di repo privat sales-license-authority (22 uji).
 
 Pemeriksaan kode: `npm run typecheck`, `npm test` (uji unit lisensi, Node ≥ 22.6) dan `npm run build`.
 
@@ -195,7 +195,7 @@ terhadap fungsi database baru (atau sebaliknya) bisa gagal.
 ## 13. Lisensi, Logo, dan Aplikasi Android
 
 - **Lisensi**: satu pelanggan = satu deployment = satu lisensi, dikendalikan
-  License Authority pusat (`license-authority/`) dengan persetujuan lewat
+  License Authority pusat (repo privat `sales-license-authority`, akun developer terpisah) dengan persetujuan lewat
   Telegram. Admin melihat status dan mengajukan permintaan di Admin → Lisensi.
   Rincian: [LICENSE_ARCHITECTURE.md](LICENSE_ARCHITECTURE.md).
 - **Logo**: logo resmi ada di `public/brand/`; favicon, ikon PWA, dan ikon
