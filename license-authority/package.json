@@ -11,7 +11,7 @@
     "keys": "node scripts/generate-keys.mjs"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.39.0",
