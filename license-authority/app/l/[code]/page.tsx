@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { notFound } from 'next/navigation';
-import { KUNCI_FITUR, LABEL_PAKET, PAKET, REGISTRY_FITUR, statusEfektif } from '@kontrak/kontrak.ts';
+import { LABEL_PAKET, statusEfektif } from '@kontrak/kontrak.ts';
+import { PilihPaketFitur } from '../../PilihPaketFitur';
 import { LicenseService } from '@/lib/license-service';
 import { aksiLisensi } from '../../actions';
 
@@ -87,20 +88,7 @@ export default async function DetailLisensi({ params, searchParams }: { params: 
           <h2>Paket &amp; fitur</h2>
           <form action={aksiLisensi}>
             <Tersembunyi lic={lic} aksi="package" />
-            <p>
-              <select name="paket" defaultValue={info.package}>
-                {PAKET.map((p) => <option key={p} value={p}>{LABEL_PAKET[p]}</option>)}
-              </select>{' '}
-              <span className="muted">Paket selain Custom memakai preset; centang di bawah hanya berlaku untuk Custom.</span>
-            </p>
-            <div className="grid">
-              {KUNCI_FITUR.map((k) => (
-                <label key={k}>
-                  <input type="checkbox" name={`fitur_${k}`} defaultChecked={Boolean(info.features?.[k])} />{' '}
-                  {REGISTRY_FITUR.find((f) => f.key === k)?.display_name}
-                </label>
-              ))}
-            </div>
+            <PilihPaketFitur awalPaket={info.package} awalFitur={info.features} />
             <p><button className="primary">Simpan paket/fitur</button></p>
           </form>
           <p className="muted">Downgrade hanya menutup akses. Data pelanggan tidak pernah dihapus.</p>
