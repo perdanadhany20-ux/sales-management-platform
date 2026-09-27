@@ -103,11 +103,11 @@ export function paketMinimum(fitur: KunciFitur): Paket | null {
 /* ── Status ───────────────────────────────────────────────────────────────── */
 
 /** Status yang DISIMPAN License Authority. */
-export const STATUS_DASAR = ['PENDING', 'ACTIVE', 'SUSPENDED', 'REVOKED'] as const;
+export const STATUS_DASAR = ['PENDING', 'ACTIVE', 'SUSPENDED', 'REVOKED', 'REPLACED'] as const;
 export type StatusDasar = typeof STATUS_DASAR[number];
 
 /** Status yang DITAMPILKAN: EXPIRING_SOON dan EXPIRED diturunkan dari tanggal. */
-export type StatusLisensi = 'PENDING' | 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'SUSPENDED' | 'REVOKED';
+export type StatusLisensi = 'PENDING' | 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'SUSPENDED' | 'REVOKED' | 'REPLACED';
 
 export const STATUS_PERMINTAAN = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CANCELLED'] as const;
 export type StatusPermintaan = typeof STATUS_PERMINTAAN[number];
@@ -127,6 +127,8 @@ export type KodeLisensi =
   | 'LICENSE_AUTHORITY_UNAVAILABLE'
   | 'FEATURE_NOT_LICENSED'
   | 'LICENSE_IN_USE'
+  | 'LICENSE_PLATFORM_TAKEN'
+  | 'LICENSE_REPLACED'
   | 'LICENSE_DEVELOPMENT';
 
 /* ── Bawaan komersial (§77) — konfigurasi, bukan asumsi yang ditebar ─────── */
@@ -186,6 +188,11 @@ export interface MuatanLisensi {
   verified_at: string;
   /** Nonce dari permintaan verifikasi — mencegah respons lama diputar ulang. */
   nonce: string;
+  /**
+   * Hanya bila status REPLACED: Kode Aktivasi lisensi pengganti. Ikut
+   * ditandatangani, jadi platform sah bisa beralih otomatis dengan aman.
+   */
+  pengganti?: string | null;
 }
 
 /* ── Evaluasi ─────────────────────────────────────────────────────────────── */
@@ -214,6 +221,8 @@ export interface HasilEvaluasi {
   /** Sedang memakai status terakhir karena Authority tak terjangkau. */
   dalamTenggang: boolean;
   tenggangBerakhir: string | null;
+  /** Lisensi uji coba (license_type TRIAL). */
+  trial?: boolean;
 }
 
 export function sisaHari(expiresAt: string | null, sekarang: Date): number | null {
@@ -276,9 +285,10 @@ export function evaluasiLisensi(m: MasukanEvaluasi): HasilEvaluasi {
   const dalamTenggang = m.sekarang.getTime() - new Date(acuan).getTime()
     > BAWAAN_LISENSI.intervalVerifikasiJam * 3_600_000;
 
-  const dasar = { status, sisaHari: sisa, dalamTenggang, tenggangBerakhir };
+  const dasar = { status, sisaHari: sisa, dalamTenggang, tenggangBerakhir, trial: mu.license_type === 'TRIAL' };
 
   // Kasus A–C: keputusan eksplisit Authority dihormati apa adanya.
+  if (status === 'REPLACED')  return { ...dasar, kode: 'LICENSE_REPLACED',  berlaku: false, fitur: terbatas };
   if (status === 'REVOKED')   return { ...dasar, kode: 'LICENSE_REVOKED',   berlaku: false, fitur: terbatas };
   if (status === 'SUSPENDED') return { ...dasar, kode: 'LICENSE_SUSPENDED', berlaku: false, fitur: terbatas };
   if (status === 'PENDING')   return { ...dasar, kode: 'LICENSE_PENDING',   berlaku: false, fitur: terbatas };
@@ -309,7 +319,15 @@ export function peringatanLisensi(h: HasilEvaluasi): Peringatan[] {
     hasil.push({ kode: h.kode, tingkat: h.kode === 'LICENSE_PENDING' ? 'info' : 'bahaya', ...pesan });
     return hasil;
   }
-  if (h.status === 'EXPIRING_SOON' && h.sisaHari !== null) {
+  if (h.trial && h.sisaHari !== null) {
+    // Trial selalu diberi tahu sisa harinya — masa uji coba memang pendek.
+    hasil.push({
+      kode: h.sisaHari <= 7 ? 'LICENSE_EXPIRING_7' : 'LICENSE_EXPIRING_30',
+      tingkat: h.sisaHari <= 3 ? 'bahaya' : 'waspada',
+      judul: `Masa trial berakhir ${h.sisaHari} hari lagi`,
+      keterangan: 'Ajukan lisensi penuh dari halaman Lisensi agar platform tetap bisa dipakai.',
+    });
+  } else if (h.status === 'EXPIRING_SOON' && h.sisaHari !== null) {
     hasil.push({
       kode: h.sisaHari <= 7 ? 'LICENSE_EXPIRING_7' : 'LICENSE_EXPIRING_30',
       tingkat: h.sisaHari <= 7 ? 'bahaya' : 'waspada',
@@ -334,6 +352,8 @@ export function pesanKode(kode: KodeLisensi): { judul: string; keterangan: strin
     case 'LICENSE_DEVELOPMENT': return { judul: 'Mode pengembangan', keterangan: 'Seluruh fitur terbuka untuk pengembangan lokal.' };
     case 'LICENSE_NOT_FOUND':   return { judul: 'Lisensi belum diaktifkan', keterangan: 'Platform ini belum memiliki lisensi yang terverifikasi. Admin dapat memasukkan Kode Aktivasi dari penyedia platform di halaman Lisensi.' };
     case 'LICENSE_IN_USE':      return { judul: 'Kode aktivasi sudah dipakai', keterangan: 'Kode aktivasi ini sudah terikat ke platform lain. Hubungi penyedia platform.' };
+    case 'LICENSE_PLATFORM_TAKEN': return { judul: 'Platform sudah terdaftar', keterangan: 'Platform ini sudah terdaftar dengan lisensi lain. Hubungi penyedia platform.' };
+    case 'LICENSE_REPLACED':    return { judul: 'Lisensi telah diganti', keterangan: 'Lisensi ini sudah diganti dengan lisensi baru dan tidak bisa dipakai lagi. Masukkan Kode Aktivasi yang baru, atau hubungi penyedia platform.' };
     case 'LICENSE_PENDING':     return { judul: 'Menunggu persetujuan', keterangan: 'Lisensi Anda sedang menunggu persetujuan penyedia platform.' };
     case 'LICENSE_EXPIRED':     return { judul: 'Lisensi telah berakhir', keterangan: 'Masa berlaku lisensi sudah habis. Data Anda tetap aman; ajukan perpanjangan untuk membuka kembali seluruh fitur.' };
     case 'LICENSE_SUSPENDED':   return { judul: 'Lisensi ditangguhkan', keterangan: 'Lisensi sedang ditangguhkan sementara oleh penyedia platform. Hubungi penyedia platform.' };

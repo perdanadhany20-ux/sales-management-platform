@@ -205,6 +205,29 @@ token berikutnya. Downgrade hanya menutup akses: tidak ada baris yang dihapus da
 diubah. Jika fitur diaktifkan lagi, datanya muncul kembali utuh (uji #11–12). Kedaluwarsa juga tidak
 pernah menghapus data.
 
+### 9a. Satu lisensi tidak bisa dipakai ulang — ganti = lisensi baru
+
+- **Perubahan paket/fitur atau trial → penuh selalu menerbitkan lisensi BARU** (kode lisensi dan kunci
+  baru, `la_reissue`). Lisensi lama berstatus `REPLACED` (final, dijaga trigger `licenses_diganti_final`)
+  dan tidak bisa diperpanjang, diaktifkan kembali, atau dipakai di platform mana pun.
+- **Serah-terima otomatis:** Kode Aktivasi pengganti disimpan di pusat (`handover_code`). Saat platform
+  yang sah memverifikasi dengan lisensi lama, token bertanda tangan membawa `pengganti`. Platform
+  memverifikasi kode itu ke pusat, menyimpannya (`deployment_key` di `sm_lisensi`), dan mencatat audit
+  `license_replaced`. Setelah lisensi pengganti dipakai pertama kali, `handover_code` dihapus. Kode baru
+  juga dikirim ke Telegram developer sebagai cadangan.
+- **Satu platform = satu deployment:** `deployments.instance_hash` unik. Kode dari pendaftaran lain di
+  platform yang sudah terdaftar ditolak (`PLATFORM_TAKEN` → `LICENSE_PLATFORM_TAKEN`), sehingga trial
+  tidak bisa diulang dengan kode trial baru. Kode lama yang sudah `REPLACED` ditolak di form aktivasi
+  (`LICENSE_REPLACED`).
+- **Perpanjangan** (+30/+90/+1 tahun) tetap memakai lisensi yang sama.
+
+### 9b. Lisensi TRIAL
+
+`license_type = 'TRIAL'` dengan jumlah hari bebas (1–3660) yang dipilih developer saat registrasi.
+Status TRIAL diperlakukan sama seperti lisensi aktif (fitur sesuai paket), ditandai badge TRIAL di
+Admin → Lisensi, dengan peringatan "Masa trial berakhir N hari lagi". Admin pelanggan dapat mengajukan
+lisensi penuh; developer menyetujui lewat Telegram (**⭐ Trial → Penuh**) atau dashboard.
+
 ## 10. Registrasi deployment & Kode Aktivasi
 
 1. Di dashboard Kantor Pusat, buka **Registrasi deployment**: isi nama perusahaan, paket (fitur otomatis

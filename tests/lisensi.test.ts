@@ -267,3 +267,21 @@ test('Sidik platform stabil dan berbeda per Supabase', () => {
   assert.equal(sidikPlatform('https://a.supabase.co/'), sidikPlatform('https://A.supabase.co'));
   assert.notEqual(sidikPlatform('https://a.supabase.co'), sidikPlatform('https://b.supabase.co'));
 });
+
+/* ── Trial & lisensi pengganti ────────────────────────────────────────────── */
+
+test('Lisensi yang sudah DIGANTI tidak bisa dipakai lagi (terbatas, kode LICENSE_REPLACED)', () => {
+  const h = evalu(muatan({ status: 'REPLACED', paket: 'ENTERPRISE' }));
+  assert.equal(h.kode, 'LICENSE_REPLACED');
+  assert.equal(h.berlaku, false);
+  assert.deepEqual(h.fitur, [...FITUR_SAAT_TERBATAS]);
+});
+
+test('Trial: tetap berlaku sampai tanggalnya, dan selalu diberi peringatan sisa hari', async () => {
+  const { peringatanLisensi } = await import('../lib/lisensi/kontrak.ts');
+  const h = evalu(muatan({ license_type: 'TRIAL', expires_at: iso(10 * HARI) }));
+  assert.equal(h.berlaku, true);
+  assert.equal(h.trial, true);
+  assert.match(peringatanLisensi(h)[0].judul, /trial berakhir 10 hari/);
+  assert.equal(evalu(muatan({ license_type: 'TRIAL', expires_at: iso(-HARI) })).kode, 'LICENSE_EXPIRED');
+});

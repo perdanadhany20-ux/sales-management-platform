@@ -210,6 +210,7 @@ async function verifikasiKeAuthority(cfg: KonfigurasiLisensi): Promise<HasilPang
   if (res.status === 409) {
     const d = await res.json().catch(() => ({})) as { code?: string };
     if (d.code === 'INSTANCE_MISMATCH') return { ok: false, kode: 'LICENSE_IN_USE', alasan: 'instance' };
+    if (d.code === 'PLATFORM_TAKEN') return { ok: false, kode: 'LICENSE_PLATFORM_TAKEN', alasan: 'platform' };
   }
   if (res.status === 401 || res.status === 403 || res.status === 404) {
     return { ok: false, kode: 'LICENSE_NOT_FOUND', alasan: `ditolak_${res.status}` };
@@ -338,7 +339,36 @@ async function hitungStatus(paksa: boolean): Promise<StatusLisensiServer> {
     await db.from('sm_lisensi').upsert({ id: true, last_attempt_at: stempel }, { onConflict: 'id' });
 
     const hasil = await verifikasiKeAuthority(cfg);
-    if (hasil.ok) {
+    // Lisensi ini sudah DIGANTI (upgrade/ganti paket): Kantor Pusat menyertakan
+    // Kode Aktivasi penggantinya di token bertanda tangan → beralih otomatis.
+    // Lisensi lama tidak pernah dipakai lagi.
+    let beralih: { token: string; muatan: MuatanLisensi; kunci: string } | null = null;
+    if (hasil.ok && hasil.muatan.status === 'REPLACED' && hasil.muatan.pengganti) {
+      const kred = bacaKodeAktivasi(hasil.muatan.pengganti);
+      if (kred && kred.deploymentId === cfg.deploymentId) {
+        const baru = await verifikasiKeAuthority(konfigurasiLisensi({
+          deployment_id: kred.deploymentId, license_id: kred.licenseId, deployment_key: kred.deploymentKey,
+        }));
+        if (baru.ok) beralih = { token: baru.token, muatan: baru.muatan, kunci: kred.deploymentKey };
+      }
+    }
+
+    if (beralih) {
+      const peristiwa = peristiwaPerubahan(muatan, beralih.muatan);
+      await db.from('sm_lisensi').upsert({
+        ...kolomDariMuatan(beralih.token, beralih.muatan, stempel),
+        deployment_key: beralih.kunci,
+      });
+      await catat('license_replaced', beralih.muatan.license_id, {
+        judul: 'Lisensi baru dipasang otomatis',
+        keterangan: `Lisensi ${muatan?.license_id ?? cfg.licenseId} diganti dengan ${beralih.muatan.license_id}.`,
+      });
+      await catatPeristiwa(peristiwa.filter((p) => p.aksi !== 'license_created'), beralih.muatan.license_id);
+      muatan = beralih.muatan;
+      tandaTanganSah = true;
+      terakhirTerverifikasi = stempel;
+      galatTerakhir = null;
+    } else if (hasil.ok) {
       const peristiwa = peristiwaPerubahan(muatan, hasil.muatan);
       await db.from('sm_lisensi').upsert(kolomDariMuatan(hasil.token, hasil.muatan, stempel));
       await catatPeristiwa(peristiwa, hasil.muatan.license_id);
@@ -483,10 +513,16 @@ export async function aktifkanKode(kode: string, pelaku: { id: string; nama: str
     const peta: Record<string, [number, string]> = {
       LICENSE_NOT_FOUND: [400, 'Kode Aktivasi tidak dikenali penyedia platform.'],
       LICENSE_IN_USE: [409, 'Kode Aktivasi ini sudah dipakai di platform lain. Hubungi penyedia platform.'],
+      LICENSE_PLATFORM_TAKEN: [409, 'Platform ini sudah terdaftar dengan lisensi lain. Hubungi penyedia platform.'],
       LICENSE_AUTHORITY_UNAVAILABLE: [503, 'Server lisensi sedang tidak terjangkau. Coba lagi beberapa saat lagi.'],
     };
     const [status, error] = peta[hasil.kode] ?? [502, 'Kode Aktivasi tidak dapat diverifikasi. Hubungi penyedia platform.'];
     return { ok: false, status, code: hasil.kode, error };
+  }
+
+  // Kode lisensi yang sudah diganti tidak boleh dipakai lagi (§ satu lisensi sekali pakai).
+  if (hasil.muatan.status === 'REPLACED') {
+    return { ok: false, status: 409, code: 'LICENSE_REPLACED', error: 'Kode ini milik lisensi yang sudah diganti. Gunakan Kode Aktivasi terbaru dari penyedia platform.' };
   }
 
   await db.from('sm_lisensi').upsert({
