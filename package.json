@@ -10,7 +10,7 @@
     "test": "node --test --experimental-strip-types --no-warnings tests/*.test.ts"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.39.0",
