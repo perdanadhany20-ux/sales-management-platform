@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { fiturTersedia } from '@/lib/lisensi/server';
 import bcrypt from 'bcryptjs';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { pesanGalat } from '@/lib/pesan-galat';
@@ -30,6 +31,14 @@ function bersih(v: unknown, maks = BATAS_PANJANG): string | null {
 
 export async function POST(request: NextRequest) {
   const db = getAdminClient();
+
+  // Pendaftaran mandiri + antrean persetujuan adalah fitur lisensi `approval`.
+  if (!(await fiturTersedia('approval'))) {
+    return NextResponse.json(
+      { error: 'Pendaftaran mandiri tidak tersedia. Hubungi admin untuk dibuatkan akun.', code: 'FEATURE_NOT_LICENSED' },
+      { status: 403 },
+    );
+  }
 
   // Pendaftaran bisa ditutup admin lewat Administrasi → Nilai Bisnis.
   const { data: pengaturan } = await db

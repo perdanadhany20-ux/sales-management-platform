@@ -9,8 +9,11 @@
  * dituju siapa pun.
  */
 
+import type { KunciFitur } from './lisensi/kontrak';
+
 export type KunciBagian =
-  | 'pengguna' | 'struktur' | 'persetujuan' | 'hak_akses' | 'lokasi' | 'target' | 'tampilan' | 'konfigurasi' | 'audit';
+  | 'pengguna' | 'struktur' | 'persetujuan' | 'hak_akses' | 'lokasi' | 'target' | 'tampilan' | 'konfigurasi'
+  | 'lisensi' | 'audit';
 
 export type KelompokBagian = 'ORGANISASI' | 'TAMPILAN' | 'SISTEM';
 
@@ -23,6 +26,8 @@ export interface Bagian {
   kelompok: KelompokBagian;
   /** Bagian yang hanya untuk Admin; Manager tidak melihatnya. */
   adminSaja?: boolean;
+  /** Fitur lisensi yang dibutuhkan (salah satu cukup). Tanpa ini: selalu ada. */
+  fitur?: KunciFitur[];
 }
 
 export const BAGIAN_ADMIN: Bagian[] = [
@@ -38,6 +43,7 @@ export const BAGIAN_ADMIN: Bagian[] = [
   },
   {
     kunci: 'persetujuan', label: 'Persetujuan Akun', kelompok: 'ORGANISASI', ikon: '✅', adminSaja: true,
+    fitur: ['approval'],
     judul: 'Persetujuan Pendaftaran Akun',
     keterangan: 'Akun yang mendaftar sendiri dan menunggu diverifikasi sebelum bisa dipakai masuk.',
   },
@@ -48,11 +54,14 @@ export const BAGIAN_ADMIN: Bagian[] = [
   },
   {
     kunci: 'lokasi', label: 'Lokasi Meeting', kelompok: 'ORGANISASI', ikon: '📍',
+    fitur: ['meeting', 'project'],
     judul: 'Lokasi Meeting',
     keterangan: 'Titik meeting beserta radius GPS yang diterima saat check-in.',
   },
   {
     kunci: 'target', label: 'Target Sales', kelompok: 'ORGANISASI', ikon: '🎯',
+    // Realisasi target dihitung dari pipeline WON — tanpa Pipeline, target tak bermakna.
+    fitur: ['pipeline'],
     judul: 'Target Sales',
     keterangan: 'Target bulanan nilai penjualan dan GP tiap Sales. Realisasi dihitung dari pipeline WON.',
   },
@@ -67,6 +76,11 @@ export const BAGIAN_ADMIN: Bagian[] = [
     keterangan: 'Kategori jadwal, opsi probability, satuan, dan ambang verifikasi lokasi.',
   },
   {
+    kunci: 'lisensi', label: 'Lisensi', kelompok: 'SISTEM', ikon: '🔑', adminSaja: true,
+    judul: 'Lisensi Platform',
+    keterangan: 'Status lisensi, masa berlaku, fitur yang tersedia, dan permintaan ke penyedia platform.',
+  },
+  {
     kunci: 'audit', label: 'Audit Log', kelompok: 'SISTEM', ikon: '🧾',
     judul: 'Audit Log',
     keterangan: 'Jejak tindakan penting: check-in, penyelesaian, override, dan perubahan akun.',
@@ -75,9 +89,12 @@ export const BAGIAN_ADMIN: Bagian[] = [
 
 export const URUTAN_KELOMPOK: KelompokBagian[] = ['ORGANISASI', 'TAMPILAN', 'SISTEM'];
 
-/** Bagian yang boleh dibuka peran ini. Penyaringan di sini kosmetik — yang
- *  menolak sungguhan tetap RLS dan pemeriksaan peran di route handler. */
-export function bagianUntuk(peran: string | null | undefined): Bagian[] {
+/** Bagian yang boleh dibuka peran ini DAN tercakup lisensinya. Penyaringan
+ *  di sini kosmetik — yang menolak sungguhan tetap RLS dan pemeriksaan peran
+ *  serta lisensi di route handler. `fitur` null = lisensi belum dimuat. */
+export function bagianUntuk(peran: string | null | undefined, fitur: readonly KunciFitur[] | null = null): Bagian[] {
   const admin = (peran ?? '').toUpperCase() === 'ADMIN';
-  return BAGIAN_ADMIN.filter((b) => admin || !b.adminSaja);
+  return BAGIAN_ADMIN.filter((b) =>
+    (admin || !b.adminSaja)
+    && (!b.fitur || (fitur !== null && b.fitur.some((f) => fitur.includes(f)))));
 }

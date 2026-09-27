@@ -74,6 +74,12 @@ export function pesanGalat(galat: unknown, cadangan: string = CADANGAN): string 
   // RAISE EXCEPTION dari fungsi kita sendiri (P0001) sudah ditulis untuk manusia.
   if (kode === 'P0001' && pesan) return pesan;
 
+  // Penjaga lisensi (migrasi 037) memakai kode 42501 juga; pesannya dibedakan
+  // supaya pengguna tahu ini soal lisensi, bukan soal hak aksesnya.
+  if (/FEATURE_NOT_LICENSED/.test(pesan) || berkode.code === 'FEATURE_NOT_LICENSED') {
+    return 'Fitur ini tidak termasuk dalam lisensi platform saat ini. Hubungi administrator platform Anda.';
+  }
+
   if (kode && PER_KODE[kode]) {
     catat(galat);
     return PER_KODE[kode];

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
+import { ambilLisensi } from './lisensi/use-lisensi';
+import { bolehMenu } from './lisensi/kontrak';
 
 /**
  * lib/menu-akses.ts — hak akses menu per peran/akun (§023).
@@ -31,9 +33,8 @@ export const LABEL_MENU: Record<MenuKey, string> = {
   admin: 'Admin Panel',
 };
 
-/** Menu yang berlaku untuk SATU akun — dipakai Shell (sidebar & blokir
- *  halaman), profil (badge "Hak Akses Modul"), dan panel admin (pratinjau). */
-export async function ambilMenuEfektif(userId: string, role: string): Promise<string[]> {
+/** Menu menurut PERAN/AKUN saja (§023), sebelum lisensi diterapkan. */
+export async function ambilMenuPeran(userId: string, role: string): Promise<string[]> {
   const { data: sendiri } = await supabase
     .from('sm_user_menu').select('menu_key').eq('user_id', userId);
   if (sendiri && sendiri.length > 0) return sendiri.map((r: { menu_key: string }) => r.menu_key);
@@ -41,6 +42,19 @@ export async function ambilMenuEfektif(userId: string, role: string): Promise<st
   const { data: bawaan } = await supabase
     .from('sm_role_menu').select('menu_key').eq('role', role);
   return (bawaan ?? []).map((r: { menu_key: string }) => r.menu_key);
+}
+
+/** Menu yang berlaku untuk SATU akun — dipakai Shell (sidebar & blokir
+ *  halaman), profil (badge "Hak Akses Modul"), dan panel admin (pratinjau).
+ *
+ *  Akses = hak PERAN **dan** hak LISENSI (LICENSE_ARCHITECTURE.md §Peran +
+ *  lisensi). Lisensi tidak pernah membuka menu yang tidak diberikan perannya,
+ *  dan peran tidak pernah membuka modul yang tidak berlisensi. Lisensi yang
+ *  gagal dimuat dianggap tanpa fitur — gagal tertutup. */
+export async function ambilMenuEfektif(userId: string, role: string): Promise<string[]> {
+  const [menu, lisensi] = await Promise.all([ambilMenuPeran(userId, role), ambilLisensi()]);
+  const fitur = lisensi?.fitur ?? [];
+  return menu.filter((k) => bolehMenu(k, menu, fitur));
 }
 
 const HREF_MENU: Record<MenuKey, string> = {

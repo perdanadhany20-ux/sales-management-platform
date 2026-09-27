@@ -42,6 +42,13 @@ export const BRANDING_BAWAAN: Branding = {
   latar_dashboard_url: '',
 };
 
+/** Logo resmi platform — dipakai bila Admin belum mengunggah logo sendiri. */
+export const LOGO_BAWAAN = '/brand/logo.png';
+
+export function logoUntuk(b: Pick<Branding, 'logo_url'>): string {
+  return b.logo_url || LOGO_BAWAAN;
+}
+
 /* ── Warna ────────────────────────────────────────────────────────────────── */
 
 function keRgb(hex: string): [number, number, number] | null {

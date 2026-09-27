@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { eksporExcel, BATAS_BARIS_EKSPOR, type OpsiEkspor } from '@/lib/ekspor-excel';
 import { useToast } from './Feedback';
 import { pesanGalat } from '@/lib/pesan-galat';
+import { useLisensi } from '@/lib/lisensi/use-lisensi';
 
 /**
  * components/shared/TombolEkspor.tsx — satu tombol ekspor untuk semua modul.
@@ -16,6 +17,10 @@ import { pesanGalat } from '@/lib/pesan-galat';
  *
  * Karena itu `ambil` di sini mengambil data sendiri ke database, terpisah dari
  * daftar yang sudah dimuat halaman.
+ *
+ * Ekspor adalah fitur lisensi `advanced_reporting`. Tanpa lisensinya tombol
+ * tidak ditampilkan sama sekali (bukan dinonaktifkan) — satu tempat ini
+ * menyaring ekspor di seluruh modul.
  */
 export function TombolEkspor<T>({ ambil, susun, label = 'Ekspor Excel', className = '' }: {
   /** Ambil seluruh baris sesuai penyaring aktif (tanpa paginasi). */
@@ -27,6 +32,7 @@ export function TombolEkspor<T>({ ambil, susun, label = 'Ekspor Excel', classNam
 }) {
   const toast = useToast();
   const [sibuk, setSibuk] = useState(false);
+  const { lisensi } = useLisensi();
 
   async function jalankan() {
     setSibuk(true);
@@ -57,6 +63,8 @@ export function TombolEkspor<T>({ ambil, susun, label = 'Ekspor Excel', classNam
       setSibuk(false);
     }
   }
+
+  if (!lisensi?.fitur.includes('advanced_reporting')) return null;
 
   return (
     <button

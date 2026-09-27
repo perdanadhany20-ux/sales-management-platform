@@ -464,6 +464,24 @@ export const FITUR_MENU: Record<string, KunciFitur> = {
   admin: 'admin_settings',
 };
 
+/**
+ * Kartu Dashboard → menu yang datanya ia tampilkan. Kartu hanya tampil bila
+ * menu itu boleh dibuka (peran + lisensi); tanpa entri di sini kartu bersifat
+ * umum. Target Sales mengikuti Pipeline karena realisasinya dihitung dari
+ * pipeline WON.
+ */
+export const MENU_KARTU_DASHBOARD: Record<string, string> = {
+  kepatuhan: 'daily-report',
+  tren: 'daily-report',
+  nilai_pipeline: 'pipeline',
+  gross_profit: 'pipeline',
+  probability: 'pipeline',
+  target: 'pipeline',
+  status_jadwal: 'schedule',
+  meeting: 'meeting',
+  pengecualian: 'meeting',
+};
+
 /** Akses = hak peran DAN hak lisensi. Lisensi tidak pernah melampaui peran. */
 export function bolehMenu(menuKey: string, menuPeran: readonly string[], fitur: readonly KunciFitur[]): boolean {
   if (!menuPeran.includes(menuKey)) return false;

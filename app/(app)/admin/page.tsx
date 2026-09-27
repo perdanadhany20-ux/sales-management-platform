@@ -1,8 +1,11 @@
 'use client';
 
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { usePenggunaAktif } from '@/lib/auth';
+import { useLisensi } from '@/lib/lisensi/use-lisensi';
 import { isPengawas } from '@/lib/constants';
-import { bagianUntuk } from '@/lib/admin-bagian';
+import { bagianUntuk, BAGIAN_ADMIN, type KunciBagian } from '@/lib/admin-bagian';
 import { mulaiNavigasi } from '@/lib/navigasi-muat';
 import { LayarMemuat, Kosong } from '@/components/shared/Feedback';
 import { useBagianAdmin } from '@/components/shared/Shell';
@@ -15,6 +18,7 @@ import { TabStruktur } from './_components/TabStruktur';
 import { TabKonfigurasi } from './_components/TabKonfigurasi';
 import { TabTampilan } from './_components/TabTampilan';
 import { TabAudit } from './_components/TabAudit';
+import { TabLisensi } from './_components/TabLisensi';
 
 /**
  * Admin Panel.
@@ -34,8 +38,30 @@ import { TabAudit } from './_components/TabAudit';
  * 005). Pengelolaan akun, identitas platform, dan nilai bisnis khusus Admin.
  */
 export default function HalamanAdmin() {
+  // useSearchParams menuntut Suspense di Next 14 (halaman ini dirender statis).
+  return (
+    <Suspense fallback={<LayarMemuat />}>
+      <IsiAdmin />
+    </Suspense>
+  );
+}
+
+function IsiAdmin() {
   const { pengguna, memuat } = usePenggunaAktif();
   const { bagian, setBagian } = useBagianAdmin();
+  const { lisensi } = useLisensi();
+
+  // Tautan langsung ke satu bagian (banner & lonceng lisensi → /admin?bagian=lisensi).
+  // Bereaksi pada SETIAP perubahan URL — juga saat halaman ini sudah terbuka —
+  // lalu membersihkan parameternya supaya tautan yang sama bisa dipakai lagi.
+  const params = useSearchParams();
+  const router = useRouter();
+  const diminta = params.get('bagian');
+  useEffect(() => {
+    if (!diminta) return;
+    if (BAGIAN_ADMIN.some((b) => b.kunci === diminta)) setBagian(diminta as KunciBagian);
+    router.replace('/admin', { scroll: false });
+  }, [diminta, setBagian, router]);
 
   if (memuat) return <LayarMemuat />;
   if (!pengguna) return null;
@@ -51,7 +77,7 @@ export default function HalamanAdmin() {
     );
   }
 
-  const tersedia = bagianUntuk(pengguna.role);
+  const tersedia = bagianUntuk(pengguna.role, lisensi?.fitur ?? null);
   // Manager mendarat di bagian pertama yang memang boleh ia buka, bukan di
   // "Pengguna" yang tidak ada dalam daftarnya.
   const aktif = tersedia.find((b) => b.kunci === bagian) ?? tersedia[0];
@@ -103,6 +129,7 @@ export default function HalamanAdmin() {
         {aktif.kunci === 'target' && <TabTarget pemanggilId={pengguna.id} />}
         {aktif.kunci === 'tampilan' && <TabTampilan />}
         {aktif.kunci === 'konfigurasi' && <TabKonfigurasi />}
+        {aktif.kunci === 'lisensi' && <TabLisensi />}
         {aktif.kunci === 'audit' && <TabAudit />}
       </div>
     </div>

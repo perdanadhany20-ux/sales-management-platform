@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { tolakJikaTakBerlisensi } from '@/lib/lisensi/server';
 import bcrypt from 'bcryptjs';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { getSessionUser, isAdmin } from '@/lib/server-auth';
@@ -46,6 +47,8 @@ async function penjaga(request: NextRequest) {
   if (!isAdmin(pemanggil.role)) {
     return { galat: NextResponse.json({ error: 'Hanya Admin yang boleh mengelola akun.' }, { status: 403 }) };
   }
+  const tolak = await tolakJikaTakBerlisensi('admin_settings');
+  if (tolak) return { galat: tolak };
   return { pemanggil };
 }
 

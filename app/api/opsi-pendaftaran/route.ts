@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { DAFTAR_POSISI } from '@/lib/posisi';
+import { fiturTersedia } from '@/lib/lisensi/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,12 +34,14 @@ export async function GET() {
     // Formulir tetap bisa dipakai dengan pilihan bawaan; menolak melayani
     // hanya karena pengaturannya gagal dibaca berarti menutup pendaftaran
     // untuk alasan yang tidak ada hubungannya dengan pendaftar.
-    return NextResponse.json({ opsi: BAWAAN });
+    return NextResponse.json({ opsi: { ...BAWAAN, registration_open: await fiturTersedia('approval') } });
   }
 
-  const peta = Object.fromEntries(
+  const peta: Record<string, unknown> = Object.fromEntries(
     ((data ?? []) as { key: string; value: unknown }[]).map((r) => [r.key, r.value]),
   );
+  // Tanpa lisensi `approval`, formulir daftar tampil sebagai "ditutup".
+  if (!(await fiturTersedia('approval'))) peta.registration_open = false;
 
   return NextResponse.json(
     // Posisi selalu jenjang baku, apa pun isi pengaturannya: urutannya

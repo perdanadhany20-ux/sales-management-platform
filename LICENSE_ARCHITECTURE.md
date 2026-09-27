@@ -91,11 +91,11 @@ Paket hanyalah preset. Yang disimpan dan ditandatangani adalah peta fitur per li
 
 | Fitur | Menu / rute | Tabel (RLS restrictive + trigger) | Route handler |
 |---|---|---|---|
-| dashboard | `/dashboard`, Admin → Target | `sm_sales_targets` | — |
+| dashboard | `/dashboard` (kartu modul lain ikut hak modulnya) | — | — |
 | customer | pemilih customer | `sm_customers`, `sm_contacts` | — |
 | sales_activity | `/activity` | (bersumber dari tabel modul lain) | — |
 | daily_report | `/daily-report` | `sm_daily_reports` | — |
-| pipeline | `/pipeline` | `sm_pipeline` | — |
+| pipeline | `/pipeline`, Admin → Target Sales, kartu Target/Pipeline di Dashboard | `sm_pipeline`, `sm_sales_targets` | — |
 | schedule | `/schedule` | `sm_schedules` (bersama meeting) | — |
 | meeting | `/meeting`, Admin → Lokasi | `sm_attendance`, `sm_evidence`, `sm_gps_events`, `sm_exceptions`, `sm_locations`*, storage `evidence` | `/api/admin/locations`* |
 | project | `/proyek` | `sm_projects`, `sm_locations`* | `/api/lokasi`* |

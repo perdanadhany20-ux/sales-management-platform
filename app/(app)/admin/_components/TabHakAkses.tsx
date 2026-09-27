@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { LABEL_PERAN, type Peran } from '@/lib/constants';
 import { MENU_KEYS, LABEL_MENU, type MenuKey } from '@/lib/menu-akses';
+import { useLisensi } from '@/lib/lisensi/use-lisensi';
+import { FITUR_MENU } from '@/lib/lisensi/kontrak';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Tombol, Lencana } from '@/components/shared/FormParts';
 import { KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
@@ -35,6 +37,15 @@ export function TabHakAkses() {
 
   const [akunDipilih, setAkunDipilih] = useState('');
   const [draftAkun, setDraftAkun] = useState<Set<string> | null>(null);
+
+  // Hanya menu yang tercakup lisensi yang bisa diatur di sini. Menu di luar
+  // paket tidak ditampilkan sama sekali — mencentangnya pun tidak akan
+  // membukanya (akses = peran DAN lisensi), jadi menampilkannya hanya menyesatkan.
+  const { lisensi } = useLisensi();
+  const menuBerlisensi = useMemo(
+    () => MENU_KEYS.filter((k) => lisensi?.fitur.includes(FITUR_MENU[k])),
+    [lisensi],
+  );
 
   const muat = useCallback(async () => {
     setMemuat(true);
@@ -156,7 +167,7 @@ export function TabHakAkses() {
               </tr>
             </thead>
             <tbody>
-              {MENU_KEYS.map((kunci) => (
+              {menuBerlisensi.map((kunci) => (
                 <tr key={kunci} className="border-t border-slate-100">
                   <td className="px-2 py-2 text-[12.5px] font-semibold text-slate-700">{LABEL_MENU[kunci]}</td>
                   {PERAN.map((p) => {
@@ -216,7 +227,7 @@ export function TabHakAkses() {
             </div>
 
             <div className="grid grid-cols-2 formulir:grid-cols-3 gap-2">
-              {MENU_KEYS.map((kunci) => {
+              {menuBerlisensi.map((kunci) => {
                 const aktif = draftAkun.has(kunci);
                 return (
                   <label key={kunci}

@@ -28,6 +28,10 @@ const TERBUKA = [
   // belum punya akun.
   '/api/auth/register',
   '/api/opsi-pendaftaran',
+  // Dipanggil Vercel Cron tanpa cookie; route-nya sendiri menuntut CRON_SECRET.
+  '/api/lisensi/cron',
+  // Berkas PWA/Android: dibaca peramban dan Play Store sebelum ada sesi.
+  '/manifest.webmanifest', '/sw.js', '/offline.html', '/.well-known/assetlinks.json',
 ];
 
 export function middleware(request: NextRequest) {

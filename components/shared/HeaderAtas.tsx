@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { type PenggunaAktif } from '@/lib/auth';
-import { type Branding } from '@/lib/branding';
-import { useLonceng, totalPerluTindakan } from '@/lib/use-lonceng';
+import { type Branding, logoUntuk } from '@/lib/branding';
+import { useLonceng, totalPerluTindakan, type Lonceng } from '@/lib/use-lonceng';
+import { useMenuSaya } from '@/lib/menu-akses';
 import { usePengingat } from '@/lib/notifikasi';
 import { isPengawas } from '@/lib/constants';
 import { tanggalPendek, rupiahRingkas, polaIlike } from '@/lib/format';
@@ -15,6 +16,61 @@ import {
   intipTerlewat, intipBelumDitugaskan, intipGp, type ButirIntip,
 } from '@/lib/intip';
 import { DropdownMengambang } from './DropdownMengambang';
+import { useLisensi, type Lisensi } from '@/lib/lisensi/use-lisensi';
+
+/** Nolkan angka modul yang tidak boleh dibuka akun ini (peran atau lisensi). */
+function saringLonceng(l: Lonceng, boleh: (menu: string) => boolean): Lonceng {
+  const jadwal = boleh('schedule');
+  return {
+    laporanBelum: boleh('daily-report') && l.laporanBelum,
+    jadwalHariIni: jadwal ? l.jadwalHariIni : 0,
+    meetingPerlu: boleh('meeting') ? l.meetingPerlu : 0,
+    pipelineDekat: boleh('pipeline') ? l.pipelineDekat : 0,
+    terlewat: jadwal ? l.terlewat : 0,
+    belumDitugaskan: jadwal ? l.belumDitugaskan : 0,
+  };
+}
+
+/* ── Notifikasi lisensi (Admin) ───────────────────────────────────────────── */
+
+const KUNCI_LISENSI_DILIHAT = 'smp_lisensi_dilihat';
+
+function bacaDilihat(): number {
+  try { return Number(window.localStorage.getItem(KUNCI_LISENSI_DILIHAT) ?? 0) || 0; } catch { return 0; }
+}
+
+function tandaiDilihat(): void {
+  try { window.localStorage.setItem(KUNCI_LISENSI_DILIHAT, String(Date.now())); } catch { /* diblokir */ }
+}
+
+/**
+ * Butir lonceng dari lisensi: peringatan yang masih berlaku (selalu tampil
+ * sampai keadaannya berubah) dan pemberitahuan 14 hari terakhir. Hanya
+ * peringatan dan pemberitahuan yang BELUM dilihat yang ikut dihitung di
+ * lencana — penanda "dilihat" per peramban hanya soal tampilan, bukan data.
+ */
+function butirLisensi(lisensi: Lisensi | null): { butir: ButirIntip[]; baru: number } {
+  if (!lisensi || lisensi.mode_pengembangan) return { butir: [], baru: 0 };
+  const dilihat = typeof window === 'undefined' ? 0 : bacaDilihat();
+  const batas = Date.now() - 14 * 86_400_000;
+  const warna = { bahaya: '#e34948', waspada: '#eda100', info: '#1d4ed8' } as const;
+
+  const peringatan: ButirIntip[] = lisensi.peringatan.map((p) => ({
+    id: `lisensi-${p.kode}`, judul: p.judul, keterangan: p.keterangan,
+    href: '/admin?bagian=lisensi', warna: warna[p.tingkat],
+  }));
+  const peristiwa = (lisensi.peristiwa ?? [])
+    .filter((e) => e.detail?.judul && new Date(e.created_at).getTime() > batas)
+    .slice(0, 5)
+    .map((e) => ({
+      id: `lisensi-e-${e.id}`, judul: String(e.detail!.judul), keterangan: String(e.detail?.keterangan ?? ''),
+      href: '/admin?bagian=lisensi', kanan: tanggalPendek(e.created_at),
+      warna: new Date(e.created_at).getTime() > dilihat ? '#1d4ed8' : '#94a3b8',
+    }));
+  const baru = peringatan.filter((p) => p.warna !== warna.info).length
+    + (lisensi.peristiwa ?? []).filter((e) => e.detail?.judul && new Date(e.created_at).getTime() > Math.max(dilihat, batas)).length;
+  return { butir: [...peringatan, ...peristiwa], baru };
+}
 
 /**
  * components/shared/HeaderAtas.tsx — bilah judul + lencana di puncak halaman.
@@ -33,7 +89,12 @@ export function HeaderAtas({ pengguna, branding }: {
   pengguna: PenggunaAktif;
   branding: Branding;
 }) {
-  const { lonceng, muatUlang } = useLonceng(pengguna);
+  const { lonceng: loncengMentah, muatUlang } = useLonceng(pengguna);
+  // Pintasan, lonceng, pengingat, dan pencarian hanya menyentuh modul yang
+  // boleh dibuka akun ini — hak PERAN dan hak LISENSI sekaligus (lib/menu-akses).
+  const menuSaya = useMenuSaya(pengguna.id, pengguna.role);
+  const boleh = useMemo(() => (k: string) => Boolean(menuSaya?.includes(k)), [menuSaya]);
+  const lonceng = useMemo(() => saringLonceng(loncengMentah, boleh), [loncengMentah, boleh]);
   const [bukaNotif, setBukaNotif] = useState(false);
   const [bukaCari, setBukaCari] = useState(false);
   const loncengRef = useRef<HTMLButtonElement>(null);
@@ -46,7 +107,20 @@ export function HeaderAtas({ pengguna, branding }: {
   // jadi keduanya mustahil menyebut jumlah yang berbeda.
   usePengingat(lonceng, pengawas);
 
-  const total = totalPerluTindakan(lonceng);
+  const { lisensi } = useLisensi();
+  const admin = pengguna.role.toUpperCase() === 'ADMIN';
+  const [detak, setDetak] = useState(0);
+  const notifLisensi = useMemo(
+    () => (admin ? butirLisensi(lisensi) : { butir: [], baru: 0 }),
+    // detak: dihitung ulang setelah lonceng dibuka dan pemberitahuan ditandai dilihat.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [admin, lisensi, detak],
+  );
+  // Modul Notifications ikut lisensi. Selama lisensi belum dimuat lonceng
+  // tetap tampil — menyembunyikan lalu memunculkannya membuat header melompat.
+  const loncengBerlisensi = !lisensi || lisensi.fitur.includes('notifications');
+
+  const total = totalPerluTindakan(lonceng) + notifLisensi.baru;
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
@@ -93,6 +167,7 @@ export function HeaderAtas({ pengguna, branding }: {
             <span className="hidden sidebar:inline">Pencarian</span>
           </button>
 
+          {boleh('daily-report') && (
           <Pintasan
             kunci="laporan" ikon="📝" label="Daily Report" href="/daily-report"
             jumlah={lonceng.laporanBelum ? '!' : 0}
@@ -101,7 +176,9 @@ export function HeaderAtas({ pengguna, branding }: {
             kosong="Belum ada laporan hari ini."
             terbuka={intip === 'laporan'} onToggle={setIntip}
             ambil={() => intipDailyReport(pengguna.id)} />
+          )}
 
+          {boleh('meeting') && (
           <Pintasan
             kunci="meeting" ikon="📍" label="Meeting" href="/meeting"
             jumlah={lonceng.meetingPerlu} warna="biru"
@@ -109,7 +186,9 @@ export function HeaderAtas({ pengguna, branding }: {
             kosong="Tidak ada meeting yang menunggu hari ini."
             terbuka={intip === 'meeting'} onToggle={setIntip}
             ambil={() => intipMeeting(pengguna.id, pengawas)} />
+          )}
 
+          {boleh('schedule') && (
           <Pintasan
             kunci="jadwal" ikon="🗓️" label="Hari Ini" href="/schedule"
             jumlah={lonceng.jadwalHariIni} warna="netral"
@@ -117,7 +196,9 @@ export function HeaderAtas({ pengguna, branding }: {
             kosong="Tidak ada jadwal yang belum selesai hari ini."
             terbuka={intip === 'jadwal'} onToggle={setIntip}
             ambil={() => intipJadwal(pengguna.id, pengawas)} />
+          )}
 
+          {boleh('pipeline') && (
           <Pintasan
             kunci="pipeline" ikon="📊" label="Closing" href="/pipeline" tersembunyiDiPonsel
             jumlah={lonceng.pipelineDekat} warna="kuning"
@@ -125,13 +206,19 @@ export function HeaderAtas({ pengguna, branding }: {
             kosong="Tidak ada peluang yang jatuh tempo pekan ini."
             terbuka={intip === 'pipeline'} onToggle={setIntip}
             ambil={() => intipPipeline(pengguna.id, pengawas)} />
+          )}
 
           {/* ── Lonceng ── */}
-          <div className="relative flex-shrink-0">
+          {loncengBerlisensi && <div className="relative flex-shrink-0">
             <button
               ref={loncengRef}
               type="button"
-              onClick={() => { setIntip(null); setBukaNotif((b) => !b); void muatUlang(); }}
+              onClick={() => {
+                setIntip(null);
+                setBukaNotif((b) => !b);
+                void muatUlang();
+                if (admin && !bukaNotif) { tandaiDilihat(); setDetak((d) => d + 1); }
+              }}
               aria-expanded={bukaNotif}
               aria-label={`Notifikasi, ${total} perlu tindakan`}
               className={`inline-flex items-center gap-1.5 rounded-kontrol px-3 py-1.5 min-h-[34px]
@@ -162,10 +249,12 @@ export function HeaderAtas({ pengguna, branding }: {
                 pengawas={pengawas}
                 peran={pengguna.role}
                 userId={pengguna.id}
+                boleh={boleh}
+                butirLisensi={notifLisensi.butir}
                 onTutup={() => setBukaNotif(false)}
               />
             </DropdownMengambang>
-          </div>
+          </div>}
 
           {/*
             Menuju Profil, BUKAN langsung keluar. Sebelumnya avatar semacam ini
@@ -180,7 +269,7 @@ export function HeaderAtas({ pengguna, branding }: {
         </nav>
       </div>
 
-      {bukaCari && <ModalCari onTutup={() => setBukaCari(false)} pengawas={pengawas} />}
+      {bukaCari && <ModalCari onTutup={() => setBukaCari(false)} pengawas={pengawas} boleh={boleh} />}
     </header>
   );
 }
@@ -197,25 +286,14 @@ function Inisial({ nama }: { nama: string }) {
 /* ── Logo ─────────────────────────────────────────────────────────────────── */
 
 export function LogoMerek({ branding, ukuran }: { branding: Branding; ukuran: number }) {
-  if (branding.logo_url) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={branding.logo_url} alt={branding.nama_platform}
-        className="rounded-kontrol object-contain flex-shrink-0 bg-white"
-        style={{ width: ukuran, height: ukuran }}
-      />
-    );
-  }
+  // Logo unggahan Admin didahulukan; tanpa itu, logo resmi platform.
   return (
-    <span
-      className="rounded-kontrol bg-gradient-to-br from-aksen-700 to-aksen-500 grid place-items-center flex-shrink-0"
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={logoUntuk(branding)} alt={branding.nama_platform}
+      className="rounded-kontrol object-contain flex-shrink-0 bg-white"
       style={{ width: ukuran, height: ukuran }}
-    >
-      <svg width={ukuran * 0.47} height={ukuran * 0.47} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 19V10M10 19V5M16 19v-6M22 19H2" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-    </span>
+    />
   );
 }
 
@@ -396,11 +474,13 @@ function PanelIntip({ judul, kosong, hrefSemua, labelSemua, ambil, onTutup }: {
  * mana. Kini tiap baris adalah dokumen atau jadwal yang sesungguhnya, dan
  * menekannya membawa langsung ke baris itu.
  */
-function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
+function PanelNotifikasi({ lonceng, pengawas, peran, userId, boleh, butirLisensi, onTutup }: {
   lonceng: ReturnType<typeof useLonceng>['lonceng'];
   pengawas: boolean;
   peran: string;
   userId: string;
+  boleh: (menu: string) => boolean;
+  butirLisensi: ButirIntip[];
   onTutup: () => void;
 }) {
   const [kelompok, setKelompok] = useState<{ judul: string; butir: ButirIntip[] }[] | null>(null);
@@ -415,6 +495,10 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
       // sudah tahu jumlahnya, jadi memanggil query untuk kelompok yang pasti
       // kosong hanya memperlambat panel tanpa menambah satu baris pun.
       const tugas: Promise<{ judul: string; butir: ButirIntip[] }>[] = [];
+
+      if (butirLisensi.length > 0) {
+        tugas.push(Promise.resolve({ judul: 'Lisensi', butir: butirLisensi }));
+      }
 
       if (lonceng.laporanBelum) {
         tugas.push(Promise.resolve({
@@ -444,7 +528,9 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
           .then((butir) => ({ judul: 'Belum ditugaskan', butir })));
       }
 
-      tugas.push(intipGp(peran).then((butir) => ({ judul: 'GP menunggu tanda tangan', butir })));
+      if (boleh('gp')) {
+        tugas.push(intipGp(peran).then((butir) => ({ judul: 'GP menunggu tanda tangan', butir })));
+      }
 
       if (lonceng.pipelineDekat > 0) {
         tugas.push(intipPipeline(userId, pengawas)
@@ -456,7 +542,7 @@ function PanelNotifikasi({ lonceng, pengawas, peran, userId, onTutup }: {
     })();
 
     return () => { batal = true; };
-  }, [lonceng, pengawas, peran, userId]);
+  }, [lonceng, pengawas, peran, userId, boleh, butirLisensi]);
 
   const jumlah = (kelompok ?? []).reduce((t, k) => t + k.butir.length, 0);
 
@@ -544,7 +630,9 @@ interface Temuan { id: string; jenis: string; judul: string; keterangan: string;
  * karena yang dicari orang hampir selalu justru yang TIDAK ada di layar.
  * Hasilnya tetap tunduk RLS: Sales hanya menemukan barisnya sendiri.
  */
-function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boolean }) {
+function ModalCari({ onTutup, pengawas, boleh }: {
+  onTutup: () => void; pengawas: boolean; boleh: (menu: string) => boolean;
+}) {
   const [kata, setKata] = useState('');
   const [tertunda, setTertunda] = useState('');
   const [hasil, setHasil] = useState<Temuan[]>([]);
@@ -574,20 +662,32 @@ function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boole
       const k = `%${tertunda}%`;
       const p = polaIlike(tertunda);
 
+      // Modul yang tidak boleh dibuka akun ini (peran atau lisensi) tidak
+      // ikut dicari sama sekali — bukan dicari lalu disembunyikan.
+      const kosong = Promise.resolve({ data: [] as unknown[] });
+      const tujuanCustomer = boleh('pipeline') ? '/pipeline' : boleh('daily-report') ? '/daily-report' : null;
       const [pelanggan, jadwal, pipeline, laporan] = await Promise.all([
-        supabase.from('sm_customers').select('id, name, city, address').ilike('name', k).limit(5),
-        supabase.from('sm_schedules')
-          .select('id, customer_name, category, schedule_date, status')
-          .or(`customer_name.ilike.${p},project.ilike.${p}`)
-          .order('schedule_date', { ascending: false }).limit(5),
-        supabase.from('sm_pipeline')
-          .select('id, customer_name, project_detail, project_value')
-          .or(`customer_name.ilike.${p},project_detail.ilike.${p}`)
-          .order('pipeline_date', { ascending: false }).limit(5),
-        supabase.from('sm_daily_reports')
-          .select('id, customer_name, activity, report_date')
-          .or(`customer_name.ilike.${p},activity.ilike.${p}`)
-          .order('report_date', { ascending: false }).limit(5),
+        tujuanCustomer
+          ? supabase.from('sm_customers').select('id, name, city, address').ilike('name', k).limit(5)
+          : kosong,
+        boleh('schedule') || boleh('meeting')
+          ? supabase.from('sm_schedules')
+            .select('id, customer_name, category, schedule_date, status')
+            .or(`customer_name.ilike.${p},project.ilike.${p}`)
+            .order('schedule_date', { ascending: false }).limit(5)
+          : kosong,
+        boleh('pipeline')
+          ? supabase.from('sm_pipeline')
+            .select('id, customer_name, project_detail, project_value')
+            .or(`customer_name.ilike.${p},project_detail.ilike.${p}`)
+            .order('pipeline_date', { ascending: false }).limit(5)
+          : kosong,
+        boleh('daily-report')
+          ? supabase.from('sm_daily_reports')
+            .select('id, customer_name, activity, report_date')
+            .or(`customer_name.ilike.${p},activity.ilike.${p}`)
+            .order('report_date', { ascending: false }).limit(5)
+          : kosong,
       ]);
 
       if (batal) return;
@@ -597,13 +697,13 @@ function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boole
           .map((c) => ({
             id: `c-${c.id}`, jenis: 'Customer', judul: c.name,
             keterangan: c.city || c.address || 'Data pelanggan',
-            href: '/pipeline',
+            href: tujuanCustomer ?? '/profil',
           })),
         ...((jadwal.data ?? []) as { id: string; customer_name: string; category: string; schedule_date: string }[])
           .map((s) => ({
             id: `s-${s.id}`, jenis: 'Jadwal', judul: s.customer_name,
             keterangan: `${s.category} · ${tanggalPendek(s.schedule_date)}`,
-            href: '/schedule',
+            href: boleh('schedule') ? '/schedule' : '/meeting',
           })),
         ...((pipeline.data ?? []) as { id: string; customer_name: string; project_detail: string; project_value: number }[])
           .map((p) => ({
@@ -624,7 +724,7 @@ function ModalCari({ onTutup, pengawas }: { onTutup: () => void; pengawas: boole
     })();
 
     return () => { batal = true; };
-  }, [tertunda, pengawas]);
+  }, [tertunda, pengawas, boleh]);
 
   const dikelompokkan = useMemo(() => {
     const peta = new Map<string, Temuan[]>();
