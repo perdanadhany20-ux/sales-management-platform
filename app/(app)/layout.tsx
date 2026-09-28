@@ -1,4 +1,5 @@
 import { Shell } from '@/components/shared/Shell';
+import { ModalProfil } from '@/components/shared/ProfilAkun';
 
 /**
  * Layout untuk seluruh halaman yang menuntut sesi. Route group `(app)` tidak
@@ -6,5 +7,10 @@ import { Shell } from '@/components/shared/Shell';
  * memasang kerangka navigasi, alih-alih mengulangnya di tiap modul.
  */
 export default function LayoutAplikasi({ children }: { children: React.ReactNode }) {
-  return <Shell>{children}</Shell>;
+  return (
+    <>
+      <Shell>{children}</Shell>
+      <ModalProfil />
+    </>
+  );
 }

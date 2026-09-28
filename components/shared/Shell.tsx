@@ -11,6 +11,7 @@ import { LayarMemuat, Kosong } from './Feedback';
 import { Kolom, KataSandi, Tombol } from './FormParts';
 import { LABEL_PERAN, type Peran } from '@/lib/constants';
 import { useMenuSaya, type MenuKey } from '@/lib/menu-akses';
+import { bukaProfil } from '@/lib/buka-profil';
 import { useBranding } from '@/lib/branding';
 import { ambilLisensi, useLisensi, type Lisensi } from '@/lib/lisensi/use-lisensi';
 import { FITUR_MENU, pesanKode } from '@/lib/lisensi/kontrak';
@@ -449,9 +450,9 @@ function KartuPengguna({ pengguna }: { pengguna: PenggunaAktif }) {
 
   return (
     <div className="px-2.5 py-3 border-t border-slate-100">
-      <Link
-        href="/profil"
-        className="flex items-center gap-2.5 px-2 py-2 rounded-kontrol hover:bg-slate-50 transition-colors"
+      <button
+        type="button" onClick={bukaProfil}
+        className="w-full text-left flex items-center gap-2.5 px-2 py-2 rounded-kontrol hover:bg-slate-50 transition-colors"
       >
         <Inisial nama={pengguna.full_name} />
         <div className="min-w-0 flex-1">
@@ -460,7 +461,7 @@ function KartuPengguna({ pengguna }: { pengguna: PenggunaAktif }) {
             {LABEL_PERAN[(pengguna.role as Peran)] ?? pengguna.role}
           </p>
         </div>
-      </Link>
+      </button>
       <button
         type="button" onClick={lakukanKeluar} disabled={keluarBerjalan}
         className="w-full mt-1 px-3 py-2 rounded-kontrol text-[12px] font-semibold text-slate-500 hover:bg-slate-50 hover:text-[#e34948] transition-colors text-left disabled:opacity-50"

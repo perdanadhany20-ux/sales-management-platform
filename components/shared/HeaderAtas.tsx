@@ -8,6 +8,7 @@ import { type PenggunaAktif } from '@/lib/auth';
 import { type Branding, logoUntuk } from '@/lib/branding';
 import { useLonceng, totalPerluTindakan, type Lonceng } from '@/lib/use-lonceng';
 import { useMenuSaya } from '@/lib/menu-akses';
+import { bukaProfil } from '@/lib/buka-profil';
 import { usePengingat } from '@/lib/notifikasi';
 import { isPengawas } from '@/lib/constants';
 import { tanggalPendek, rupiahRingkas, polaIlike } from '@/lib/format';
@@ -261,15 +262,15 @@ export function HeaderAtas({ pengguna, branding }: {
           </div>}
 
           {/*
-            Menuju Profil, BUKAN langsung keluar. Sebelumnya avatar semacam ini
+            Membuka Profil (modal), BUKAN langsung keluar. Sebelumnya avatar semacam ini
             memanggil logout seketika — satu sentuhan tak sengaja di pojok
             layar, yang di ponsel justru area paling sering tersenggol ibu jari,
             langsung mengeluarkan Sales dari akunnya di tengah lapangan.
           */}
-          <Link href="/profil" aria-label={`Profil ${pengguna.full_name}`}
-            className="flex-shrink-0 ml-0.5">
+          <button type="button" onClick={bukaProfil} aria-label={`Profil ${pengguna.full_name}`}
+            className="flex-shrink-0 ml-0.5 rounded-full">
             <Inisial nama={pengguna.full_name} />
-          </Link>
+          </button>
         </nav>
       </div>
 
