@@ -100,7 +100,15 @@ berangkat sebagai anon dan tabel akan terlihat kosong.
 
 ## 7. Migrasi
 
-Terapkan berurutan seluruh berkas di `supabase/migrations/` (001 sampai
+**Project Supabase baru:** cukup satu berkas — `supabase/SETUP_LENGKAP.sql`.
+Ubah 3 isian akun Admin di baris paling atas, tempel seluruh isinya di SQL
+Editor, lalu Run. Semua migrasi dan akun Admin pertama dibuat dalam satu
+transaksi (gagal = tidak ada yang tersimpan). Berkas ini dihasilkan dari
+`supabase/migrations/` dengan `npm run sql:setup` — jalankan ulang setiap
+menambah migrasi.
+
+**Project yang sudah berjalan:** terapkan berurutan berkas di
+`supabase/migrations/` yang belum pernah dijalankan (001 sampai
 terbaru). Nomor berkas adalah urutan wajib; jangan mengubah isi migrasi yang
 sudah pernah dijalankan — perbaikan selalu ditulis sebagai migrasi baru.
 Supabase Auth tidak perlu diaktifkan: platform ini memakai autentikasi sendiri.
