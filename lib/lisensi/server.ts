@@ -441,6 +441,9 @@ export async function ajukanPermintaan(
   if (res.status === 409 && data.code === 'REQUEST_ALREADY_PENDING') {
     return { ok: false, status: 409, code: 'REQUEST_ALREADY_PENDING', error: 'Sebuah permintaan masih menunggu persetujuan penyedia platform.' };
   }
+  if (data.code === 'LICENSE_REVOKED' || data.code === 'LICENSE_REPLACED') {
+    return { ok: false, status: 409, code: data.code, error: 'Lisensi ini sudah dicabut dan tidak bisa diperpanjang. Ajukan lisensi baru lewat formulir di halaman ini.' };
+  }
   if (!res.ok || !data.id) {
     return { ok: false, status: 502, code: data.code ?? 'REQUEST_FAILED', error: 'Permintaan tidak dapat dikirim. Coba lagi beberapa saat lagi.' };
   }
@@ -488,7 +491,11 @@ export interface MasukanPengajuan {
  */
 export async function ajukanPendaftaran(m: MasukanPengajuan, pelaku: { id: string; nama: string }): Promise<HasilPengajuan> {
   const cfg = konfigurasiLisensi(await bacaKredensial());
-  if (cfg.lengkap) {
+  // Lisensi yang DICABUT bersifat final — satu-satunya jalan adalah lisensi baru,
+  // jadi pengajuan pendaftaran dibuka lagi untuk platform ini.
+  const { data: salinan } = await getAdminClient().from('sm_lisensi').select('status').maybeSingle();
+  const perluLisensiBaru = salinan?.status === 'REVOKED' || salinan?.status === 'REPLACED';
+  if (cfg.lengkap && !perluLisensiBaru) {
     return { ok: false, status: 409, code: 'ALREADY_CONFIGURED', error: 'Platform ini sudah terhubung ke lisensi. Gunakan formulir permintaan lisensi.' };
   }
   let res: Response;

@@ -66,18 +66,23 @@ export function TabLisensi() {
 
   const d = lisensi.detail;
   const belumAktivasi = Boolean(d && !d.dikonfigurasi && !lisensi.mode_pengembangan);
+  // Lisensi DICABUT bersifat final: tidak bisa diperpanjang — yang dibutuhkan
+  // adalah lisensi baru (Kode Aktivasi baru), sama seperti platform yang belum punya kode.
+  const perluLisensiBaru = !belumAktivasi && (lisensi.status === 'REVOKED' || lisensi.status === 'REPLACED')
+    && d?.sumber !== 'env';
+  const tanpaLisensi = belumAktivasi || perluLisensiBaru;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Belum ada kode: aktivasi adalah satu-satunya langkah yang bermakna. */}
-      {belumAktivasi && <KartuAktivasi onBerhasil={muatUlang} />}
-      {belumAktivasi && <KartuPengajuan />}
+      {/* Belum ada kode / lisensi dicabut: tempel kode baru, atau ajukan ke penyedia. */}
+      {tanpaLisensi && <KartuAktivasi baru={perluLisensiBaru} onBerhasil={muatUlang} />}
+      {tanpaLisensi && <KartuPengajuan baru={perluLisensiBaru} />}
       {/* Permintaan di atas: tindakan utama Admin setelah platform terhubung. */}
-      {!belumAktivasi && <KartuPermintaan lisensi={lisensi} onBerubah={muatUlang} />}
+      {!tanpaLisensi && <KartuPermintaan lisensi={lisensi} onBerubah={muatUlang} />}
       <KartuStatus lisensi={lisensi} onSegarkan={muatUlang} />
       <KartuFitur lisensi={lisensi} />
       <KartuRiwayat lisensi={lisensi} />
-      {!belumAktivasi && d?.sumber === 'aktivasi' && <KartuAktivasi ganti onBerhasil={muatUlang} />}
+      {!tanpaLisensi && d?.sumber === 'aktivasi' && <KartuAktivasi ganti onBerhasil={muatUlang} />}
     </div>
   );
 }
@@ -89,7 +94,7 @@ export function TabLisensi() {
  * yang tersimpan sebelum Kantor Pusat mengakui kodenya; kode yang tersimpan
  * tidak pernah ditampilkan kembali.
  */
-function KartuAktivasi({ ganti = false, onBerhasil }: { ganti?: boolean; onBerhasil: () => Promise<unknown> }) {
+function KartuAktivasi({ ganti = false, baru = false, onBerhasil }: { ganti?: boolean; baru?: boolean; onBerhasil: () => Promise<unknown> }) {
   const toast = useToast();
   const [buka, setBuka] = useState(!ganti);
   const [kode, setKode] = useState('');
@@ -134,7 +139,9 @@ function KartuAktivasi({ ganti = false, onBerhasil }: { ganti?: boolean; onBerha
 
   return (
     <section className="bg-white rounded-kartu border-2 border-aksen-200 p-4 sm:p-5">
-      <h3 className="text-[15px] font-black text-slate-900">{ganti ? 'Ganti Kode Aktivasi' : 'Aktifkan Lisensi Platform'}</h3>
+      <h3 className="text-[15px] font-black text-slate-900">
+        {ganti ? 'Ganti Kode Aktivasi' : baru ? 'Tempel Kode Aktivasi baru' : 'Aktifkan Lisensi Platform'}
+      </h3>
       <p className="text-[12px] text-slate-500 mt-1 mb-3 leading-relaxed max-w-2xl">
         Tempel <b>Kode Aktivasi</b> yang Anda terima dari penyedia platform (diawali <code>SMPA1-</code>).
         Kode diperiksa langsung ke penyedia lisensi sebelum disimpan.
@@ -161,7 +168,7 @@ function KartuAktivasi({ ganti = false, onBerhasil }: { ganti?: boolean; onBerha
  * menjadi pemberitahuan Telegram bagi developer — Kode Aktivasi tetap
  * diterbitkan dan dikirim developer secara manual, lalu ditempel di atas.
  */
-function KartuPengajuan() {
+function KartuPengajuan({ baru = false }: { baru?: boolean }) {
   const [perusahaan, setPerusahaan] = useState('');
   const [kontak, setKontak] = useState('');
   const [paket, setPaket] = useState<Paket>('PROFESSIONAL');
@@ -206,7 +213,9 @@ function KartuPengajuan() {
 
   return (
     <section className="bg-white rounded-kartu border border-slate-200 p-4 sm:p-5">
-      <h3 className="text-[15px] font-black text-slate-900">Belum punya Kode Aktivasi? Ajukan lisensi</h3>
+      <h3 className="text-[15px] font-black text-slate-900">
+        {baru ? 'Ajukan lisensi baru' : 'Belum punya Kode Aktivasi? Ajukan lisensi'}
+      </h3>
       <p className="text-[12px] text-slate-500 mt-1 mb-3 leading-relaxed max-w-2xl">
         Pengajuan dikirim ke penyedia platform. Kode Aktivasi akan dikirim penyedia ke kontak Anda setelah disetujui.
       </p>
