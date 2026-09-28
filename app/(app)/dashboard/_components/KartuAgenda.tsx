@@ -117,7 +117,13 @@ export function KartuAgenda({ userId, peran, pengawas, boleh }: {
             </Link>
           )}
 
-          <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Jumlah kolom mengikuti jumlah bagian yang benar-benar ada.
+              Grid 3 kolom tetap menyisakan kolom kosong selebar sepertiga
+              kartu ketika hanya satu atau dua bagian yang terisi. */}
+          <div className={`grid gap-x-5 gap-y-4 ${
+            tampil.length === 1 ? 'grid-cols-1'
+              : tampil.length === 2 ? 'sm:grid-cols-2'
+                : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
             {tampil.map((b) => <BagianAgenda key={b.kunci} bagian={b} />)}
           </div>
 

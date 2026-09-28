@@ -91,16 +91,31 @@ export function PenyediaToast({ children }: { children: React.ReactNode }) {
  * percakapan; "Belum ada Pipeline — buat peluang pertama Anda" membukanya.
  */
 export function Kosong({
-  judul, keterangan, aksi, ikon,
+  judul, keterangan, aksi, ikon, rapat,
 }: {
   judul: string; keterangan?: string; aksi?: React.ReactNode; ikon?: React.ReactNode;
+  /** Di dalam kartu dashboard: tanpa ruang menganggur di atas dan bawah.
+   *  Pesan "belum ada data" tidak boleh memakan tempat sebesar datanya. */
+  rapat?: boolean;
 }) {
+  if (rapat) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-1">
+        {ikon && <span className="text-slate-300 flex-shrink-0">{ikon}</span>}
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-bold text-slate-700">{judul}</p>
+          {keterangan && <p className="text-[12px] text-slate-500 leading-snug mt-0.5">{keterangan}</p>}
+        </div>
+        {aksi}
+      </div>
+    );
+  }
   return (
-    <div className="flex flex-col items-center justify-center text-center py-12 px-6 gap-2">
-      {ikon && <div className="text-slate-300 mb-1">{ikon}</div>}
+    <div className="flex flex-col items-center justify-center text-center py-8 px-4 gap-1.5">
+      {ikon && <div className="text-slate-300 mb-0.5">{ikon}</div>}
       <p className="text-sm font-bold text-slate-700">{judul}</p>
-      {keterangan && <p className="text-[13px] text-slate-500 max-w-xs leading-relaxed">{keterangan}</p>}
-      {aksi && <div className="mt-3">{aksi}</div>}
+      {keterangan && <p className="text-[13px] text-slate-500 max-w-sm leading-relaxed">{keterangan}</p>}
+      {aksi && <div className="mt-2.5">{aksi}</div>}
     </div>
   );
 }

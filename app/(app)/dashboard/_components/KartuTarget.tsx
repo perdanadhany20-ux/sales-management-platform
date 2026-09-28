@@ -66,6 +66,7 @@ export function KartuTarget({ pengawas }: { pengawas: boolean }) {
         <KerangkaKartu tinggi={120} />
       ) : !adaTarget && total.realisasi === 0 ? (
         <Kosong
+          rapat
           judul="Target belum ditetapkan"
           keterangan={pengawas
             ? 'Tetapkan target bulanan tiap Sales di Admin Panel → Target Sales.'
@@ -73,7 +74,7 @@ export function KartuTarget({ pengawas }: { pengawas: boolean }) {
           aksi={pengawas ? (
             <button type="button"
               onClick={() => { setBagian('target'); router.push('/admin'); }}
-              className="inline-flex items-center rounded-kontrol bg-aksen-700 text-white px-4 py-2 text-[12px] font-semibold hover:bg-aksen-800">
+              className="flex-shrink-0 inline-flex items-center rounded-kontrol bg-aksen-700 text-white px-4 py-2 text-[12px] font-semibold hover:bg-aksen-800">
               Atur Target
             </button>
           ) : undefined}

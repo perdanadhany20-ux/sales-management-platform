@@ -102,7 +102,10 @@ export function BentoCard({
           {aksi}
         </header>
       )}
-      <div className="flex-1 min-h-0 flex flex-col justify-center">{children}</div>
+      {/* Kartu bertinggi tetap memusatkan isinya; kartu 'auto' tidak —
+          memusatkan isi pendek di kartu tanpa tinggi minimum hanya
+          menghasilkan ruang menganggur di atas dan di bawahnya. */}
+      <div className={`flex-1 min-h-0 flex flex-col ${tinggi === 'auto' ? '' : 'justify-center'}`}>{children}</div>
     </section>
   );
 }

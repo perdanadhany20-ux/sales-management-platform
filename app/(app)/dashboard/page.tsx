@@ -189,6 +189,7 @@ export default function HalamanDashboard() {
           >
             {probability.length === 0 ? (
               <Kosong
+                rapat
                 judul="Belum ada Pipeline"
                 keterangan="Peluang yang Anda catat akan muncul di sini, dikelompokkan per tingkat probability."
               />
@@ -244,7 +245,7 @@ export default function HalamanDashboard() {
       render: (r) => (
           <BentoCard rentang={r} tinggi="sedang" judul="Meeting" aksi={<TautanKecil href="/meeting" />}>
             {meeting.total === 0 ? (
-              <Kosong judul="Belum ada meeting" keterangan="Jadwal berkategori Meeting akan tampil di sini." />
+              <Kosong rapat judul="Belum ada meeting" keterangan="Jadwal berkategori Meeting akan tampil di sini." />
             ) : (
               <DonutLegenda
                 judul=""
