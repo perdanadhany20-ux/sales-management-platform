@@ -30,8 +30,8 @@ android {
         applicationId = nilai("applicationId", "com.salesmanagement.app")
         minSdk = 24
         targetSdk = 35
-        versionCode = nilai("versionCode", "1").toInt()
-        versionName = nilai("versionName", "1.0.0")
+        versionCode = nilai("versionCode", "2").toInt()
+        versionName = nilai("versionName", "1.1.0")
 
         buildConfigField("String", "ALAMAT", "\"$alamat\"")
         // Kunci HMAC laporan lokasi. Padanannya disimpan server di

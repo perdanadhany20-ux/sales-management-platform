@@ -6,6 +6,7 @@ import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
@@ -25,6 +26,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import org.json.JSONObject;
@@ -51,6 +53,10 @@ public class MainActivity extends Activity {
     private static final int PILIH_BERKAS = 21;
 
     private WebView web;
+    // Bilah progres native (buka aplikasi, muat ulang, pindah domain halaman) dan
+    // layar pembuka yang memudar setelah halaman pertama tampil.
+    private ProgressBar progres;
+    private View pembuka;
     private String hostPlatform;
     private volatile boolean tepercaya = false;
 
@@ -74,7 +80,28 @@ public class MainActivity extends Activity {
         web = new WebView(this);
         akar.addView(web, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // Layar pembuka = gambar yang sama dengan latar jendela (logo di tengah),
+        // jadi peralihan dari ikon ke aplikasi mulus, lalu memudar saat web siap.
+        pembuka = new View(this);
+        pembuka.setBackgroundResource(R.drawable.latar_pembuka);
+        akar.addView(pembuka, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        progres = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progres.setMax(100);
+        progres.setIndeterminate(false);
+        progres.setProgressTintList(ColorStateList.valueOf(getColor(R.color.aksen)));
+        progres.setProgressBackgroundTintList(ColorStateList.valueOf(0x00000000));
+        progres.setVisibility(View.GONE);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, Math.round(3 * getResources().getDisplayMetrics().density));
+        lp.gravity = android.view.Gravity.TOP;
+        akar.addView(progres, lp);
+
         setContentView(akar);
+        // Pengaman: jangan pernah tertahan di layar pembuka (mis. jaringan sangat lambat).
+        akar.postDelayed(this::tutupPembuka, 8000);
         aturInset(akar);
 
         WebSettings s = web.getSettings();
@@ -113,6 +140,31 @@ public class MainActivity extends Activity {
             v.setPadding(kiri, atas, kanan, bawah);
             return inset;
         });
+    }
+
+    private void tutupPembuka() {
+        if (pembuka == null) return;
+        final View v = pembuka;
+        pembuka = null;
+        v.animate().alpha(0f).setDuration(260).withEndAction(() -> {
+            if (v.getParent() instanceof FrameLayout) ((FrameLayout) v.getParent()).removeView(v);
+        }).start();
+    }
+
+    private void aturProgres(int nilai) {
+        if (nilai < 100) {
+            if (progres.getVisibility() != View.VISIBLE) {
+                progres.animate().cancel();
+                progres.setAlpha(1f);
+                progres.setVisibility(View.VISIBLE);
+            }
+            progres.setProgress(Math.max(nilai, 8), true);
+        } else {
+            progres.setProgress(100, true);
+            progres.animate().alpha(0f).setStartDelay(150).setDuration(250)
+                    .withEndAction(() -> progres.setVisibility(View.GONE)).start();
+            tutupPembuka();
+        }
     }
 
     boolean halamanTepercaya() {
@@ -281,10 +333,16 @@ public class MainActivity extends Activity {
                     + "padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold'>Coba lagi</a>"
                     + "</div></body></html>";
             v.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
+            tutupPembuka();
         }
     }
 
     private class KlienChrome extends WebChromeClient {
+        @Override
+        public void onProgressChanged(WebView v, int nilai) {
+            aturProgres(nilai);
+        }
+
         @Override
         public void onGeolocationPermissionsShowPrompt(String asal, GeolocationPermissions.Callback cb) {
             if (!milikPlatform(Uri.parse(asal))) {
