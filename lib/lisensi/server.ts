@@ -133,16 +133,6 @@ export interface StatusLisensiServer {
   versi: string;
 }
 
-function muatanPengembangan(cfg: KonfigurasiLisensi): Record<string, unknown> {
-  const semua = Object.fromEntries(KUNCI_FITUR.map((k) => [k, true]));
-  return {
-    id: true, mode: 'development', deployment_id: cfg.deploymentId || 'DEV-LOCAL', license_id: cfg.licenseId || 'DEV-LOCAL',
-    token: null, company_name: 'Pengembangan lokal', status: 'ACTIVE', package: 'CUSTOM', license_type: 'STANDARD',
-    features: semua, issued_at: null, starts_at: null, expires_at: null, requests: [],
-    last_verified_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString(),
-  };
-}
-
 /** Kolom sm_lisensi dari muatan yang SUDAH lolos pemeriksaan tanda tangan. */
 function kolomDariMuatan(token: string, m: MuatanLisensi, sekarang: string): Record<string, unknown> {
   return {
@@ -281,9 +271,10 @@ async function hitungStatus(paksa: boolean): Promise<StatusLisensiServer> {
 
   // ── Mode pengembangan (hanya `next dev`) ──
   if (cfg.modePengembangan) {
-    if (baris?.mode !== 'development') {
-      await db.from('sm_lisensi').upsert(muatanPengembangan(cfg));
-    }
+    // Mode pengembangan TIDAK menulis ke sm_lisensi. Server lokal sering
+    // memakai database yang sama dengan produksi; menulis "semua fitur
+    // terbuka" ke sana akan ikut membuka lisensi produksi (lapisan database
+    // membaca baris ini). Keterbukaan mode ini cukup hidup di proses lokal.
     return {
       ...dasar,
       evaluasi: evaluasiLisensi({ muatan: null, tandaTanganSah: false, terakhirTerverifikasi: null, sekarang, modePengembangan: true }),
