@@ -167,9 +167,13 @@ export function HeaderAtas({ pengguna, branding }: {
             <span className="hidden sidebar:inline">Pencarian</span>
           </button>
 
+          {/* Di ponsel pintasan disembunyikan: bilah bawah sudah memuat
+              Daily Report, Schedule, dan Meeting, angka-angkanya tetap ada di
+              lonceng Notifikasi, dan deretan pintasan melebihi lebar layar
+              sampai tombol Notifikasi terpotong. */}
           {boleh('daily-report') && (
           <Pintasan
-            kunci="laporan" ikon="📝" label="Daily Report" href="/daily-report"
+            kunci="laporan" ikon="📝" label="Daily Report" href="/daily-report" tersembunyiDiPonsel
             jumlah={lonceng.laporanBelum ? '!' : 0}
             warna={lonceng.laporanBelum ? 'merah' : 'netral'}
             judulPanel="Daily Report hari ini"
@@ -180,7 +184,7 @@ export function HeaderAtas({ pengguna, branding }: {
 
           {boleh('meeting') && (
           <Pintasan
-            kunci="meeting" ikon="📍" label="Meeting" href="/meeting"
+            kunci="meeting" ikon="📍" label="Meeting" href="/meeting" tersembunyiDiPonsel
             jumlah={lonceng.meetingPerlu} warna="biru"
             judulPanel="Meeting hari ini"
             kosong="Tidak ada meeting yang menunggu hari ini."
@@ -190,7 +194,7 @@ export function HeaderAtas({ pengguna, branding }: {
 
           {boleh('schedule') && (
           <Pintasan
-            kunci="jadwal" ikon="🗓️" label="Hari Ini" href="/schedule"
+            kunci="jadwal" ikon="🗓️" label="Hari Ini" href="/schedule" tersembunyiDiPonsel
             jumlah={lonceng.jadwalHariIni} warna="netral"
             judulPanel="Jadwal hari ini"
             kosong="Tidak ada jadwal yang belum selesai hari ini."
