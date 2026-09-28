@@ -197,6 +197,12 @@ export function Tombol({
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
+      // type default 'button', BUKAN 'submit' bawaan HTML: tombol bantu di
+      // dalam <form> (mis. "+ Tambah Item" di GP Calculation) sebelumnya ikut
+      // mengirim formulir dan menutup dialognya, sehingga item kedua tidak
+      // pernah bisa ditambahkan. Tombol pengirim selalu menulis
+      // type="submit" sendiri.
+      type={rest.type ?? 'button'}
       {...rest}
       // Tombol yang sedang memproses ikut dinonaktifkan. Tanpa ini, ketukan
       // ganda di ponsel — yang sangat lazim saat jaringan lambat — mengirim
