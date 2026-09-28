@@ -53,7 +53,7 @@ export function PenyediaToast({ children }: { children: React.ReactNode }) {
       {children}
       {terpasang && createPortal(
         <div
-          className="fixed z-[60] bottom-4 left-1/2 -translate-x-1/2 flex flex-col gap-2 w-[calc(100%-2rem)] max-w-sm"
+          className="fixed z-[60] bottom-[calc(6rem+env(safe-area-inset-bottom))] sidebar:bottom-12 left-1/2 -translate-x-1/2 flex flex-col gap-2 w-[calc(100%-2rem)] max-w-sm"
           role="status"
           aria-live="polite"
         >

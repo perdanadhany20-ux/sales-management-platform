@@ -168,7 +168,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {/* Ruang bawah menghindari bilah navigasi ponsel menutupi isi
               halaman — termasuk tombol simpan di dasar formulir. */}
           <main aria-busy={sedangNavigasi}
-            className="relative flex-1 px-3 sm:px-5 py-4 pb-6 max-w-[1500px] w-full mx-auto">
+            className="relative flex-1 px-3 sm:px-5 py-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sidebar:pb-[3.75rem] max-w-[1500px] w-full mx-auto">
             <div className={`transition-[opacity,filter] duration-200 ${sedangNavigasi ? 'opacity-50 saturate-50 pointer-events-none select-none' : ''}`}>
               <BannerLisensi lisensi={lisensi} admin={pengguna.role.toUpperCase() === 'ADMIN'} />
               {/* key = pathname: setiap pindah halaman, isi baru masuk dengan animasi. */}
@@ -202,7 +202,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
  * Footer: hak cipta + pembuat di kiri, identitas build di kanan (versi ·
  * commit · waktu build) — supaya saat ada laporan masalah, jelas versi mana
  * yang sedang dipakai. Nama platform mengikuti Branding tiap server.
- * Ruang bawah di ponsel menghindari bilah navigasi bawah menutupinya.
+ * Menempel di dasar layar (tidak ikut bergulir); di ponsel tepat di atas
+ * bilah navigasi bawah. Tingginya (h-8 / h-9) diimbangi padding <main> dan
+ * tinggi sidebar — ubah bersamaan.
  */
 function KakiHalaman({ namaPlatform }: { namaPlatform: string }) {
   const versi = process.env.NEXT_PUBLIC_VERSI;
@@ -216,18 +218,18 @@ function KakiHalaman({ namaPlatform }: { namaPlatform: string }) {
     : null;
 
   return (
-    <footer className="border-t border-slate-200 bg-white/70 px-4 sm:px-5 pt-2.5
-                       pb-[calc(4.5rem+env(safe-area-inset-bottom))] sidebar:pb-2.5
-                       flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-      <p className="text-[11px] text-slate-500">
+    <footer className="fixed inset-x-0 z-30 h-8 sidebar:h-9 bottom-[calc(57px+env(safe-area-inset-bottom))] sidebar:bottom-0
+                       border-t border-slate-200 bg-white/95 backdrop-blur px-3 sm:px-5
+                       flex items-center justify-between gap-3">
+      <p className="text-[10.5px] sm:text-[11px] text-slate-500 truncate min-w-0">
         © {new Date().getFullYear()} {namaPlatform}
         <span className="text-slate-400"> · Created by DWP</span>
       </p>
-      <p className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-0.5
-                    text-[10.5px] font-medium text-slate-500 tabular-nums">
+      <p className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-0.5
+                    text-[10px] sm:text-[10.5px] font-medium text-slate-500 tabular-nums">
         {versi && <span>v{versi}</span>}
         {commit && <><span aria-hidden="true" className="text-slate-300">·</span><span className="font-mono">{commit}</span></>}
-        {waktuBuild && <><span aria-hidden="true" className="text-slate-300">·</span><span>{waktuBuild}</span></>}
+        {waktuBuild && <span className="hidden sm:contents"><span aria-hidden="true" className="text-slate-300">·</span><span>{waktuBuild}</span></span>}
       </p>
     </footer>
   );
@@ -382,7 +384,7 @@ function SidebarLebar({ menu, pathname, pengguna }: {
 }) {
   return (
     <aside className="hidden sidebar:flex w-[228px] flex-shrink-0 flex-col bg-white border-r border-slate-200
-                      sticky top-14 h-[calc(100dvh-3.5rem)]">
+                      sticky top-14 h-[calc(100dvh-3.5rem-2.25rem)]">
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5">
         {URUTAN_KELOMPOK_MENU.map((kelompok) => {
           // Kelompok tanpa satu pun menu yang boleh dibuka peran ini tidak
@@ -536,7 +538,7 @@ function BilahBawah({ menu, lainnya, pathname }: { menu: Menu[]; lainnya: Menu[]
       <div className="sidebar:hidden fixed inset-0 z-40" onClick={() => setBuka(false)}>
         <div className="absolute inset-0 bg-slate-900/30" aria-hidden="true" />
         <div role="dialog" aria-label="Menu lainnya"
-          className="absolute inset-x-3 bottom-[calc(64px+env(safe-area-inset-bottom))] bg-white rounded-kartu border border-slate-200 shadow-modal p-2 grid grid-cols-3 gap-1"
+          className="absolute inset-x-3 bottom-[calc(96px+env(safe-area-inset-bottom))] bg-white rounded-kartu border border-slate-200 shadow-modal p-2 grid grid-cols-3 gap-1"
           onClick={(e) => e.stopPropagation()}>
           {lainnya.map((m) => {
             const aktif = pathname.startsWith(m.href);
