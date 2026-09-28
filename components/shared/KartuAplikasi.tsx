@@ -15,44 +15,45 @@ function useLingkungan() {
   return l;
 }
 
-/** Kartu di halaman Profil: status aplikasi, atau cara mengunduh dan memasangnya. */
+/** Isi panel "Aplikasi di HP" di Profil: status aplikasi, atau cara mengunduh dan memasangnya. */
 export function KartuAplikasi() {
   const l = useLingkungan();
   if (!l) return null;
 
-  return (
-    <section aria-labelledby="judul-aplikasi"
-      className="bg-white rounded-kartu border border-slate-200 shadow-bento p-4 sm:p-5 flex flex-col gap-3">
+  if (l.diApp) {
+    return (
       <div className="flex items-center gap-3">
-        <img src="/icon-192.png" alt="" width={40} height={40} className="rounded-kontrol" />
-        <div>
-          <h2 id="judul-aplikasi" className="text-[14px] font-bold text-slate-900">Aplikasi Android</h2>
-          <p className="text-[12px] text-slate-500">
-            {l.diApp ? `Anda sedang memakai aplikasinya — versi ${l.versi ?? '?'}.` : 'Buka platform langsung dari layar utama HP.'}
-          </p>
-        </div>
+        <img src="/icon-192.png" alt="" width={36} height={36} className="rounded-lg" />
+        <p className="text-[12px] text-slate-600 leading-relaxed">
+          Anda sedang memakai aplikasinya — versi <strong className="text-slate-800">{l.versi ?? '?'}</strong>.
+        </p>
       </div>
+    );
+  }
 
-      {!l.diApp && (
-        <>
-          <p className="text-[12px] text-slate-600 leading-relaxed">
-            Check-in Meeting lewat aplikasi lebih aman: lokasi dibaca langsung dari HP, dan lokasi
-            dari aplikasi pengubah lokasi (fake GPS) terdeteksi otomatis.
-          </p>
-          <a href={ALAMAT_UNDUH}
-            className="self-start rounded-kontrol bg-aksen-600 hover:bg-aksen-700 text-white text-[13px] font-bold
-                       px-4 py-2.5 min-h-[44px] inline-flex items-center gap-2
-                       focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aksen-600">
-            ⬇ Unduh aplikasi (.apk)
-          </a>
-          <ol className="text-[12px] text-slate-600 list-decimal pl-5 space-y-1">
-            <li>Buka berkas yang terunduh dari notifikasi atau folder Download.</li>
-            <li>Bila diminta, izinkan pemasangan dari sumber ini (browser Anda).</li>
-            <li>Pilih <strong>Instal</strong>, lalu buka <strong>Sales Management</strong> dan masuk seperti biasa.</li>
-          </ol>
-        </>
-      )}
-    </section>
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[12px] text-slate-600 leading-relaxed">
+        Buka platform langsung dari layar utama HP. Check-in Meeting lewat aplikasi lebih aman:
+        lokasi dibaca langsung dari HP, dan aplikasi pengubah lokasi (fake GPS) terdeteksi otomatis.
+      </p>
+      <a href={ALAMAT_UNDUH}
+        className="w-full rounded-lg bg-gradient-to-r from-aksen-700 to-aksen-500 hover:from-aksen-800 hover:to-aksen-600
+                   text-white text-[13px] font-bold px-4 py-3 min-h-[44px] inline-flex items-center justify-center gap-2
+                   shadow-[0_6px_16px_rgba(29,78,216,.25)] transition-colors
+                   focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aksen-600">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+        </svg>
+        Unduh Aplikasi (.apk)
+      </a>
+      <ol className="text-[11.5px] text-slate-500 list-decimal pl-5 space-y-0.5 leading-relaxed">
+        <li>Buka berkas yang terunduh dari notifikasi atau folder Download.</li>
+        <li>Bila diminta, izinkan pemasangan dari sumber ini (browser Anda).</li>
+        <li>Pilih <strong className="text-slate-700">Instal</strong>, lalu masuk seperti biasa.</li>
+      </ol>
+    </div>
   );
 }
 

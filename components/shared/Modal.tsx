@@ -84,11 +84,11 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 ${polos ? 'sm:p-3' : 'sm:p-4'}`}
       role="dialog" aria-modal="true" aria-label={judul}
     >
       <div
-        className={`absolute inset-0 animate-[pudar_.2s_ease-out] ${blur ? 'bg-slate-900/35 backdrop-blur-md' : 'bg-slate-900/50 backdrop-blur-[2px]'}`}
+        className={`absolute inset-0 animate-[pudar_.2s_ease-out] ${blur ? 'bg-slate-950/55 backdrop-blur-[6px]' : 'bg-slate-900/50 backdrop-blur-[2px]'}`}
         onClick={onTutup}
         aria-hidden="true"
       />
@@ -96,8 +96,8 @@ export function Modal({
         ref={panelRef}
         tabIndex={-1}
         className={`relative w-full ${LEBAR} bg-white shadow-modal outline-none
-                    rounded-t-panel sm:rounded-kartu
-                    max-h-[92vh] sm:max-h-[85vh] flex flex-col
+                    rounded-t-panel sm:rounded-kartu flex flex-col
+                    ${polos ? 'overflow-hidden max-h-[94dvh] sm:max-h-[calc(100dvh-1.5rem)]' : 'max-h-[92vh] sm:max-h-[85vh]'}
                     animate-[naik_.22s_cubic-bezier(.22,1,.36,1)]`}
       >
         {!polos && <header className="flex items-start gap-3 px-5 pt-5 pb-3 flex-shrink-0 border-b border-slate-100">
@@ -115,7 +115,8 @@ export function Modal({
           </button>
         </header>}
 
-        <div className={`flex-1 overflow-y-auto min-h-0 ${polos ? '' : 'px-5 py-4'}`}>{children}</div>
+        {/* Polos: isinya mengatur guliran sendiri (mis. spanduk tetap, isi bergulir). */}
+        <div className={`flex-1 min-h-0 ${polos ? 'flex flex-col' : 'overflow-y-auto px-5 py-4'}`}>{children}</div>
 
         {kaki && (
           <footer className="flex-shrink-0 px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2
