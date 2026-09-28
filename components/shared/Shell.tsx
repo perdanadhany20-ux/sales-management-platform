@@ -14,6 +14,7 @@ import { useMenuSaya, type MenuKey } from '@/lib/menu-akses';
 import { useBranding } from '@/lib/branding';
 import { ambilLisensi, useLisensi, type Lisensi } from '@/lib/lisensi/use-lisensi';
 import { FITUR_MENU, pesanKode } from '@/lib/lisensi/kontrak';
+import { ProgresNavigasi } from './ProgresNavigasi';
 import { HeaderAtas } from './HeaderAtas';
 import { PenjagaVersiAplikasi } from './KartuAplikasi';
 import {
@@ -152,12 +153,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <KonteksBagian.Provider value={konteks}>
     <div className="min-h-[100dvh] flex flex-col">
-      {sedangNavigasi && (
-        <div role="progressbar" aria-label="Memuat halaman"
-          className="fixed top-0 inset-x-0 z-[70] h-[3px] overflow-hidden bg-aksen-100">
-          <div className="progres-jalan h-full w-2/5 bg-aksen-600 rounded-full" />
-        </div>
-      )}
+      <ProgresNavigasi aktif={sedangNavigasi} />
       {/* Bilah judul membentang penuh di atas sidebar, bukan di sampingnya:
           identitas platform dan lencana notifikasi harus terlihat sama di
           setiap halaman, termasuk saat sidebar disembunyikan di ponsel. */}
@@ -172,15 +168,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
               halaman — termasuk tombol simpan di dasar formulir. */}
           <main aria-busy={sedangNavigasi}
             className="relative flex-1 px-3 sm:px-5 py-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sidebar:pb-6 max-w-[1500px] w-full mx-auto">
-            <div className={`transition-opacity duration-150 ${sedangNavigasi ? 'opacity-40 pointer-events-none select-none' : ''}`}>
+            <div className={`transition-[opacity,filter] duration-200 ${sedangNavigasi ? 'opacity-50 saturate-50 pointer-events-none select-none' : ''}`}>
               <BannerLisensi lisensi={lisensi} admin={pengguna.role.toUpperCase() === 'ADMIN'} />
-              {diblokir
-                ? (karenaLisensi ? <FiturTidakBerlisensi /> : <ModulTidakTersedia label={menuHalamanIni!.label} />)
-                : children}
+              {/* key = pathname: setiap pindah halaman, isi baru masuk dengan animasi. */}
+              <div key={pathname} className="animasi-halaman">
+                {diblokir
+                  ? (karenaLisensi ? <FiturTidakBerlisensi /> : <ModulTidakTersedia label={menuHalamanIni!.label} />)
+                  : children}
+              </div>
             </div>
             {sedangNavigasi && (
               <div className="absolute inset-x-0 top-24 flex justify-center pointer-events-none">
-                <div className="flex items-center gap-2.5 bg-white rounded-full border border-slate-200 shadow-sm px-4 py-2">
+                <div className="flex items-center gap-2.5 bg-white/95 backdrop-blur rounded-full border border-slate-200 shadow-kartu px-4 py-2 animate-[naik_.2s_ease-out]">
                   <span className="w-4 h-4 rounded-full border-2 border-aksen-200 border-t-aksen-700 animate-spin" aria-hidden="true" />
                   <span className="text-[12px] font-semibold text-slate-600">Memuat data…</span>
                 </div>
