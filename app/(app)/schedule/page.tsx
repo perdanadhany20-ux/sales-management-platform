@@ -269,9 +269,9 @@ export default function HalamanSchedule() {
           />
         </BentoCard>
 
-        <BentoCard rentang={3} tinggi="sedang" judul="Status Jadwal">
+        <BentoCard rentang={3} tinggi={daftar.length === 0 ? 'pendek' : 'sedang'} judul="Status Jadwal">
           {daftar.length === 0 ? (
-            <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
+            <p className="text-slate-400 text-[13px] py-1">Belum ada data</p>
           ) : (
             <DonutLegenda
               judul="" ukuran={120}
@@ -296,7 +296,7 @@ export default function HalamanSchedule() {
           )}
         </BentoCard>
 
-        <BentoCard rentang={6} tinggi="sedang" rupa="garis" judul="Perlu Ditindaklanjuti">
+        <BentoCard rentang={6} tinggi={daftar.length === 0 ? 'pendek' : 'sedang'} rupa="garis" judul="Perlu Ditindaklanjuti">
           {ringkas.belumDitugaskan === 0 && ringkas.terlewat === 0 ? (
             <div className="text-center py-4">
               <p className="text-2xl mb-1" aria-hidden="true">✓</p>

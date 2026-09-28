@@ -228,9 +228,9 @@ export default function HalamanProyek() {
           />
         </BentoCard>
 
-        <BentoCard rentang={6} tinggi="sedang" judul="Status Proyek">
+        <BentoCard rentang={6} tinggi={daftar.length === 0 ? 'pendek' : 'sedang'} judul="Status Proyek">
           {daftar.length === 0 ? (
-            <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
+            <p className="text-slate-400 text-[13px] py-1">Belum ada data</p>
           ) : (
             <div className="flex flex-col gap-2">
               <DonutLegenda

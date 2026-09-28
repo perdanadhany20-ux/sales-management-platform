@@ -346,7 +346,7 @@ export default function HalamanMeeting() {
 
         <BentoCard rentang={6} tinggi="pendek" rupa="garis" judul="Kemajuan">
           {ringkas.jumlah === 0 ? (
-            <p className="text-slate-400 text-sm text-center py-4">Belum ada meeting pada rentang ini</p>
+            <p className="text-slate-400 text-[13px] py-1">Belum ada meeting pada rentang ini</p>
           ) : (
             <div className="flex flex-col gap-2">
               <Meter nilai={ringkas.selesai} maksimum={ringkas.jumlah} label="Meeting selesai" />

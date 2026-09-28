@@ -66,7 +66,7 @@ export function DonutLegenda({
     return (
       <div className="flex flex-col gap-2">
         <JudulKartu ikon={ikon}>{judul}</JudulKartu>
-        <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
+        <p className="text-slate-400 text-[13px] py-1">Belum ada data</p>
       </div>
     );
   }
@@ -272,7 +272,7 @@ export function CorongTingkat({
 }) {
   const maks = Math.max(...data.map(d => d.jumlah), 1);
   if (data.every(d => d.jumlah === 0)) {
-    return <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>;
+    return <p className="text-slate-400 text-[13px] py-1">Belum ada data</p>;
   }
 
   return (

@@ -337,9 +337,9 @@ export default function HalamanDailyReport() {
         </BentoCard>
 
         {pengawas && (
-          <BentoCard rentang={4} tinggi="sedang" judul="Kontribusi per Sales">
+          <BentoCard rentang={4} tinggi={perSales.length === 0 ? 'pendek' : 'sedang'} judul="Kontribusi per Sales">
             {perSales.length === 0 ? (
-              <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
+              <p className="text-slate-400 text-[13px] py-1">Belum ada data</p>
             ) : (
               <DonutLegenda
                 judul="" ukuran={120}

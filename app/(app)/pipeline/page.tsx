@@ -195,6 +195,10 @@ export default function HalamanPipeline() {
   const totalHalaman = Math.max(1, Math.ceil(total / PER_HALAMAN));
   const adaFilter = Boolean(cariTertunda || filterSales || filterProb || filterStage);
 
+  // Kartu ringkasan tidak perlu setinggi kartu berisi grafik ketika belum ada
+  // satu pun baris: tinggi tetap hanya menyisakan ruang menganggur.
+  const tinggiRingkas = daftar.length === 0 ? 'pendek' : 'sedang';
+
   return (
     <div className="flex flex-col gap-4">
 
@@ -257,7 +261,7 @@ export default function HalamanPipeline() {
       </header>
 
       <BentoGrid>
-        <BentoCard rentang={3} tinggi="sedang" rupa="sorot" judul="Nilai Peluang">
+        <BentoCard rentang={3} tinggi={tinggiRingkas} rupa="sorot" judul="Nilai Peluang">
           <AngkaJangkar
             terang
             nilai={rupiahRingkas(ringkas.nilai)}
@@ -271,19 +275,19 @@ export default function HalamanPipeline() {
           </div>
         </BentoCard>
 
-        <BentoCard rentang={6} tinggi="sedang" judul="Sebaran Probability"
+        <BentoCard rentang={6} tinggi={tinggiRingkas} judul="Sebaran Probability"
           aksi={<span className="text-[10px] text-slate-400">peluang · nilai</span>}>
           {sebaranProb.length === 0 ? (
-            <Kosong judul="Belum ada peluang"
+            <Kosong rapat judul="Belum ada peluang"
               keterangan="Peluang yang Anda catat akan dikelompokkan per tingkat probability di sini." />
           ) : (
             <CorongTingkat data={sebaranProb} />
           )}
         </BentoCard>
 
-        <BentoCard rentang={3} tinggi="sedang" judul="Kondisi Margin">
+        <BentoCard rentang={3} tinggi={tinggiRingkas} judul="Kondisi Margin">
           {daftar.length === 0 ? (
-            <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
+            <p className="text-slate-400 text-[13px] py-1">Belum ada data</p>
           ) : (
             <>
               <DonutLegenda

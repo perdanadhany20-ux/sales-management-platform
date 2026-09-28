@@ -247,9 +247,9 @@ export default function HalamanActivity() {
           />
         </BentoCard>
 
-        <BentoCard rentang={6} tinggi="sedang" judul="Sebaran Jenis Aktivitas">
+        <BentoCard rentang={6} tinggi={daftar.length === 0 ? 'pendek' : 'sedang'} judul="Sebaran Jenis Aktivitas">
           {daftar.length === 0 ? (
-            <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
+            <p className="text-slate-400 text-[13px] py-1">Belum ada data</p>
           ) : (
             <DonutLegenda
               judul="" ukuran={140}

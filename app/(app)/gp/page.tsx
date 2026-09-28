@@ -279,9 +279,9 @@ export default function HalamanGp() {
           />
         </BentoCard>
 
-        <BentoCard rentang={6} tinggi="sedang" judul="Status Dokumen">
+        <BentoCard rentang={6} tinggi={daftar.length === 0 ? 'pendek' : 'sedang'} judul="Status Dokumen">
           {daftar.length === 0 ? (
-            <p className="text-slate-400 text-sm text-center py-6">Belum ada data</p>
+            <p className="text-slate-400 text-[13px] py-1">Belum ada data</p>
           ) : (
             <DonutLegenda
               judul="" ukuran={120}
