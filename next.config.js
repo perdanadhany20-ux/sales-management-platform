@@ -2,6 +2,18 @@ const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://*.supabase.co'
 const supabaseWs = supabase.replace(/^https:/, 'wss:');
 const dev = process.env.NODE_ENV !== 'production';
 
+// Identitas build untuk footer: versi dari package.json, commit dari Vercel
+// (atau git lokal), dan waktu build. Dibekukan saat build, bukan saat render.
+function commitBuild() {
+  if (process.env.VERCEL_GIT_COMMIT_SHA) return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7);
+  try {
+    return require('child_process').execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString().trim();
+  } catch {
+    return '';
+  }
+}
+
 // Setiap sumber di bawah dipakai nyata: tile & pencarian alamat Leaflet
 // (PetaLokasi), embed peta kecil (lib/gps.ts), ikon penanda Leaflet dari
 // unpkg, dan Supabase untuk data, foto bukti, serta logo branding.
@@ -25,6 +37,11 @@ const csp = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_VERSI: require('./package.json').version,
+    NEXT_PUBLIC_COMMIT: commitBuild(),
+    NEXT_PUBLIC_WAKTU_BUILD: new Date().toISOString(),
+  },
   eslint: { ignoreDuringBuilds: true },
   async headers() {
     return [
