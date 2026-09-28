@@ -63,6 +63,16 @@ dependensi Gradle sudah ada di cache.
    nama `sales-management.apk`. Pengguna yang sudah masuk mengunduhnya lewat
    Profil → Aplikasi Android (`/api/aplikasi/unduh`, tautan sementara 5 menit).
 
+## Riwayat versi
+
+| Versi | Perubahan native |
+|---|---|
+| 1.1.0 (versionCode 2) | Layar pembuka berlogo yang memudar saat halaman pertama siap (tidak ada lagi layar putih kosong); bilah progres biru di atas saat membuka/memuat ulang halaman. |
+| 1.0.0 (versionCode 1) | Rilis awal: WebView, lokasi anti fake GPS, kamera, simpan Excel. |
+
+Perubahan tampilan web (animasi pindah menu, lisensi, dll.) berlaku otomatis di APK
+tanpa build ulang — APK memuat website platform secara langsung.
+
 ## Merilis versi baru
 
 Naikkan `versionCode` dan `versionName`, bangun dengan **keystore yang sama**
