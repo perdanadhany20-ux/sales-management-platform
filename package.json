@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "sql:setup": "node scripts/gabung-migrasi.mjs",
     "test": "node --test --experimental-strip-types --no-warnings tests/*.test.ts"
   },
   "engines": {
