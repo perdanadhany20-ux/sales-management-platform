@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import paketAplikasi from '@/package.json';
 import {
-  BAWAAN_LISENSI, KUNCI_FITUR, evaluasiLisensi, peristiwaPerubahan, peringatanLisensi, pesanKode,
+  BAWAAN_LISENSI, evaluasiLisensi, peristiwaPerubahan, peringatanLisensi, pesanKode,
   type HasilEvaluasi, type JenisPermintaan, type KodeLisensi, type KunciFitur, type MuatanLisensi,
   type Paket, type PeristiwaLisensi,
 } from './kontrak.ts';
