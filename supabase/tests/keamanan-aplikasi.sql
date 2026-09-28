@@ -46,7 +46,10 @@ INSERT INTO lap VALUES
   (3, pg_temp.laporan('d9000000-0000-4000-8000-000000000012', -6.2000100, 106.8000200, 0, pg_temp.skrg(), 'aa03', true)),
   (5, pg_temp.laporan('d9000000-0000-4000-8000-000000000014', -6.2000100, 106.8000200, 0, pg_temp.skrg() - 3600000, 'aa05')),
   (6, pg_temp.laporan('d9000000-0000-4000-8000-000000000015', -6.2000100, 106.8000200, 0, pg_temp.skrg(), 'aa06')),
-  (7, pg_temp.laporan('d9000000-0000-4000-8000-000000000016', -6.2000100, 106.8000200, 0, pg_temp.skrg(), 'aa07'));
+  (7, pg_temp.laporan('d9000000-0000-4000-8000-000000000016', -6.2000100, 106.8000200, 0, pg_temp.skrg(), 'aa07')),
+  -- 040: bertanda tangan sah (kunci bisa dibongkar dari APK) dan tepat di kantor,
+  -- padahal jejak terakhir pengguna ini di Surabaya sedetik sebelumnya.
+  (10, pg_temp.laporan('d9000000-0000-4000-8000-000000000016', -6.2000100, 106.8000200, 0, pg_temp.skrg(), 'aa10'));
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims','{"sub":"d9000000-0000-4000-8000-000000000001","user_role":"SALES"}',true);
@@ -81,6 +84,17 @@ INSERT INTO hasil SELECT 7,'Laporan jadwal lain dipakai untuk jadwal ini','SUSPE
     NULL,NULL,NULL,NULL,now(),NULL,(SELECT sinyal FROM lap WHERE no=7))->>'validation_status';
 
 -- Mode wajib aplikasi
+RESET ROLE;
+INSERT INTO public.sm_gps_events (schedule_id, user_id, event_type, latitude, longitude, validation_status, created_at)
+VALUES ('d9000000-0000-4000-8000-000000000017', 'd9000000-0000-4000-8000-000000000001', 'CHECK_IN',
+        -7.2500000, 112.7500000, 'VALID', now() + interval '1 second');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims','{"sub":"d9000000-0000-4000-8000-000000000001","user_role":"SALES"}',true);
+
+INSERT INTO hasil SELECT 10,'Laporan aplikasi sah tetap dinilai server (Surabaya → kantor Jakarta)','SUSPECTED_MOCK',
+  public.sm_check_in('d9000000-0000-4000-8000-000000000016', -6.2000100, 106.8000200, 8.5,
+    NULL,NULL,NULL,NULL,now(),NULL,(SELECT sinyal FROM lap WHERE no=10))->>'validation_status';
+
 RESET ROLE;
 UPDATE public.sm_settings SET value = 'true'::jsonb WHERE key = 'checkin_wajib_aplikasi';
 SET LOCAL ROLE authenticated;
