@@ -59,7 +59,10 @@ export function useFokusBaris(siap: boolean, onTemu?: (id: string) => void): voi
       return;
     }
 
-    const elemen = document.getElementById(`baris-${id}`);
+    // Di ponsel tabel ditampilkan sebagai kartu (Tabel.tsx) dan barisnya
+    // tersembunyi — pilih yang benar-benar terlihat.
+    const kandidat = [document.getElementById(`kartu-${id}`), document.getElementById(`baris-${id}`)];
+    const elemen = kandidat.find((el) => el && el.offsetParent !== null) ?? null;
     if (!elemen) {
       // Barisnya bisa saja berada di luar rentang tanggal atau halaman
       // paginasi yang sedang terbuka. Penandanya tetap dibersihkan supaya

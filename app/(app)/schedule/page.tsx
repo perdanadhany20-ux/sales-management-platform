@@ -112,6 +112,24 @@ export default function HalamanSchedule() {
 
   useEffect(() => { void muat(); }, [muat]);
 
+  // Kartu "Hari Ini" tidak boleh bergantung pada halaman tabel yang sedang
+  // tampil: tabel berurut tanggal dan dipotong 20 baris, sehingga jadwal hari
+  // ini sering berada di halaman 2 dan kartunya keliru menunjukkan 0.
+  const [jadwalHariIni, setJadwalHariIni] = useState<Jadwal[]>([]);
+  useEffect(() => {
+    let batal = false;
+    (async () => {
+      const { data } = await supabase
+        .from('sm_schedules')
+        .select('*')
+        .eq('schedule_date', tanggalISO())
+        .in('status', ['UPCOMING', 'IN_PROGRESS'])
+        .order('schedule_time', { ascending: true, nullsFirst: false });
+      if (!batal) setJadwalHariIni((data ?? []) as Jadwal[]);
+    })();
+    return () => { batal = true; };
+  }, [daftar]);
+
   // Menyorot baris yang ditunjuk lencana header (?fokus=<id>). Dijalankan
   // setelah daftar selesai dimuat — sebelum itu elemennya belum ada di DOM.
   useFokusBaris(!memuat);
@@ -165,9 +183,11 @@ export default function HalamanSchedule() {
       selesai: hitung('COMPLETED'),
       terlewat: hitung('MISSED'),
       dibatalkan: hitung('CANCELLED'),
-      hariIni: daftar.filter((j) => j.schedule_date === hariIni && ['UPCOMING', 'IN_PROGRESS'].includes(j.status)).length,
       belumDitugaskan: daftar.filter((j) => !j.assigned_to && j.status === 'UPCOMING').length,
       meeting: daftar.filter((j) => j.requires_attendance).length,
+      // Pembilang dan penyebut harus himpunan yang sama: jadwal non-Meeting
+      // yang selesai sebelumnya ikut terhitung, sehingga muncul "17/15".
+      meetingSelesai: daftar.filter((j) => j.requires_attendance && statusEfektif(j, hariIni) === 'COMPLETED').length,
     };
   }, [daftar]);
 
@@ -263,10 +283,28 @@ export default function HalamanSchedule() {
         <BentoCard rentang={3} tinggi="pendek" rupa="sorot" judul="Hari Ini">
           <AngkaJangkar
             terang
-            nilai={ringkas.hariIni}
+            nilai={jadwalHariIni.length}
             satuan="jadwal"
-            keterangan={ringkas.hariIni === 0 ? 'Tidak ada yang dijadwalkan hari ini.' : 'Menunggu dieksekusi hari ini.'}
+            keterangan={jadwalHariIni.length === 0 ? 'Tidak ada yang dijadwalkan hari ini.' : 'Menunggu dieksekusi hari ini.'}
           />
+          {jadwalHariIni.length > 0 && (
+            <ul className="mt-3 flex flex-col gap-1.5">
+              {jadwalHariIni.slice(0, 4).map((j) => (
+                <li key={j.id} className="flex items-baseline gap-2 text-[11.5px] leading-tight">
+                  <span className="font-bold tabular-nums text-white/90 w-10 flex-shrink-0">
+                    {j.schedule_time ? j.schedule_time.slice(0, 5) : '—'}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-white">
+                    {j.customer_name}
+                    <span className="text-white/60"> · {j.assigned_to ? (namaSales[j.assigned_to] ?? '—') : 'belum ditugaskan'}</span>
+                  </span>
+                </li>
+              ))}
+              {jadwalHariIni.length > 4 && (
+                <li className="text-[11px] text-white/60">+{jadwalHariIni.length - 4} lainnya</li>
+              )}
+            </ul>
+          )}
         </BentoCard>
 
         <BentoCard rentang={3} tinggi={daftar.length === 0 ? 'pendek' : 'sedang'} judul="Status Jadwal">
@@ -338,7 +376,7 @@ export default function HalamanSchedule() {
               {ringkas.meeting > 0 && (
                 <div className="pt-2 mt-1 border-t border-slate-200">
                   <Meter
-                    nilai={ringkas.selesai} maksimum={ringkas.meeting}
+                    nilai={ringkas.meetingSelesai} maksimum={ringkas.meeting}
                     label="Meeting selesai pada halaman ini"
                   />
                 </div>

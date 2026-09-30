@@ -61,7 +61,40 @@ export function Tabel<T>({
   }
 
   return (
-    <div className="bg-white rounded-kartu border border-slate-200 overflow-x-auto">
+    <>
+    {/*
+      Ponsel: setiap baris menjadi kartu. Tabel selebar 760px yang digulir ke
+      samping memotong kolom utama (nama customer tertutup kolom Aksi yang
+      menempel) dan menyembunyikan kolom lain di luar layar — kotak gulir
+      sempit yang justru paling sering dipakai di lapangan. Kolom pertama
+      menjadi judul kartu, sisanya pasangan label–nilai.
+    */}
+    <ul className="sm:hidden flex flex-col gap-2.5 m-0 p-0 list-none">
+      {tampil.map((baris, i) => (
+        <li key={kunci(baris)} id={`kartu-${kunci(baris)}`}
+          className="bg-white rounded-kartu border border-slate-200 px-3.5 py-3">
+          <div className="flex items-start gap-2">
+            <span className="text-[11px] text-slate-400 tabular-nums pt-0.5 w-5 flex-shrink-0">{i + 1}</span>
+            <div className="min-w-0 flex-1 text-[13px] text-slate-700">{kolom[0]?.render(baris)}</div>
+            {aksi && <div className="flex items-center gap-0.5 flex-shrink-0 -mr-1 -mt-1">{aksi(baris)}</div>}
+          </div>
+          {kolom.length > 1 && (
+            <dl className="mt-2 ml-7 flex flex-col">
+              {kolom.slice(1).map((k, ki) => (
+                <div key={ki} className="flex items-start justify-between gap-3 py-1.5 border-t border-slate-100">
+                  <dt className="text-[10px] font-bold text-slate-400 uppercase tracking-wide pt-0.5 flex-shrink-0">{k.label}</dt>
+                  <dd className="text-[12.5px] text-slate-700 text-right min-w-0 [&_*]:text-right [&_.truncate]:whitespace-normal">
+                    {k.render(baris)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </li>
+      ))}
+    </ul>
+
+    <div className="hidden sm:block bg-white rounded-kartu border border-slate-200 overflow-x-auto">
       {/*
         table-fixed: tanpa ini, browser memberi SISA lebar penuh ke kolom
         yang tidak diberi lebar eksplisit (biasanya kolom nama/deskripsi),
@@ -126,6 +159,7 @@ export function Tabel<T>({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 

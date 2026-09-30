@@ -80,10 +80,8 @@ export default function HalamanDashboard() {
 
   const trenLaporan = tren_bulanan.map((t) => t.laporan);
   const trenNilai = tren_bulanan.map((t) => t.nilai);
-  const deltaNilai = hitungDelta(
-    trenNilai[trenNilai.length - 1] ?? 0,
-    trenNilai[trenNilai.length - 2] ?? 0,
-  );
+  // Sama dengan label kartunya: 30 hari terakhir dibanding 30 hari sebelumnya.
+  const deltaNilai = hitungDelta(pl.total_nilai, data.pipeline_sebelumnya ?? 0);
 
   // Untuk Sales, "total_sales" adalah seluruh tim tapi laporan yang terlihat
   // hanya miliknya — jadi pembandingnya harus 1, bukan jumlah tim. Tanpa

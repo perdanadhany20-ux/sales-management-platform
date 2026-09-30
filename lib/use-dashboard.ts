@@ -34,6 +34,11 @@ export interface DataDashboard {
   };
   gps_gagal: Record<string, number>;
   tren_bulanan: { bulan: string; laporan: number; pipeline: number; nilai: number }[];
+  /** Nilai pipeline pada jendela sebelumnya yang sama panjang (mis. 30 hari
+   *  sebelum 30 hari terakhir). Pembanding lencana tren — bukan bulan
+   *  kalender, yang di awal bulan selalu bernilai ~0 dan membuat lencana
+   *  keliru menunjukkan ▼100%. Diisi di sisi klien, bukan oleh RPC. */
+  pipeline_sebelumnya?: number;
 }
 
 export function useDashboard(hariKeBelakang = 29) {
@@ -49,13 +54,24 @@ export function useDashboard(hariKeBelakang = 29) {
     const dari = new Date();
     dari.setDate(dari.getDate() - hariKeBelakang);
 
-    const { data: hasil, error } = await supabase.rpc('sm_dashboard', {
-      p_dari: tanggalISO(dari),
-      p_sampai: tanggalISO(sampai),
-    });
+    const dariLalu = new Date(dari);
+    dariLalu.setDate(dariLalu.getDate() - hariKeBelakang - 1);
+    const sampaiLalu = new Date(dari);
+    sampaiLalu.setDate(sampaiLalu.getDate() - 1);
+
+    const [{ data: hasil, error }, lalu] = await Promise.all([
+      supabase.rpc('sm_dashboard', { p_dari: tanggalISO(dari), p_sampai: tanggalISO(sampai) }),
+      // Disaring RLS yang sama dengan RPC-nya: Sales hanya menjumlah miliknya.
+      supabase.from('sm_pipeline').select('project_value')
+        .gte('pipeline_date', tanggalISO(dariLalu)).lte('pipeline_date', tanggalISO(sampaiLalu)),
+    ]);
 
     if (error) setGalat(pesanGalat(error));
-    else setData(hasil as DataDashboard);
+    else {
+      const sebelumnya = ((lalu.data ?? []) as { project_value: number }[])
+        .reduce((t, b) => t + Number(b.project_value ?? 0), 0);
+      setData({ ...(hasil as DataDashboard), pipeline_sebelumnya: sebelumnya });
+    }
 
     setMemuat(false);
   }, [hariKeBelakang]);

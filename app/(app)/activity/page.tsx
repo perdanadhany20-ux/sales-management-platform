@@ -157,19 +157,46 @@ export default function HalamanActivity() {
     })();
   }, []);
 
+  // Ringkasan dihitung dari SELURUH rentang penyaring, bukan hanya 30 baris
+  // halaman yang sedang tampil — sebelumnya kartu "Nilai Pipeline" bisa Rp 0
+  // dan sebaran jenis timpang hanya karena peluangnya ada di halaman 2.
+  // Kolomnya sengaja tiga saja supaya tetap ringan.
+  const [ringkasBaris, setRingkasBaris] = useState<Pick<Aktivitas, 'jenis' | 'status' | 'nilai'>[]>([]);
+  useEffect(() => {
+    let batal = false;
+    (async () => {
+      const batasAtas = new Date(sampai);
+      batasAtas.setDate(batasAtas.getDate() + 1);
+      let q = supabase
+        .from('sm_activity_feed')
+        .select('jenis, status, nilai')
+        .gte('terjadi_pada', new Date(`${dari}T00:00:00`).toISOString())
+        .lt('terjadi_pada', new Date(`${tanggalISO(batasAtas)}T00:00:00`).toISOString())
+        .limit(BATAS_BARIS_EKSPOR);
+      if (filterJenis) q = q.eq('jenis', filterJenis);
+      if (filterOrang) q = q.eq('user_id', filterOrang);
+      if (cariTertunda) {
+        q = q.or(`judul.ilike.${polaIlike(cariTertunda)},keterangan.ilike.${polaIlike(cariTertunda)},tambahan.ilike.${polaIlike(cariTertunda)}`);
+      }
+      const { data } = await q;
+      if (!batal) setRingkasBaris((data ?? []) as Pick<Aktivitas, 'jenis' | 'status' | 'nilai'>[]);
+    })();
+    return () => { batal = true; };
+  }, [dari, sampai, filterJenis, filterOrang, cariTertunda]);
+
   const ringkas = useMemo(() => {
     const per: Record<string, number> = {};
-    for (const a of daftar) per[a.jenis] = (per[a.jenis] ?? 0) + 1;
+    for (const a of ringkasBaris) per[a.jenis] = (per[a.jenis] ?? 0) + 1;
 
-    const gagalGps = daftar.filter(
+    const gagalGps = ringkasBaris.filter(
       (a) => a.jenis === 'CHECK_IN' && a.status && a.status !== 'VALID',
     ).length;
-    const nilai = daftar
+    const nilai = ringkasBaris
       .filter((a) => a.jenis === 'PIPELINE')
       .reduce((t, a) => t + Number(a.nilai ?? 0), 0);
 
-    return { per, gagalGps, nilai };
-  }, [daftar]);
+    return { per, gagalGps, nilai, jumlah: ringkasBaris.length };
+  }, [ringkasBaris]);
 
   function geserRentang(hari: number) {
     const mulai = new Date();
@@ -243,17 +270,17 @@ export default function HalamanActivity() {
         <BentoCard rentang={3} tinggi="pendek" judul="Nilai Pipeline Dicatat">
           <AngkaJangkar
             nilai={rupiahRingkas(ringkas.nilai)}
-            keterangan="Dari baris pipeline pada halaman ini."
+            keterangan="Peluang yang dicatat pada rentang ini."
           />
         </BentoCard>
 
-        <BentoCard rentang={6} tinggi={daftar.length === 0 ? 'pendek' : 'sedang'} judul="Sebaran Jenis Aktivitas">
-          {daftar.length === 0 ? (
+        <BentoCard rentang={6} tinggi={ringkas.jumlah === 0 ? 'pendek' : 'sedang'} judul="Sebaran Jenis Aktivitas">
+          {ringkas.jumlah === 0 ? (
             <p className="text-slate-400 text-[13px] py-1">Belum ada data</p>
           ) : (
             <DonutLegenda
               judul="" ukuran={140}
-              nilaiTengah={daftar.length} labelTengah="JEJAK"
+              nilaiTengah={ringkas.jumlah} labelTengah="JEJAK"
               filterAktif={filterJenis ? (JENIS[filterJenis] ?? JENIS_BAWAAN).label : null}
               onKlikIrisan={(label) => {
                 const kunci = Object.keys(JENIS).find((k) => JENIS[k].label === label);

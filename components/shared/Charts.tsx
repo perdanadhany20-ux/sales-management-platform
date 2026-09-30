@@ -136,7 +136,7 @@ export function DonutLegenda({
 
         <ul
           className={`grid gap-x-4 gap-y-0.5 flex-1 min-w-[170px] m-0 p-0 list-none ${
-            duaKolom ? 'basis-[240px] sm:grid-cols-2 max-w-[460px]' : 'basis-[170px] max-w-[280px]'
+            duaKolom ? 'basis-[240px] sm:grid-cols-2 max-w-[520px]' : 'basis-[170px] max-w-[300px]'
           }`}
         >
           {irisan.map((s) => {
@@ -157,7 +157,9 @@ export function DonutLegenda({
                   }}
                 >
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                  <span className="text-[12px] font-medium text-slate-600 truncate flex-1 min-w-0">{s.label}</span>
+                  {/* Label boleh turun baris, tidak dipotong: "Menunggu Manager" dan
+                      "Menunggu Director" sama-sama terbaca "Menunggu …" kalau dipotong. */}
+                  <span className="text-[12px] font-medium text-slate-600 flex-1 min-w-0 leading-tight">{s.label}</span>
                   <span className="text-[12px] font-bold text-slate-800 tabular-nums flex-shrink-0">
                     {s.value}{akhiranNilai ?? ''}
                   </span>
