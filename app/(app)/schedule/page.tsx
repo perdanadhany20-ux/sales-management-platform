@@ -116,16 +116,33 @@ export default function HalamanSchedule() {
   // tampil: tabel berurut tanggal dan dipotong 20 baris, sehingga jadwal hari
   // ini sering berada di halaman 2 dan kartunya keliru menunjukkan 0.
   const [jadwalHariIni, setJadwalHariIni] = useState<Jadwal[]>([]);
+  // Sama halnya kartu "Perlu Ditindaklanjuti": pengajuan yang menunggu
+  // penugasan dan jadwal terlewat dihitung dari seluruh data, bukan dari
+  // halaman tabel yang sedang tampil.
+  const [tindak, setTindak] = useState<{ belum: Jadwal[]; jumlahBelum: number; terlewat: number }>(
+    { belum: [], jumlahBelum: 0, terlewat: 0 });
   useEffect(() => {
     let batal = false;
     (async () => {
-      const { data } = await supabase
-        .from('sm_schedules')
-        .select('*')
-        .eq('schedule_date', tanggalISO())
-        .in('status', ['UPCOMING', 'IN_PROGRESS'])
-        .order('schedule_time', { ascending: true, nullsFirst: false });
-      if (!batal) setJadwalHariIni((data ?? []) as Jadwal[]);
+      const hariIni = tanggalISO();
+      const [hi, belum, missed, lewat] = await Promise.all([
+        supabase.from('sm_schedules').select('*')
+          .eq('schedule_date', hariIni).in('status', ['UPCOMING', 'IN_PROGRESS'])
+          .order('schedule_time', { ascending: true, nullsFirst: false }),
+        supabase.from('sm_schedules').select('*', { count: 'exact' })
+          .is('assigned_to', null).eq('status', 'UPCOMING').gte('schedule_date', hariIni)
+          .order('schedule_date', { ascending: true }).limit(3),
+        supabase.from('sm_schedules').select('id', { count: 'exact', head: true }).eq('status', 'MISSED'),
+        supabase.from('sm_schedules').select('id', { count: 'exact', head: true })
+          .in('status', ['UPCOMING', 'IN_PROGRESS']).lt('schedule_date', hariIni),
+      ]);
+      if (batal) return;
+      setJadwalHariIni((hi.data ?? []) as Jadwal[]);
+      setTindak({
+        belum: (belum.data ?? []) as Jadwal[],
+        jumlahBelum: belum.count ?? 0,
+        terlewat: (missed.count ?? 0) + (lewat.count ?? 0),
+      });
     })();
     return () => { batal = true; };
   }, [daftar]);
@@ -183,7 +200,6 @@ export default function HalamanSchedule() {
       selesai: hitung('COMPLETED'),
       terlewat: hitung('MISSED'),
       dibatalkan: hitung('CANCELLED'),
-      belumDitugaskan: daftar.filter((j) => !j.assigned_to && j.status === 'UPCOMING').length,
       meeting: daftar.filter((j) => j.requires_attendance).length,
       // Pembilang dan penyebut harus himpunan yang sama: jadwal non-Meeting
       // yang selesai sebelumnya ikut terhitung, sehingga muncul "17/15".
@@ -335,7 +351,7 @@ export default function HalamanSchedule() {
         </BentoCard>
 
         <BentoCard rentang={6} tinggi={daftar.length === 0 ? 'pendek' : 'sedang'} rupa="garis" judul="Perlu Ditindaklanjuti">
-          {ringkas.belumDitugaskan === 0 && ringkas.terlewat === 0 ? (
+          {tindak.jumlahBelum === 0 && tindak.terlewat === 0 ? (
             <div className="text-center py-4">
               <p className="text-2xl mb-1" aria-hidden="true">✓</p>
               <p className="text-[12px] font-bold text-slate-600">Semua tertangani</p>
@@ -345,7 +361,7 @@ export default function HalamanSchedule() {
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              {ringkas.belumDitugaskan > 0 && (
+              {tindak.jumlahBelum > 0 && (
                 <BarisBento
                   warna="#eda100"
                   kiri={
@@ -356,10 +372,20 @@ export default function HalamanSchedule() {
                       </p>
                     </>
                   }
-                  kanan={<span className="text-sm font-black text-slate-700 tabular-nums">{ringkas.belumDitugaskan}</span>}
+                  kanan={<span className="text-sm font-black text-slate-700 tabular-nums">{tindak.jumlahBelum}</span>}
                 />
               )}
-              {ringkas.terlewat > 0 && (
+              {tindak.belum.length > 0 && (
+                <ul className="ml-3 mb-1 flex flex-col gap-0.5">
+                  {tindak.belum.map((j) => (
+                    <li key={j.id} className="text-[11px] text-slate-500 truncate">
+                      <span className="font-semibold text-slate-700">{j.customer_name}</span>
+                      {' · '}{tanggalPendek(j.schedule_date)}{j.category ? ` · ${j.category}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {tindak.terlewat > 0 && (
                 <BarisBento
                   warna="#e34948"
                   kiri={
@@ -370,7 +396,7 @@ export default function HalamanSchedule() {
                       </p>
                     </>
                   }
-                  kanan={<span className="text-sm font-black text-slate-700 tabular-nums">{ringkas.terlewat}</span>}
+                  kanan={<span className="text-sm font-black text-slate-700 tabular-nums">{tindak.terlewat}</span>}
                 />
               )}
               {ringkas.meeting > 0 && (
