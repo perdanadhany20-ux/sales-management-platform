@@ -168,7 +168,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {/* Ruang bawah menghindari bilah navigasi ponsel menutupi isi
               halaman — termasuk tombol simpan di dasar formulir. */}
           <main aria-busy={sedangNavigasi}
-            className="relative flex-1 px-3 sm:px-5 py-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sidebar:pb-[3.75rem] max-w-[1500px] w-full mx-auto">
+            className="relative flex-1 px-3 sm:px-5 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sidebar:pb-[3.75rem] max-w-[1500px] w-full mx-auto">
             <div className={`transition-[opacity,filter] duration-200 ${sedangNavigasi ? 'opacity-50 saturate-50 pointer-events-none select-none' : ''}`}>
               <BannerLisensi lisensi={lisensi} admin={pengguna.role.toUpperCase() === 'ADMIN'} />
               {/* key = pathname: setiap pindah halaman, isi baru masuk dengan animasi. */}
@@ -192,7 +192,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       <KakiHalaman namaPlatform={branding.nama_platform} />
 
-      <BilahBawah menu={menuPonsel} lainnya={menuLainnya} pathname={pathname} />
+      <BilahBawah menu={menuPonsel} lainnya={menuLainnya} pathname={pathname}
+        kaki={<KakiHalaman namaPlatform={branding.nama_platform} ponsel />} />
     </div>
     </KonteksBagian.Provider>
   );
@@ -202,11 +203,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
  * Footer: hak cipta + pembuat di kiri, identitas build di kanan (versi ·
  * commit · waktu build) — supaya saat ada laporan masalah, jelas versi mana
  * yang sedang dipakai. Nama platform mengikuti Branding tiap server.
- * Menempel di dasar layar (tidak ikut bergulir); di ponsel tepat di atas
- * bilah navigasi bawah. Tingginya (h-8 / h-9) diimbangi padding <main> dan
- * tinggi sidebar — ubah bersamaan.
+ * Di layar lebar footer menempel di dasar layar (tidak ikut bergulir), dan
+ * tingginya diimbangi padding <main> serta tinggi sidebar — ubah bersamaan.
+ * Di ponsel footer menjadi baris tipis di DALAM bilah navigasi bawah, di
+ * bawah ikon menu (varian `ponsel`), sehingga menu tetap di atas dan footer
+ * menjadi hal paling bawah di layar. Tinggi baris itu ikut diperhitungkan di
+ * padding <main>, posisi notifikasi, dan panel "Lainnya".
  */
-function KakiHalaman({ namaPlatform }: { namaPlatform: string }) {
+function KakiHalaman({ namaPlatform, ponsel }: { namaPlatform: string; ponsel?: boolean }) {
   const versi = process.env.NEXT_PUBLIC_VERSI;
   const commit = process.env.NEXT_PUBLIC_COMMIT;
   const waktu = process.env.NEXT_PUBLIC_WAKTU_BUILD;
@@ -217,10 +221,21 @@ function KakiHalaman({ namaPlatform }: { namaPlatform: string }) {
       }).format(new Date(waktu))
     : null;
 
+  if (ponsel) {
+    return (
+      <div className="flex items-center justify-between gap-2 px-3 pb-1 pt-0.5 text-[9.5px] text-slate-400 leading-none">
+        <span className="truncate min-w-0">© {new Date().getFullYear()} {namaPlatform} · Created by DWP</span>
+        <span className="flex-shrink-0 tabular-nums">
+          {versi && `v${versi}`}{commit && <> · <span className="font-mono">{commit}</span></>}
+        </span>
+      </div>
+    );
+  }
+
   return (
-    <footer className="fixed inset-x-0 z-30 h-8 sidebar:h-9 bottom-[calc(57px+env(safe-area-inset-bottom))] sidebar:bottom-0
-                       border-t border-slate-200 bg-white/95 backdrop-blur px-3 sm:px-5
-                       flex items-center justify-between gap-3">
+    <footer className="hidden sidebar:flex fixed inset-x-0 bottom-0 z-30 h-9
+                       border-t border-slate-200 bg-white/95 backdrop-blur px-5
+                       items-center justify-between gap-3">
       <p className="text-[10.5px] sm:text-[11px] text-slate-500 truncate min-w-0">
         © {new Date().getFullYear()} {namaPlatform}
         <span className="text-slate-400"> · Created by DWP</span>
@@ -520,7 +535,9 @@ function Inisial({ nama }: { nama: string }) {
   );
 }
 
-function BilahBawah({ menu, lainnya, pathname }: { menu: Menu[]; lainnya: Menu[]; pathname: string }) {
+function BilahBawah({ menu, lainnya, pathname, kaki }: {
+  menu: Menu[]; lainnya: Menu[]; pathname: string; kaki?: React.ReactNode;
+}) {
   const [buka, setBuka] = useState(false);
   const lainnyaAktif = lainnya.some((m) => pathname.startsWith(m.href));
 
@@ -538,7 +555,7 @@ function BilahBawah({ menu, lainnya, pathname }: { menu: Menu[]; lainnya: Menu[]
       <div className="sidebar:hidden fixed inset-0 z-40" onClick={() => setBuka(false)}>
         <div className="absolute inset-0 bg-slate-900/30" aria-hidden="true" />
         <div role="dialog" aria-label="Menu lainnya"
-          className="absolute inset-x-3 bottom-[calc(96px+env(safe-area-inset-bottom))] bg-white rounded-kartu border border-slate-200 shadow-modal p-2 grid grid-cols-3 gap-1"
+          className="absolute inset-x-3 bottom-[calc(84px+env(safe-area-inset-bottom))] bg-white rounded-kartu border border-slate-200 shadow-modal p-2 grid grid-cols-3 gap-1"
           onClick={(e) => e.stopPropagation()}>
           {lainnya.map((m) => {
             const aktif = pathname.startsWith(m.href);
@@ -583,6 +600,7 @@ function BilahBawah({ menu, lainnya, pathname }: { menu: Menu[]; lainnya: Menu[]
           </button>
         )}
       </div>
+      {kaki}
     </nav>
     </>
   );
