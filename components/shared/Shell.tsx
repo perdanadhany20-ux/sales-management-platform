@@ -87,6 +87,7 @@ export const MENU_APLIKASI: Menu[] = [
   { kelompok: 'Kerja Harian', href: '/daily-report', label: 'Daily Report', kunci: 'daily-report',  utama: true,  ikon: I('M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4') },
   { kelompok: 'Kerja Harian', href: '/schedule',     label: 'Schedule',     kunci: 'schedule',      utama: true,  ikon: I('M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z') },
   { kelompok: 'Kerja Harian', href: '/meeting',      label: 'Meeting',      kunci: 'meeting',       utama: true,  ikon: I('M12 21s7-5.686 7-11a7 7 0 10-14 0c0 5.314 7 11 7 11z M12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
+  { kelompok: 'Penjualan', href: '/customer',     label: 'Customer',     kunci: 'customer',      ikon: I('M17 20h5v-2a3 3 0 00-5.36-1.86M17 20H7m10 0v-2c0-.66-.13-1.28-.36-1.86M7 20H2v-2a3 3 0 015.36-1.86M7 20v-2c0-.66.13-1.28.36-1.86m0 0a5 5 0 019.28 0M15 7a3 3 0 11-6 0 3 3 0 016 0z') },
   { kelompok: 'Penjualan', href: '/pipeline',     label: 'Pipeline',     kunci: 'pipeline',      ikon: I('M3 4h18M6 9h12M9 14h6M11 19h2') },
   { kelompok: 'Penjualan', href: '/proyek',       label: 'Proyek',       kunci: 'proyek',        ikon: I('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
   { kelompok: 'Penjualan', href: '/gp',           label: 'GP Calculation', kunci: 'gp',          ikon: I('M9 7h6M9 11h6M9 15h3M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z') },

@@ -16,7 +16,7 @@ import { bolehMenu } from './lisensi/kontrak';
 
 export const MENU_KEYS = [
   'dashboard', 'daily-report', 'proyek', 'pipeline', 'schedule',
-  'meeting', 'gp', 'activity', 'admin',
+  'meeting', 'customer', 'gp', 'activity', 'admin',
 ] as const;
 
 export type MenuKey = typeof MENU_KEYS[number];
@@ -28,6 +28,7 @@ export const LABEL_MENU: Record<MenuKey, string> = {
   pipeline: 'Pipeline',
   schedule: 'Schedule',
   meeting: 'Meeting',
+  customer: 'Customer',
   gp: 'GP Calculation',
   activity: 'Activity',
   admin: 'Admin Panel',
@@ -64,6 +65,7 @@ const HREF_MENU: Record<MenuKey, string> = {
   pipeline: '/pipeline',
   schedule: '/schedule',
   meeting: '/meeting',
+  customer: '/customer',
   gp: '/gp',
   activity: '/activity',
   admin: '/admin',

@@ -13,9 +13,10 @@ import {
 } from '@/components/shared/Charts';
 import { KerangkaKartu, PanelGalat, Kosong } from '@/components/shared/Feedback';
 import { rupiahRingkas, angka, persen, hitungDelta } from '@/lib/format';
-import { WARNA_PROBABILITY, PESAN_GPS, isPengawas } from '@/lib/constants';
+import { WARNA_PROBABILITY, PESAN_GPS, isPengawas, isAdmin } from '@/lib/constants';
 import { KartuTarget } from './_components/KartuTarget';
 import { KartuAgenda } from './_components/KartuAgenda';
+import { PanduanMulai } from './_components/PanduanMulai';
 
 /**
  * Dashboard — ikhtisar operasional, bukan hiasan (§9).
@@ -319,6 +320,11 @@ export default function HalamanDashboard() {
   return (
     <div className="flex flex-col gap-4">
       <TajukHalaman nama={pengguna?.full_name} pengawas={pengawas} />
+
+      {pengguna && menuSaya && (
+        <PanduanMulai userId={pengguna.id} peran={pengguna.role} pengawas={pengawas}
+          admin={isAdmin(pengguna.role)} boleh={boleh} />
+      )}
 
       <BentoGrid>{susunBento(kartu)}</BentoGrid>
     </div>

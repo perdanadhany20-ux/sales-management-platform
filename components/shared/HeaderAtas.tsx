@@ -670,7 +670,7 @@ function ModalCari({ onTutup, pengawas, boleh }: {
       // Modul yang tidak boleh dibuka akun ini (peran atau lisensi) tidak
       // ikut dicari sama sekali — bukan dicari lalu disembunyikan.
       const kosong = Promise.resolve({ data: [] as unknown[] });
-      const tujuanCustomer = boleh('pipeline') ? '/pipeline' : boleh('daily-report') ? '/daily-report' : null;
+      const tujuanCustomer = boleh('customer') ? '/customer' : boleh('pipeline') ? '/pipeline' : boleh('daily-report') ? '/daily-report' : null;
       const [pelanggan, jadwal, pipeline, laporan] = await Promise.all([
         tujuanCustomer
           ? supabase.from('sm_customers').select('id, name, city, address').ilike('name', k).limit(5)
@@ -702,7 +702,7 @@ function ModalCari({ onTutup, pengawas, boleh }: {
           .map((c) => ({
             id: `c-${c.id}`, jenis: 'Customer', judul: c.name,
             keterangan: c.city || c.address || 'Data pelanggan',
-            href: tujuanCustomer ?? '/profil',
+            href: tujuanCustomer === '/customer' ? `/customer?fokus=${c.id}` : tujuanCustomer ?? '/profil',
           })),
         ...((jadwal.data ?? []) as { id: string; customer_name: string; category: string; schedule_date: string }[])
           .map((s) => ({
@@ -714,13 +714,13 @@ function ModalCari({ onTutup, pengawas, boleh }: {
           .map((p) => ({
             id: `p-${p.id}`, jenis: 'Pipeline', judul: p.customer_name,
             keterangan: `${p.project_detail} · ${rupiahRingkas(p.project_value)}`,
-            href: '/pipeline',
+            href: `/pipeline?fokus=${p.id}`,
           })),
         ...((laporan.data ?? []) as { id: string; customer_name: string; activity: string; report_date: string }[])
           .map((r) => ({
             id: `r-${r.id}`, jenis: 'Laporan', judul: r.customer_name,
             keterangan: `${r.activity} · ${tanggalPendek(r.report_date)}`,
-            href: '/daily-report',
+            href: `/daily-report?fokus=${r.id}`,
           })),
       ];
 

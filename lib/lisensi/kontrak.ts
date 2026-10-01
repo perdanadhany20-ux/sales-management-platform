@@ -492,6 +492,7 @@ export const FITUR_MENU: Record<string, KunciFitur> = {
   pipeline: 'pipeline',
   schedule: 'schedule',
   meeting: 'meeting',
+  customer: 'customer',
   gp: 'gp_calculation',
   activity: 'sales_activity',
   admin: 'admin_settings',
