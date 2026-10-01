@@ -1,5 +1,7 @@
 -- ════════════════════════════════════════════════════════════════════════════
 -- Sales Management Platform — SETUP LENGKAP (migrasi 001–042 + Admin pertama)
+-- Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+-- atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 --
 -- Untuk project Supabase BARU yang masih kosong. Cara pakai:
 --   1. Ubah 3 isian akun Admin di bawah (username, nama, kata sandi sementara).

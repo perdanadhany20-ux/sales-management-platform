@@ -1,3 +1,5 @@
+// Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+// atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://*.supabase.co';
 const supabaseWs = supabase.replace(/^https:/, 'wss:');
 const dev = process.env.NODE_ENV !== 'production';

@@ -1,3 +1,5 @@
+// Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+// atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 /**
  * lib/gp.ts — tipe, label, dan aturan tampilan GP Calculation.
  *

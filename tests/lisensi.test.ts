@@ -1,3 +1,5 @@
+// Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+// atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 /**
  * Uji unit lisensi — jalankan: npm test
  * (node --test --experimental-strip-types, Node ≥ 22.6; tanpa dependensi tambahan)

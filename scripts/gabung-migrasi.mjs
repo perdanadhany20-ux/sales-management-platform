@@ -1,3 +1,5 @@
+// Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+// atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 // Menyusun supabase/SETUP_LENGKAP.sql: SELURUH migrasi + akun Admin pertama
 // dalam SATU berkas untuk project Supabase baru. Jalankan ulang setiap kali
 // ada migrasi baru:  npm run sql:setup
@@ -10,6 +12,8 @@ const terakhir = berkas.at(-1)?.slice(0, 3);
 
 const kepala = `-- ════════════════════════════════════════════════════════════════════════════
 -- Sales Management Platform — SETUP LENGKAP (migrasi 001–${terakhir} + Admin pertama)
+-- Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+-- atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 --
 -- Untuk project Supabase BARU yang masih kosong. Cara pakai:
 --   1. Ubah 3 isian akun Admin di bawah (username, nama, kata sandi sementara).

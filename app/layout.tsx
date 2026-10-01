@@ -1,3 +1,5 @@
+// Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+// atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 import type { Metadata, Viewport } from 'next';
 import { PenyediaToast } from '@/components/shared/Feedback';
 import { DaftarSW } from '@/components/shared/DaftarSW';
@@ -7,6 +9,9 @@ export const metadata: Metadata = {
   title: 'Sales Management Platform',
   description: 'Daily Report, Pipeline, Request Schedule, dan Meeting dengan verifikasi GPS.',
   applicationName: 'Sales Management Platform',
+  authors: [{ name: 'DWP' }],
+  creator: 'DWP',
+  other: { copyright: 'Hak Cipta © 2026 DWP. Seluruh hak dilindungi.' },
   // Ikon (favicon.ico, icon.png, apple-icon.png) dan manifest.webmanifest
   // dibaca otomatis oleh Next.js dari folder app/.
   appleWebApp: { capable: true, title: 'Sales MP', statusBarStyle: 'default' },

@@ -1,3 +1,5 @@
+// Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+// atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { kehangatan, nomorWhatsApp } from '../lib/customer.ts';

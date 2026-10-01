@@ -1,3 +1,5 @@
+// Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+// atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSessionUser, isAdmin } from '@/lib/server-auth';
 import { ajukanPermintaan, batalkanPermintaan } from '@/lib/lisensi/server';

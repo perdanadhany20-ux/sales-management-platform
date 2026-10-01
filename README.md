@@ -1,5 +1,11 @@
 # Sales Management Platform
 
+> **Hak Cipta © 2026 DWP. Seluruh hak dilindungi.**
+> Repositori ini dapat dilihat publik hanya untuk keperluan penyimpanan dan
+> penerapan — **bukan izin untuk menyalin, mengubah, menjalankan, atau
+> mendistribusikan**. Seluruh kode dilindungi UU No. 28 Tahun 2014 tentang Hak
+> Cipta. Ketentuan lengkap: [LICENSE](LICENSE).
+
 Platform pengelolaan aktivitas Sales: laporan harian, proyek, pipeline peluang,
 penjadwalan, eksekusi meeting dengan verifikasi lokasi dan bukti foto,
 perhitungan GP berjenjang, serta target penjualan per Sales.
