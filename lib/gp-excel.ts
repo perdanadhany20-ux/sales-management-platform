@@ -2,7 +2,7 @@
 // atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 'use client';
 
-import { simpanBlobNative } from './aplikasi';
+import { simpanBlob } from './ekspor-excel';
 
 import type { GpRingkasan, GpItem } from './gp';
 
@@ -36,10 +36,7 @@ export async function eksporGpExcel(
   namaSales: string,
   namaTandaTangan: { diperiksa?: string; disetujui?: string; diverifikasi?: string },
 ): Promise<void> {
-  const [{ default: ExcelJS }, { saveAs }] = await Promise.all([
-    import('exceljs'),
-    import('file-saver'),
-  ]);
+  const { default: ExcelJS } = await import('exceljs');
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Sales Management Platform';
@@ -294,8 +291,5 @@ export async function eksporGpExcel(
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const nama = `${gp.nomor.replace(/\//g, '-')}-${gp.project_name.replace(/[^\w\s-]/g, '').trim().slice(0, 30)}.xlsx`;
-  // Di aplikasi Android berkas disimpan ke folder Download lewat jembatan
-  // native; WebView tidak bisa mengunduh blob seperti browser.
-  if (await simpanBlobNative(blob, nama)) return;
-  saveAs(blob, nama);
+  await simpanBlob(blob, nama);
 }

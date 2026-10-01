@@ -19,6 +19,7 @@ import { Modal, Konfirmasi } from '@/components/shared/Modal';
 import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { FormJadwal, type Jadwal } from './_components/FormJadwal';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { TombolImpor } from '@/components/shared/TombolImpor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { pesanGalat } from '@/lib/pesan-galat';
 
@@ -255,6 +256,7 @@ export default function HalamanSchedule() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <TombolImpor jenis="schedule" />
           <TombolEkspor
             ambil={ambilSemua}
             susun={(baris) => ({

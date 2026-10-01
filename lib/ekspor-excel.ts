@@ -61,10 +61,7 @@ function namaBerkasBerstempel(dasar: string): string {
 }
 
 export async function eksporExcel<T>(opsi: OpsiEkspor<T>): Promise<void> {
-  const [{ default: ExcelJS }, { saveAs }] = await Promise.all([
-    import('exceljs'),
-    import('file-saver'),
-  ]);
+  const { default: ExcelJS } = await import('exceljs');
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Sales Management Platform';
@@ -152,10 +149,32 @@ export async function eksporExcel<T>(opsi: OpsiEkspor<T>): Promise<void> {
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const nama = namaBerkasBerstempel(opsi.namaBerkas);
-  // Di aplikasi Android berkas disimpan ke folder Download lewat jembatan
-  // native; WebView tidak bisa mengunduh blob seperti browser.
+  await simpanBlob(blob, nama);
+}
+
+/**
+ * Simpan blob sebagai unduhan. Di aplikasi Android lewat jembatan native
+ * (WebView tidak bisa mengunduh blob seperti browser); di browser lewat
+ * file-saver.
+ *
+ * file-saver adalah modul UMD: tergantung cara bundler memuatnya, fungsinya
+ * bisa ada di `saveAs`, `default.saveAs`, atau `default` itu sendiri. Dulu
+ * hanya `saveAs` yang dicoba, dan di salah satu halaman nilainya kosong
+ * sehingga tombol unduh gagal diam-diam ("n is not a function").
+ */
+export async function simpanBlob(blob: Blob, nama: string): Promise<void> {
   if (await simpanBlobNative(blob, nama)) return;
-  saveAs(blob, nama);
+  const m = (await import('file-saver')) as unknown as {
+    saveAs?: (b: Blob, n: string) => void;
+    default?: ((b: Blob, n: string) => void) & { saveAs?: (b: Blob, n: string) => void };
+  };
+  const simpan = m.saveAs ?? m.default?.saveAs ?? m.default;
+  if (typeof simpan === 'function') { simpan(blob, nama); return; }
+  // Cadangan terakhir tanpa pustaka: tautan unduhan sementara.
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nama; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 /** Tanggal ISO (YYYY-MM-DD) → Date lokal untuk sel bertipe tanggal.

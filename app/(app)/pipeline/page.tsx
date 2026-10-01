@@ -19,6 +19,7 @@ import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { FormPipeline, type Peluang } from './_components/FormPipeline';
 import { KonteksPipeline } from './_components/KonteksPipeline';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { TombolImpor } from '@/components/shared/TombolImpor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { pesanGalat } from '@/lib/pesan-galat';
 
@@ -212,6 +213,7 @@ export default function HalamanPipeline() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <TombolImpor jenis="pipeline" />
           <TombolEkspor
             ambil={ambilSemua}
             susun={(baris) => ({

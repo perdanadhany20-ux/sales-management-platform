@@ -17,6 +17,7 @@ import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared
 import { Konfirmasi } from '@/components/shared/Modal';
 import { Tabel, TombolIkon } from '@/components/shared/Tabel';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
+import { TombolImpor } from '@/components/shared/TombolImpor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { FormCustomer } from './_components/FormCustomer';
 import { PanelCustomer } from './_components/PanelCustomer';
@@ -184,6 +185,7 @@ export default function HalamanCustomer() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <TombolImpor jenis="customer" />
           <TombolEkspor
             ambil={ambilSemua}
             susun={(baris) => ({

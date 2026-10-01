@@ -15,7 +15,7 @@ import type { KunciFitur } from './lisensi/kontrak';
 
 export type KunciBagian =
   | 'pengguna' | 'struktur' | 'persetujuan' | 'hak_akses' | 'lokasi' | 'target' | 'tampilan' | 'konfigurasi'
-  | 'lisensi' | 'audit';
+  | 'impor' | 'lisensi' | 'audit';
 
 export type KelompokBagian = 'ORGANISASI' | 'TAMPILAN' | 'SISTEM';
 
@@ -76,6 +76,11 @@ export const BAGIAN_ADMIN: Bagian[] = [
     kunci: 'konfigurasi', label: 'Nilai Bisnis', kelompok: 'SISTEM', ikon: '⚙️', adminSaja: true,
     judul: 'Konfigurasi Nilai Bisnis',
     keterangan: 'Kategori jadwal, opsi probability, satuan, dan ambang verifikasi lokasi.',
+  },
+  {
+    kunci: 'impor', label: 'Impor Data', kelompok: 'SISTEM', ikon: '📥', adminSaja: true,
+    judul: 'Impor Data dari Excel',
+    keterangan: 'Masukkan data lama — customer, laporan harian, pipeline, dan riwayat jadwal — dari spreadsheet.',
   },
   {
     kunci: 'lisensi', label: 'Lisensi', kelompok: 'SISTEM', ikon: '🔑', adminSaja: true,

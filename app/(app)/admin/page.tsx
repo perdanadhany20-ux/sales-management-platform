@@ -21,6 +21,7 @@ import { TabKonfigurasi } from './_components/TabKonfigurasi';
 import { TabTampilan } from './_components/TabTampilan';
 import { TabAudit } from './_components/TabAudit';
 import { TabLisensi } from './_components/TabLisensi';
+import { TabImpor } from './_components/TabImpor';
 
 /**
  * Admin Panel.
@@ -131,6 +132,7 @@ function IsiAdmin() {
         {aktif.kunci === 'target' && <TabTarget pemanggilId={pengguna.id} />}
         {aktif.kunci === 'tampilan' && <TabTampilan />}
         {aktif.kunci === 'konfigurasi' && <TabKonfigurasi />}
+        {aktif.kunci === 'impor' && <TabImpor />}
         {aktif.kunci === 'lisensi' && <TabLisensi />}
         {aktif.kunci === 'audit' && <TabAudit />}
       </div>

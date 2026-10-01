@@ -53,10 +53,13 @@ const GAYA_AKSI: Record<string, { label: string; color: string; bg: string }> = 
   GP_DIVERIFIKASI:      { label: 'GP Diverifikasi',    color: '#008300', bg: '#e0f2e0' },
   GP_DITOLAK:           { label: 'GP Ditolak',         color: '#e34948', bg: '#fce3e3' },
   GP_DIBUKA_ULANG:      { label: 'GP Dibuka Ulang',    color: '#7c3aed', bg: '#ede9fe' },
+  DATA_DIIMPOR:         { label: 'Data Diimpor',       color: '#0891b2', bg: '#cffafe' },
+  IMPOR_DIBATALKAN:     { label: 'Impor Dibatalkan',   color: '#e34948', bg: '#fce3e3' },
 };
 
 const LABEL_ENTITAS: Record<string, string> = {
   users: 'Akun',
+  sm_impor: 'Impor Data',
   sm_locations: 'Lokasi',
   sm_schedules: 'Jadwal',
   sm_gp_calculations: 'GP Calculation',
