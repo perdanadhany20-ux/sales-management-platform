@@ -37,6 +37,8 @@ const csp = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Jangan umumkan kerangka yang dipakai lewat header X-Powered-By.
+  poweredByHeader: false,
   env: {
     NEXT_PUBLIC_VERSI: require('./package.json').version,
     NEXT_PUBLIC_COMMIT: commitBuild(),
