@@ -9,6 +9,12 @@
 BEGIN;
 
 CREATE TEMP TABLE hasil(no int, uji text, harapan text, nyata text) ON COMMIT DROP;
+
+-- Database yang belum memasang kunci APK tetap bisa diuji: kunci sementara
+-- dipasang di dalam transaksi ini (ikut dibatalkan ROLLBACK). Bila kunci asli
+-- sudah ada, kunci itu yang dipakai — tidak ditimpa.
+INSERT INTO public.sm_kunci_aplikasi (id, kunci) VALUES (true, repeat('ab', 32))
+ON CONFLICT (id) DO NOTHING;
 GRANT ALL ON hasil TO authenticated;
 
 INSERT INTO public.users (id, username, full_name, role) VALUES

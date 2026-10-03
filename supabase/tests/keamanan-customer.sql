@@ -19,14 +19,15 @@ BEGIN;
 CREATE TEMP TABLE hasil(no int, uji text, harapan text, nyata text) ON COMMIT DROP;
 GRANT ALL ON hasil TO authenticated;
 
-INSERT INTO public.users (id, username, full_name, role, manager_id) VALUES
-  ('b7000000-0000-4000-8000-00000000000d','cudir','Cust Director','DIRECTOR', NULL),
-  ('b7000000-0000-4000-8000-0000000000a1','cumgra','Cust Manager A','MANAGER','b7000000-0000-4000-8000-00000000000d'),
-  ('b7000000-0000-4000-8000-0000000000b1','cumgrb','Cust Manager B','MANAGER', NULL),
-  ('b7000000-0000-4000-8000-0000000000ad','cuadmin','Cust Admin','ADMIN', NULL);
-INSERT INTO public.users (id, username, full_name, role, manager_id) VALUES
-  ('b7000000-0000-4000-8000-0000000000a2','cusalesa','Cust Sales A','SALES','b7000000-0000-4000-8000-0000000000a1'),
-  ('b7000000-0000-4000-8000-0000000000b2','cusalesb','Cust Sales B','SALES','b7000000-0000-4000-8000-0000000000b1');
+-- Posisi wajib diisi sebelum memetakan atasan (jenjang baku, migrasi 036).
+INSERT INTO public.users (id, username, full_name, role, position, manager_id) VALUES
+  ('b7000000-0000-4000-8000-00000000000d','cudir','Cust Director','DIRECTOR','Direktur', NULL),
+  ('b7000000-0000-4000-8000-0000000000a1','cumgra','Cust Manager A','MANAGER','Manager','b7000000-0000-4000-8000-00000000000d'),
+  ('b7000000-0000-4000-8000-0000000000b1','cumgrb','Cust Manager B','MANAGER','Manager', NULL),
+  ('b7000000-0000-4000-8000-0000000000ad','cuadmin','Cust Admin','ADMIN', NULL, NULL);
+INSERT INTO public.users (id, username, full_name, role, position, manager_id) VALUES
+  ('b7000000-0000-4000-8000-0000000000a2','cusalesa','Cust Sales A','SALES','Staff','b7000000-0000-4000-8000-0000000000a1'),
+  ('b7000000-0000-4000-8000-0000000000b2','cusalesb','Cust Sales B','SALES','Staff','b7000000-0000-4000-8000-0000000000b1');
 
 SET LOCAL ROLE authenticated;
 
