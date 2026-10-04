@@ -16,7 +16,7 @@ import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Modal, Konfirmasi } from '@/components/shared/Modal';
-import { Tabel, TombolIkon } from '@/components/shared/Tabel';
+import { Tabel, TombolIkon, useUrutanServer, terapkanUrutan } from '@/components/shared/Tabel';
 import { FormJadwal, type Jadwal } from './_components/FormJadwal';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { TombolImpor } from '@/components/shared/TombolImpor';
@@ -49,6 +49,7 @@ export default function HalamanSchedule() {
   const [galat, setGalat] = useState<string | null>(null);
 
   const [halaman, setHalaman] = useState(0);
+  const [urutan, setUrutan] = useUrutanServer();
   const [dari, setDari] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -82,11 +83,11 @@ export default function HalamanSchedule() {
     setMemuat(true);
     setGalat(null);
 
-    let q = supabase
+    let q = terapkanUrutan(supabase
       .from('sm_schedules')
       .select('*', { count: 'exact' })
       .gte('schedule_date', dari)
-      .lte('schedule_date', sampai)
+      .lte('schedule_date', sampai), urutan)
       .order('schedule_date', { ascending: true })
       .order('schedule_time', { ascending: true, nullsFirst: false })
       .range(halaman * PER_HALAMAN, halaman * PER_HALAMAN + PER_HALAMAN - 1);
@@ -111,7 +112,7 @@ export default function HalamanSchedule() {
     setDaftar((data ?? []) as Jadwal[]);
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [dari, sampai, filterSales, filterKategori, filterStatus, cariTertunda, halaman]);
+  }, [dari, sampai, filterSales, filterKategori, filterStatus, cariTertunda, halaman, urutan]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -482,12 +483,14 @@ export default function HalamanSchedule() {
       ) : (
         <>
           <Tabel
+            urutServer={{ urutan, onUrut: (u) => { setUrutan(u); setHalaman(0); } }}
+            nomorAwal={halaman * PER_HALAMAN}
             data={daftar}
             kunci={(j) => j.id}
             kolom={[
               {
                 label: 'Tanggal', className: 'w-28 whitespace-nowrap',
-                urut: (j) => `${j.schedule_date} ${j.schedule_time ?? ''}`,
+                urut: (j) => `${j.schedule_date} ${j.schedule_time ?? ''}`, kolomDb: 'schedule_date',
                 render: (j) => (
                   <>
                     {tanggalPendek(j.schedule_date)}
@@ -497,7 +500,7 @@ export default function HalamanSchedule() {
               },
               {
                 label: 'Customer', className: 'w-[38%]',
-                urut: (j) => j.customer_name,
+                urut: (j) => j.customer_name, kolomDb: 'customer_name',
                 render: (j) => (
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -519,7 +522,7 @@ export default function HalamanSchedule() {
               },
               {
                 label: 'Status', className: 'w-32',
-                urut: (j) => STATUS_JADWAL[statusEfektif(j)]?.label,
+                urut: (j) => STATUS_JADWAL[statusEfektif(j)]?.label, kolomDb: 'status',
                 render: (j) => <Lencana {...(STATUS_JADWAL[statusEfektif(j)] ?? STATUS_JADWAL.UPCOMING)} />,
               },
             ]}

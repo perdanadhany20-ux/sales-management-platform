@@ -14,7 +14,7 @@ import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Modal, Konfirmasi } from '@/components/shared/Modal';
-import { Tabel, TombolIkon } from '@/components/shared/Tabel';
+import { Tabel, TombolIkon, useUrutanServer, terapkanUrutan } from '@/components/shared/Tabel';
 import { FormLaporan, type Laporan } from './_components/FormLaporan';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { TombolImpor } from '@/components/shared/TombolImpor';
@@ -49,6 +49,7 @@ export default function HalamanDailyReport() {
   const [galat, setGalat] = useState<string | null>(null);
 
   const [halaman, setHalaman] = useState(0);
+  const [urutan, setUrutan] = useUrutanServer();
   const [dari, setDari] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 29);
@@ -75,13 +76,13 @@ export default function HalamanDailyReport() {
     setMemuat(true);
     setGalat(null);
 
-    let q = supabase
+    let q = terapkanUrutan(supabase
       .from('sm_daily_reports')
       // count: 'exact' menyertakan jumlah total dalam respons yang sama,
       // sehingga paginasi tidak perlu query kedua (§69).
       .select('*', { count: 'exact' })
       .gte('report_date', dari)
-      .lte('report_date', sampai)
+      .lte('report_date', sampai), urutan)
       .order('report_date', { ascending: false })
       .order('created_at', { ascending: false })
       .range(halaman * PER_HALAMAN, halaman * PER_HALAMAN + PER_HALAMAN - 1);
@@ -99,7 +100,7 @@ export default function HalamanDailyReport() {
     setDaftar((data ?? []) as Laporan[]);
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [dari, sampai, filterSales, cariTertunda, halaman]);
+  }, [dari, sampai, filterSales, cariTertunda, halaman, urutan]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -410,17 +411,19 @@ export default function HalamanDailyReport() {
       ) : (
         <>
           <Tabel
+            urutServer={{ urutan, onUrut: (u) => { setUrutan(u); setHalaman(0); } }}
+            nomorAwal={halaman * PER_HALAMAN}
             data={daftar}
             kunci={(l) => l.id}
             kolom={[
               {
                 label: 'Tanggal', className: 'w-24 whitespace-nowrap',
-                urut: (l) => l.report_date,
+                urut: (l) => l.report_date, kolomDb: 'report_date',
                 render: (l) => tanggalPendek(l.report_date),
               },
               {
                 label: 'Customer', className: 'w-[30%]',
-                urut: (l) => l.customer_name,
+                urut: (l) => l.customer_name, kolomDb: 'customer_name',
                 render: (l) => (
                   <div className="min-w-0">
                     <p className="font-bold text-slate-900 truncate">{l.customer_name}</p>

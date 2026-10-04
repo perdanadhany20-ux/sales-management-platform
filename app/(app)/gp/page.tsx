@@ -18,7 +18,7 @@ import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Konfirmasi } from '@/components/shared/Modal';
-import { Tabel, TombolIkon } from '@/components/shared/Tabel';
+import { Tabel, TombolIkon, useUrutanServer, terapkanUrutan } from '@/components/shared/Tabel';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { FormGp } from './_components/FormGp';
@@ -55,6 +55,7 @@ export default function HalamanGp() {
   const [galat, setGalat] = useState<string | null>(null);
 
   const [halaman, setHalaman] = useState(0);
+  const [urutan, setUrutan] = useUrutanServer();
   const [dari, setDari] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 89);
@@ -86,11 +87,11 @@ export default function HalamanGp() {
     setMemuat(true);
     setGalat(null);
 
-    let q = supabase
+    let q = terapkanUrutan(supabase
       .from('sm_gp_ringkasan')
       .select('*', { count: 'exact' })
       .gte('calc_date', dari)
-      .lte('calc_date', sampai)
+      .lte('calc_date', sampai), urutan)
       .order('calc_date', { ascending: false })
       .order('created_at', { ascending: false })
       .range(halaman * PER_HALAMAN, halaman * PER_HALAMAN + PER_HALAMAN - 1);
@@ -108,7 +109,7 @@ export default function HalamanGp() {
     setDaftar((data ?? []) as GpRingkasan[]);
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [dari, sampai, filterSales, filterStatus, cariTertunda, halaman]);
+  }, [dari, sampai, filterSales, filterStatus, cariTertunda, halaman, urutan]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -384,12 +385,14 @@ export default function HalamanGp() {
       ) : (
         <>
           <Tabel
+            urutServer={{ urutan, onUrut: (u) => { setUrutan(u); setHalaman(0); } }}
+            nomorAwal={halaman * PER_HALAMAN}
             data={terlihat}
             kunci={(g) => g.id}
             kolom={[
               {
                 label: 'Dokumen', className: 'w-[42%]',
-                urut: (g) => g.nomor,
+                urut: (g) => g.nomor, kolomDb: 'nomor',
                 render: (g) => {
                   const gaya = STATUS_GP[g.status as StatusGp] ?? STATUS_GP.DRAFT;
                   const mutu = MUTU_MARGIN[g.mutu_margin] ?? MUTU_MARGIN['TANPA NILAI'];
@@ -415,12 +418,12 @@ export default function HalamanGp() {
               },
               {
                 label: 'Tanggal', className: 'w-24 whitespace-nowrap',
-                urut: (g) => g.calc_date,
+                urut: (g) => g.calc_date, kolomDb: 'calc_date',
                 render: (g) => tanggalPendek(g.calc_date),
               },
               {
                 label: 'Selling / Margin', className: 'w-40 text-right',
-                urut: (g) => Number(g.total_selling),
+                urut: (g) => Number(g.total_selling), kolomDb: 'total_selling',
                 render: (g) => {
                   const mutu = MUTU_MARGIN[g.mutu_margin] ?? MUTU_MARGIN['TANPA NILAI'];
                   return (

@@ -226,5 +226,5 @@ terhadap fungsi database baru (atau sebaliknya) bisa gagal.
   lokasi tiruan Android bekerja di tingkat sistem operasi. Platform ini
   mengenali jejak khasnya dan mencatat seluruh laporan untuk dilihat pengawas;
   kepastian penuh butuh aplikasi Android native.
-- **Pengurutan kolom berlaku per halaman** yang sedang tampil, bukan seluruh
-  data.
+- **Pengurutan kolom** mengurutkan seluruh data di server untuk kolom bertanda
+  ↕; kolom nama Sales/Owner tidak bisa diurutkan karena tersimpan sebagai id.

@@ -15,7 +15,7 @@ import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Modal, Konfirmasi } from '@/components/shared/Modal';
-import { Tabel, TombolIkon } from '@/components/shared/Tabel';
+import { Tabel, TombolIkon, useUrutanServer, terapkanUrutan } from '@/components/shared/Tabel';
 import { FormPipeline, type Peluang } from './_components/FormPipeline';
 import { KonteksPipeline } from './_components/KonteksPipeline';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
@@ -56,6 +56,7 @@ export default function HalamanPipeline() {
   const [galat, setGalat] = useState<string | null>(null);
 
   const [halaman, setHalaman] = useState(0);
+  const [urutan, setUrutan] = useUrutanServer();
   const [dari, setDari] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 89);
@@ -83,11 +84,11 @@ export default function HalamanPipeline() {
     setMemuat(true);
     setGalat(null);
 
-    let q = supabase
+    let q = terapkanUrutan(supabase
       .from('sm_pipeline')
       .select('*', { count: 'exact' })
       .gte('pipeline_date', dari)
-      .lte('pipeline_date', sampai)
+      .lte('pipeline_date', sampai), urutan)
       .order('estimated_closing', { ascending: true })
       .range(halaman * PER_HALAMAN, halaman * PER_HALAMAN + PER_HALAMAN - 1);
 
@@ -105,7 +106,7 @@ export default function HalamanPipeline() {
     setDaftar((data ?? []) as Peluang[]);
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [dari, sampai, filterSales, filterProb, filterStage, cariTertunda, halaman]);
+  }, [dari, sampai, filterSales, filterProb, filterStage, cariTertunda, halaman, urutan]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -375,12 +376,14 @@ export default function HalamanPipeline() {
       ) : (
         <>
           <Tabel
+            urutServer={{ urutan, onUrut: (u) => { setUrutan(u); setHalaman(0); } }}
+            nomorAwal={halaman * PER_HALAMAN}
             data={daftar}
             kunci={(p) => p.id}
             kolom={[
               {
                 label: 'Customer', className: 'w-[36%]',
-                urut: (p) => p.customer_name,
+                urut: (p) => p.customer_name, kolomDb: 'customer_name',
                 render: (p) => {
                   const stage = GAYA_STAGE[p.stage] ?? GAYA_STAGE.OPEN;
                   return (
@@ -396,7 +399,7 @@ export default function HalamanPipeline() {
               },
               {
                 label: 'Probability', className: 'w-24',
-                urut: (p) => Number(p.probability),
+                urut: (p) => Number(p.probability), kolomDb: 'probability',
                 render: (p) => (
                   <span
                     className="inline-flex px-2 py-0.5 rounded-full text-[12px] font-black tabular-nums"
@@ -411,7 +414,7 @@ export default function HalamanPipeline() {
               },
               {
                 label: 'Nilai / GP', className: 'w-40 text-right',
-                urut: (p) => Number(p.project_value),
+                urut: (p) => Number(p.project_value), kolomDb: 'project_value',
                 render: (p) => {
                   const gp = Number(p.project_gp);
                   return (
@@ -426,7 +429,7 @@ export default function HalamanPipeline() {
               },
               {
                 label: 'Closing', className: 'w-32 whitespace-nowrap',
-                urut: (p) => p.estimated_closing,
+                urut: (p) => p.estimated_closing, kolomDb: 'estimated_closing',
                 render: (p) => {
                   const sisaHari = Math.ceil(
                     (new Date(p.estimated_closing).getTime() - new Date(tanggalISO()).getTime()) / 86400000,
