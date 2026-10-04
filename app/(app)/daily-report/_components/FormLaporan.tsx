@@ -11,6 +11,7 @@ import { PilihCustomer, pastikanCustomer } from '@/components/shared/PilihCustom
 import { PilihProyek } from '@/components/shared/PilihProyek';
 import { PanelGalat, useToast } from '@/components/shared/Feedback';
 import { pesanGalat } from '@/lib/pesan-galat';
+import { antrikanLaporan, galatJaringan } from '@/lib/antrian-luring';
 
 export interface Laporan {
   id: string;
@@ -97,7 +98,29 @@ export function FormLaporan({
     if (!periksa()) return;
 
     setMenyimpan(true);
+    // Disusun sebelum menyentuh jaringan: bila sinyal hilang, isi yang sama
+    // yang masuk antrian luring (customer dipastikan saat dikirim nanti).
+    const isiDasar = {
+      report_date: draf.report_date,
+      customer_id: draf.customer_id ?? null,
+      customer_name: draf.customer_name.trim(),
+      contact_person: draf.contact_person?.trim() || null,
+      position: draf.position?.trim() || null,
+      phone_whatsapp: draf.phone_whatsapp?.trim() || null,
+      activity: draf.activity.trim(),
+      lead_project: draf.lead_project?.trim() || null,
+      project_id: draf.project_id ?? null,
+      result: draf.result.trim(),
+      next_action: draf.next_action.trim(),
+    };
+    const simpanLuring = () => {
+      if (awal || !antrikanLaporan(userId, isiDasar)) return false;
+      toast('info', 'Tidak ada sinyal — laporan disimpan di perangkat dan dikirim otomatis saat online.');
+      onTutup();
+      return true;
+    };
     try {
+      if (!awal && typeof navigator !== 'undefined' && navigator.onLine === false && simpanLuring()) return;
       const customerId = await pastikanCustomer(draf.customer_name, draf.customer_id);
 
       const isi = {
@@ -123,6 +146,7 @@ export function FormLaporan({
         : await supabase.from('sm_daily_reports').insert({ ...isi, sales_user_id: userId });
 
       if (error) {
+        if (galatJaringan(error) && simpanLuring()) return;
         setGalat(pesanGalat(error));
         return;
       }
@@ -131,6 +155,7 @@ export function FormLaporan({
       onTersimpan();
       onTutup();
     } catch (err) {
+      if (galatJaringan(err) && simpanLuring()) return;
       setGalat(pesanGalat(err, 'Gagal menyimpan laporan.'));
     } finally {
       setMenyimpan(false);

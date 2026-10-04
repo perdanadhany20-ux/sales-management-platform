@@ -2,6 +2,7 @@
 // atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 'use client';
 
+import { SinkronLuring } from '@/components/shared/SinkronLuring';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
@@ -176,6 +177,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             className="relative flex-1 px-3 sm:px-5 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sidebar:pb-[3.75rem] max-w-[1500px] w-full mx-auto">
             <div className={`transition-[opacity,filter] duration-200 ${sedangNavigasi ? 'opacity-50 saturate-50 pointer-events-none select-none' : ''}`}>
               <BannerLisensi lisensi={lisensi} admin={pengguna.role.toUpperCase() === 'ADMIN'} />
+              <SinkronLuring userId={pengguna.id} />
               {/* key = pathname: setiap pindah halaman, isi baru masuk dengan animasi. */}
               <div key={pathname} className="animasi-halaman">
                 {diblokir
