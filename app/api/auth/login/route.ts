@@ -4,7 +4,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { issueDbToken } from '@/lib/db-token';
-import { COOKIE_SESI, UMUR_SESI_JAM, buatTokenSesi, hashToken } from '@/lib/server-auth';
+import { buatSesi, pasangCookieSesi, ipPemanggil } from '@/lib/server-auth';
+import { buatTiket } from '@/lib/totp';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   const db = getAdminClient();
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
+  const ip = ipPemanggil(request);
   const sejak = new Date(Date.now() - JENDELA_MENIT * 60_000).toISOString();
 
   const { count: gagalTerakhir } = await db
@@ -99,15 +100,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Username atau kata sandi salah.' }, { status: 401 });
   }
 
-  const token = buatTokenSesi();
-  const kedaluwarsa = new Date(Date.now() + UMUR_SESI_JAM * 3600_000);
+  // Verifikasi dua langkah: sandi benar belum cukup. Sesi baru dibuat di
+  // /api/auth/login/2fa setelah kode authenticator (atau kode cadangan) cocok.
+  const { data: mfa } = await db.from('user_mfa').select('aktif').eq('user_id', user.id).maybeSingle();
+  if (mfa?.aktif) {
+    return NextResponse.json({ perlu_2fa: true, tiket: buatTiket(user.id) });
+  }
 
-  await db.from('user_sessions').insert({
-    user_id: user.id,
-    token_hash: hashToken(token),
-    user_agent: request.headers.get('user-agent')?.slice(0, 300) ?? null,
-    expires_at: kedaluwarsa.toISOString(),
-  });
+  const { token, kedaluwarsa } = await buatSesi(request, user.id);
 
   const res = NextResponse.json({
     user: {
@@ -116,14 +116,6 @@ export async function POST(request: NextRequest) {
     },
     db_token: wajibGantiSandi ? null : issueDbToken(user),
   });
-
-  res.cookies.set(COOKIE_SESI, token, {
-    httpOnly: true,                                   // tidak terbaca JavaScript
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',                                  // meredam CSRF lintas situs
-    path: '/',
-    expires: kedaluwarsa,
-  });
-
+  pasangCookieSesi(res, token, kedaluwarsa);
   return res;
 }

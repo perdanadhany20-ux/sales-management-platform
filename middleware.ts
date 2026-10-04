@@ -22,6 +22,9 @@ const COOKIE_SESI = 'smp_session';
 /** Rute yang boleh dibuka tanpa sesi. */
 const TERBUKA = [
   '/', '/api/auth/login', '/api/auth/session', '/api/auth/logout',
+  // Langkah kedua login (2FA): belum ada sesi; route-nya menuntut tiket
+  // bertanda tangan dari langkah sandi.
+  '/api/auth/login/2fa',
   // Identitas visual dibaca halaman masuk, yang menurut definisinya belum
   // punya sesi. Isinya memang untuk dilihat umum — nama, logo, dan warna.
   '/api/branding',

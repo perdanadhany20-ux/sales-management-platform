@@ -165,7 +165,7 @@ export function Tabel<T>({
   );
 }
 
-type RupaIkon = 'lihat' | 'sunting' | 'hapus' | 'sandi' | 'nonaktif' | 'aktif';
+type RupaIkon = 'lihat' | 'sunting' | 'hapus' | 'sandi' | 'nonaktif' | 'aktif' | 'dualangkah';
 
 const WARNA_IKON: Record<RupaIkon, string> = {
   lihat:    'text-[#2a78d6] hover:bg-[#e3edfb]',
@@ -174,6 +174,7 @@ const WARNA_IKON: Record<RupaIkon, string> = {
   sandi:    'text-slate-500 hover:bg-slate-100',
   nonaktif: 'text-[#e34948] hover:bg-[#fce3e3]',
   aktif:    'text-[#008300] hover:bg-[#e0f2e0]',
+  dualangkah: 'text-[#7c3aed] hover:bg-[#ede9fe]',
 };
 
 /** Tombol ikon bulat kecil untuk kolom Aksi; label tampil sebagai tooltip. */
@@ -211,6 +212,12 @@ export function TombolIkon({
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="8" cy="15" r="4" stroke="currentColor" strokeWidth="1.8" />
           <path d="M10.8 12.2 20 3m-3 3 2.5 2.5M15 8l2 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {rupa === 'dualangkah' && (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="6" y="2" width="12" height="20" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M10 18h4M9.5 10.5l1.8 1.8 3.2-3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
       {(rupa === 'nonaktif' || rupa === 'aktif') && (

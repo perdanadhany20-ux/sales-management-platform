@@ -47,12 +47,18 @@ export async function getSessionUser(
 
   const { data: sesi } = await supabase
     .from('user_sessions')
-    .select('user_id, expires_at')
+    .select('id, user_id, expires_at, last_seen_at')
     .eq('token_hash', hashToken(token))
     .maybeSingle();
 
   if (!sesi) return null;
   if (new Date(sesi.expires_at) < new Date()) return null;
+
+  // "Terakhir aktif" untuk daftar perangkat di Profil. Ditulis paling sering
+  // tiap 5 menit per sesi, bukan setiap permintaan.
+  if (!sesi.last_seen_at || Date.now() - new Date(sesi.last_seen_at).getTime() > 5 * 60_000) {
+    void supabase.from('user_sessions').update({ last_seen_at: new Date().toISOString() }).eq('id', sesi.id).then(() => {});
+  }
 
   const { data: user } = await supabase
     .from('users')
@@ -90,4 +96,37 @@ export function isAdmin(role: string | null | undefined): boolean {
  */
 export function isPengawas(role: string | null | undefined): boolean {
   return ['MANAGER', 'ADMIN', 'DIRECTOR', 'FINANCE'].includes((role ?? '').toUpperCase());
+}
+
+/** Alamat IP pemanggil (Vercel menaruhnya di x-forwarded-for). */
+export function ipPemanggil(request: NextRequest): string | null {
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
+}
+
+/**
+ * Buat sesi baru setelah identitas terbukti (sandi, dan kode 2FA bila aktif).
+ * Mengembalikan token mentah untuk cookie dan waktu kedaluwarsanya.
+ */
+export async function buatSesi(request: NextRequest, userId: string): Promise<{ token: string; kedaluwarsa: Date }> {
+  const token = buatTokenSesi();
+  const kedaluwarsa = new Date(Date.now() + UMUR_SESI_JAM * 3600_000);
+  await getAdminClient().from('user_sessions').insert({
+    user_id: userId,
+    token_hash: hashToken(token),
+    user_agent: request.headers.get('user-agent')?.slice(0, 300) ?? null,
+    ip: ipPemanggil(request),
+    expires_at: kedaluwarsa.toISOString(),
+    last_seen_at: new Date().toISOString(),
+  });
+  return { token, kedaluwarsa };
+}
+
+export function pasangCookieSesi(res: { cookies: { set: (n: string, v: string, o: object) => void } }, token: string, kedaluwarsa: Date): void {
+  res.cookies.set(COOKIE_SESI, token, {
+    httpOnly: true,                                   // tidak terbaca JavaScript
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',                                  // meredam CSRF lintas situs
+    path: '/',
+    expires: kedaluwarsa,
+  });
 }

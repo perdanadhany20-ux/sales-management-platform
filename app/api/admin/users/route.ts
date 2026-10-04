@@ -67,7 +67,13 @@ export async function GET(request: NextRequest) {
     .order('full_name');
 
   if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
-  return NextResponse.json({ users: data ?? [] });
+
+  // Status 2FA per pengguna (rahasianya sendiri tidak pernah keluar).
+  const { data: mfa } = await getAdminClient().from('user_mfa').select('user_id').eq('aktif', true);
+  const ber2fa = new Set((mfa ?? []).map((m: { user_id: string }) => m.user_id));
+  return NextResponse.json({
+    users: (data ?? []).map((u: { id: string }) => ({ ...u, mfa_aktif: ber2fa.has(u.id) })),
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -282,6 +288,24 @@ export async function PATCH(request: NextRequest) {
     await db.from('audit_trail').insert({
       actor_id: pemanggil!.id, actor_name: pemanggil!.full_name,
       action: 'USER_PASSWORD_RESET', entity: 'users', entity_id: id, detail: {},
+    });
+  }
+
+  // Reset 2FA: untuk pengguna yang kehilangan HP & kode cadangannya. Sesi
+  // lama ikut diputus; saat masuk berikutnya cukup sandi, lalu ia bisa
+  // memasang 2FA lagi dari Profil.
+  if (body.reset_2fa === true) {
+    // Milik sendiri dimatikan dari Profil (wajib sandi + kode). Lewat sini
+    // tidak: sesi Admin yang dicuri tidak boleh cukup untuk melepas 2FA-nya.
+    if (id === pemanggil!.id) {
+      return NextResponse.json({ error: 'Matikan 2FA Anda sendiri dari Profil.' }, { status: 409 });
+    }
+    const { error } = await db.from('user_mfa').delete().eq('user_id', id);
+    if (error) return NextResponse.json({ error: pesanGalat(error) }, { status: 500 });
+    await db.from('user_sessions').delete().eq('user_id', id);
+    await db.from('audit_trail').insert({
+      actor_id: pemanggil!.id, actor_name: pemanggil!.full_name,
+      action: 'MFA_DIRESET_ADMIN', entity: 'users', entity_id: id, detail: {},
     });
   }
 

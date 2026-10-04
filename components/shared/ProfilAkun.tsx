@@ -18,6 +18,7 @@ import { Kolom, KataSandi, Teks, Tombol } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { PanelGalat, LayarMemuat, useToast } from '@/components/shared/Feedback';
 import { KartuAplikasi } from '@/components/shared/KartuAplikasi';
+import { DuaLangkah, PerangkatAktif } from '@/components/shared/KeamananAkun';
 import { Modal } from '@/components/shared/Modal';
 import { ACARA_BUKA_PROFIL } from '@/lib/buka-profil';
 
@@ -485,6 +486,15 @@ export function IsiProfil({ onTutup }: { onTutup?: () => void } = {}) {
                 </div>
               </form>
             )}
+          </Panel>
+
+          <Panel ikon="gembok" judul="Verifikasi Dua Langkah & Perangkat">
+            <div className="flex flex-col gap-4">
+              <DuaLangkah />
+              <div className="border-t border-slate-100 pt-3">
+                <PerangkatAktif onBerubah={muatProfil} />
+              </div>
+            </div>
           </Panel>
         </div>
 

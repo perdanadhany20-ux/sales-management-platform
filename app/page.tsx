@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { masuk } from '@/lib/auth';
+import { masuk, masuk2fa, type PenggunaAktif } from '@/lib/auth';
 import { halamanAwal } from '@/lib/menu-akses';
 import { setDbToken } from '@/lib/supabase';
 import { KataSandi } from '@/components/shared/FormParts';
@@ -36,6 +36,9 @@ export default function HalamanMasuk() {
   const [berhasil, setBerhasil] = useState(false);
   const [mode, setMode] = useState<'masuk' | 'daftar'>('masuk');
   const [pesanDaftar, setPesanDaftar] = useState('');
+  // Langkah kedua (2FA): tiket dari server setelah sandi terbukti benar.
+  const [tiket, setTiket] = useState<string | null>(null);
+  const [kode, setKode] = useState('');
 
   useEffect(() => {
     let batal = false;
@@ -52,20 +55,44 @@ export default function HalamanMasuk() {
     return () => { batal = true; };
   }, [router]);
 
+  async function lanjut(pengguna: PenggunaAktif) {
+    const tujuan = await halamanAwal(pengguna.id, pengguna.role);
+    // Kepastian bahwa sandinya benar tampil lebih dulu, sebelum pengalihan.
+    // Tanpa jeda singkat ini, layar berganti begitu cepat sehingga yang
+    // terasa justru ragu — apakah tadi berhasil atau halamannya error.
+    setBerhasil(true);
+    setTimeout(() => router.replace(tujuan), 450);
+  }
+
   async function kirim(e: React.FormEvent) {
     e.preventDefault();
     setGalat('');
     setMemproses(true);
     try {
-      const pengguna = await masuk(username.trim(), sandi);
-      const tujuan = await halamanAwal(pengguna.id, pengguna.role);
-      // Kepastian bahwa sandinya benar tampil lebih dulu, sebelum pengalihan.
-      // Tanpa jeda singkat ini, layar berganti begitu cepat sehingga yang
-      // terasa justru ragu — apakah tadi berhasil atau halamannya error.
-      setBerhasil(true);
-      setTimeout(() => router.replace(tujuan), 450);
+      const hasil = await masuk(username.trim(), sandi);
+      if ('perlu2fa' in hasil) {
+        setTiket(hasil.tiket); setKode(''); setMemproses(false);
+        return;
+      }
+      await lanjut(hasil.pengguna);
     } catch (err) {
       setGalat(pesanGalat(err, 'Gagal masuk.'));
+      setMemproses(false);
+    }
+  }
+
+  async function kirimKode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tiket) return;
+    setGalat('');
+    setMemproses(true);
+    try {
+      const { pengguna } = await masuk2fa(tiket, kode);
+      await lanjut(pengguna);
+    } catch (err) {
+      if ((err as { ulang?: boolean }).ulang) { setTiket(null); setSandi(''); }
+      setGalat(pesanGalat(err, 'Kode verifikasi salah.'));
+      setKode('');
       setMemproses(false);
     }
   }
@@ -186,6 +213,51 @@ export default function HalamanMasuk() {
             <p className="text-slate-500 text-sm mt-1.5">Masuk ke akun Anda untuk melanjutkan</p>
           </header>
 
+          {tiket ? (
+          <form onSubmit={kirimKode} className="flex flex-col gap-4">
+            <div className="rounded-kontrol border border-aksen-200 bg-aksen-50 px-4 py-3 text-[12.5px] text-aksen-900 leading-relaxed">
+              <b>Verifikasi dua langkah.</b> Buka aplikasi authenticator di HP Anda lalu masukkan kode
+              6 digit untuk <b>{username.trim()}</b>. Kehilangan HP? Masukkan salah satu kode cadangan.
+            </div>
+            <div>
+              <label htmlFor="kode2fa" className="block text-[11px] font-bold mb-2 text-slate-600 tracking-widest uppercase">
+                Kode Verifikasi
+              </label>
+              <input
+                id="kode2fa" type="text" value={kode} onChange={(e) => setKode(e.target.value)}
+                inputMode="numeric" autoComplete="one-time-code" autoFocus required disabled={memproses}
+                maxLength={11} placeholder="123456"
+                className="w-full border border-slate-200 rounded-kontrol px-4 py-3 text-center text-xl font-bold tracking-[0.4em]
+                           text-slate-800 bg-white outline-none transition-all placeholder:text-slate-300
+                           focus:border-aksen-600 focus:ring-2 focus:ring-aksen-600/15 disabled:bg-slate-50"
+              />
+            </div>
+            {galat && (
+              <p role="alert" className="px-4 py-2.5 rounded-kontrol text-[13px] font-medium
+                                         text-[#c93c3b] bg-[#fce3e3] border border-[#e34948]/30">
+                {galat}
+              </p>
+            )}
+            <button
+              type="submit" disabled={memproses || kode.trim().length < 6}
+              className="w-full text-white py-3.5 rounded-kontrol font-bold text-sm tracking-wide mt-1 shadow-lg
+                         transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed hover:opacity-90"
+              style={{
+                background: berhasil
+                  ? 'linear-gradient(to right, #047857, #008300)'
+                  : `linear-gradient(to right, ${branding.warna_utama_2}, ${branding.warna_utama})`,
+                opacity: (memproses || kode.trim().length < 6) && !berhasil ? 0.75 : 1,
+              }}
+            >
+              {berhasil ? 'Berhasil masuk' : memproses ? 'Memverifikasi…' : 'Verifikasi & Masuk'}
+            </button>
+            <button type="button" disabled={memproses}
+              onClick={() => { setTiket(null); setKode(''); setSandi(''); setGalat(''); }}
+              className="text-[12px] font-semibold text-slate-500 underline underline-offset-2">
+              ← Kembali, masuk dengan akun lain
+            </button>
+          </form>
+          ) : (
           <form onSubmit={kirim} className="flex flex-col gap-4">
             <div>
               <label htmlFor="username" className="block text-[11px] font-bold mb-2 text-slate-600 tracking-widest uppercase">
@@ -254,6 +326,7 @@ export default function HalamanMasuk() {
               )}
             </button>
           </form>
+          )}
 
           <p className="text-center text-[12px] text-slate-500 mt-6">
             Belum punya akun?{' '}

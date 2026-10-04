@@ -17,7 +17,9 @@ CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 GRANT USAGE ON SCHEMA extensions TO anon, authenticated, service_role;
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-ALTER DATABASE postgres SET search_path = "$user", public, extensions;
+DO $$ BEGIN
+  EXECUTE format('ALTER DATABASE %I SET search_path = "$user", public, extensions', current_database());
+END $$;
 
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
