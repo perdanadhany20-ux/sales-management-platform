@@ -18,6 +18,7 @@ import { rupiahRingkas, angka, persen, hitungDelta } from '@/lib/format';
 import { WARNA_PROBABILITY, PESAN_GPS, isPengawas, isAdmin } from '@/lib/constants';
 import { KartuTarget } from './_components/KartuTarget';
 import { KartuAgenda } from './_components/KartuAgenda';
+import { KartuAntrianGp } from './_components/KartuAntrianGp';
 import { PanduanMulai } from './_components/PanduanMulai';
 
 /**
@@ -102,7 +103,15 @@ export default function HalamanDashboard() {
   // Urutan = urutan tampil. Lebar = lebar ideal; susunBento() melebarkan
   // kartu yang tersisa bila kartu lain di barisnya tersembunyi (lisensi,
   // hak akses, atau pengaturan Admin), supaya tidak ada ruang kosong.
+  // Antrian tanda tangan GP: untuk Finance pekerjaan utamanya, jadi paling
+  // atas; peran pengawas lain melihatnya sesudah ikhtisar tim.
+  const finance = pengguna?.role === 'FINANCE';
+  const antrianGp: ItemBento | false = pengawas && Boolean(pengguna) && tampil('antrian_gp') && {
+    kunci: 'antrian_gp', lebar: 12, render: (r) => <KartuAntrianGp rentang={r} role={pengguna!.role} />,
+  };
+
   const semuaKartu: (ItemBento | false | null)[] = [
+    finance && antrianGp,
     // Sales membuka aplikasi untuk tahu apa yang harus dikerjakan hari ini,
     // jadi agendanya paling atas. Pengawas lebih dulu melihat ikhtisar tim.
     !pengawas && agenda && { kunci: 'agenda', lebar: 12, render: () => agenda },
@@ -179,6 +188,7 @@ export default function HalamanDashboard() {
       ),
     },
     pengawas && agenda && { kunci: 'agenda', lebar: 12, render: () => agenda },
+    !finance && antrianGp,
     tampil('target') && { kunci: 'target', lebar: 12, render: () => <KartuTarget pengawas={pengawas} /> },
     tampil('probability') && {
       kunci: 'probability', lebar: 8,

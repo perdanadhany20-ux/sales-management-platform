@@ -514,6 +514,7 @@ export const MENU_KARTU_DASHBOARD: Record<string, string> = {
   gross_profit: 'pipeline',
   probability: 'pipeline',
   target: 'pipeline',
+  antrian_gp: 'gp',
   status_jadwal: 'schedule',
   meeting: 'meeting',
   pengecualian: 'meeting',

@@ -5859,7 +5859,8 @@ END $$;
 -- sm_laporan_bulanan(dari, sampai): satu baris per BULAN × SALES —
 -- jumlah laporan harian, meeting selesai, peluang baru, closing (WON),
 -- dan targetnya. Dipakai menu Laporan (tren, target vs realisasi,
--- peringkat) dan ekspor Excel-nya.
+-- peringkat) dan ekspor Excel-nya. Juga kartu Dashboard Antrian
+-- Persetujuan GP (Manager → Director → Finance).
 --
 -- Keamanan: SECURITY INVOKER — setiap tabel tetap disaring RLS pemanggil
 -- (Sales hanya dirinya, pengawas seluruh tim), dan fungsi menolak bila
@@ -5959,6 +5960,12 @@ END $$;
 INSERT INTO public.sm_role_menu (role, menu_key)
 SELECT r, 'laporan' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
 ON CONFLICT DO NOTHING;
+
+-- Kartu Dashboard "Antrian Persetujuan GP" bisa diatur dari Dashboard Setting.
+UPDATE public.sm_settings
+   SET value = value || '[{"key":"antrian_gp","label":"Antrian Persetujuan GP","aktif":true}]'::jsonb
+ WHERE key = 'dashboard_widgets'
+   AND NOT (value @> '[{"key":"antrian_gp"}]'::jsonb);
 
 
 -- ════════════════════════════════════════════════════════════════════════════
