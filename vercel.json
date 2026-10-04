@@ -1,5 +1,16 @@
 {
   "crons": [
-    { "path": "/api/lisensi/cron", "schedule": "17 1 * * *" }
+    {
+      "path": "/api/lisensi/cron",
+      "schedule": "17 1 * * *"
+    },
+    {
+      "path": "/api/push/cron",
+      "schedule": "30 0 * * 1-6"
+    },
+    {
+      "path": "/api/push/cron",
+      "schedule": "0 8 * * 1-6"
+    }
   ]
 }

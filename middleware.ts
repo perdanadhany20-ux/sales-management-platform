@@ -22,6 +22,9 @@ const COOKIE_SESI = 'smp_session';
 /** Rute yang boleh dibuka tanpa sesi. */
 const TERBUKA = [
   '/', '/api/auth/login', '/api/auth/session', '/api/auth/logout',
+  // Langkah kedua login (2FA): belum ada sesi; route-nya menuntut tiket
+  // bertanda tangan dari langkah sandi.
+  '/api/auth/login/2fa',
   // Identitas visual dibaca halaman masuk, yang menurut definisinya belum
   // punya sesi. Isinya memang untuk dilihat umum — nama, logo, dan warna.
   '/api/branding',
@@ -31,7 +34,7 @@ const TERBUKA = [
   '/api/auth/register',
   '/api/opsi-pendaftaran',
   // Dipanggil Vercel Cron tanpa cookie; route-nya sendiri menuntut CRON_SECRET.
-  '/api/lisensi/cron',
+  '/api/lisensi/cron', '/api/push/cron',
   // Berkas PWA/Android: dibaca peramban dan Play Store sebelum ada sesi.
   '/manifest.webmanifest', '/sw.js', '/offline.html', '/.well-known/assetlinks.json',
 ];

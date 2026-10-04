@@ -17,7 +17,7 @@ import { Meter } from '@/components/shared/Charts';
 import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
-import { Tabel, TombolIkon } from '@/components/shared/Tabel';
+import { Tabel, TombolIkon, useUrutanServer, terapkanUrutan } from '@/components/shared/Tabel';
 import { PanelMeeting, type Meeting, type Lokasi } from './_components/PanelMeeting';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
@@ -75,6 +75,7 @@ export default function HalamanMeeting() {
   const [galat, setGalat] = useState<string | null>(null);
 
   const [halaman, setHalaman] = useState(0);
+  const [urutan, setUrutan] = useUrutanServer();
   const [dari, setDari] = useState(() => tanggalISO());
   const [sampai, setSampai] = useState(() => tanggalISO());
   const [filterSales, setFilterSales] = useState('');
@@ -94,7 +95,7 @@ export default function HalamanMeeting() {
     setMemuat(true);
     setGalat(null);
 
-    let q = supabase
+    let q = terapkanUrutan(supabase
       .from('sm_schedules')
       .select(
         `id, schedule_date, schedule_time, customer_name, project, category, detail,
@@ -106,7 +107,7 @@ export default function HalamanMeeting() {
       )
       .eq('requires_attendance', true)
       .gte('schedule_date', dari)
-      .lte('schedule_date', sampai)
+      .lte('schedule_date', sampai), urutan)
       .order('schedule_date', { ascending: true })
       .order('schedule_time', { ascending: true, nullsFirst: false })
       .range(halaman * PER_HALAMAN, halaman * PER_HALAMAN + PER_HALAMAN - 1);
@@ -140,7 +141,7 @@ export default function HalamanMeeting() {
     }));
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, cariTertunda, halaman]);
+  }, [pengguna, pengawas, dari, sampai, filterSales, filterStatus, cariTertunda, halaman, urutan]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -289,7 +290,6 @@ export default function HalamanMeeting() {
             keterangan: [
               `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
               pengawas && filterSales ? `Sales: ${namaSales[filterSales] ?? '—'}` : 'Sales: semua yang boleh Anda lihat',
-              `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
             ],
             kolom: [
               { judul: 'Tanggal', format: 'tanggal', lebar: 12, nilai: (m) => selTanggal(m.schedule_date) },
@@ -455,12 +455,14 @@ export default function HalamanMeeting() {
       ) : (
         <>
           <Tabel
+            urutServer={{ urutan, onUrut: (u) => { setUrutan(u); setHalaman(0); } }}
+            nomorAwal={halaman * PER_HALAMAN}
             data={daftar}
             kunci={(m) => m.id}
             kolom={[
               {
                 label: 'Tanggal', className: 'w-28 whitespace-nowrap',
-                urut: (m) => `${m.schedule_date} ${m.schedule_time ?? ''}`,
+                urut: (m) => `${m.schedule_date} ${m.schedule_time ?? ''}`, kolomDb: 'schedule_date',
                 render: (m) => (
                   <>
                     {tanggalPendek(m.schedule_date)}
@@ -470,7 +472,7 @@ export default function HalamanMeeting() {
               },
               {
                 label: 'Customer', className: 'w-[36%]',
-                urut: (m) => m.customer_name,
+                urut: (m) => m.customer_name, kolomDb: 'customer_name',
                 render: (m) => (
                   <div className="min-w-0">
                     <p className="font-bold text-slate-900 truncate">{m.customer_name}</p>
@@ -482,7 +484,7 @@ export default function HalamanMeeting() {
               },
               {
                 label: 'Status', className: 'w-56',
-                urut: (m) => STATUS_JADWAL[statusEfektif(m)]?.label,
+                urut: (m) => STATUS_JADWAL[statusEfektif(m)]?.label, kolomDb: 'status',
                 render: (m) => {
                   const state = (m.sm_attendance?.state ?? 'NOT_STARTED') as StateKehadiran;
                   return (

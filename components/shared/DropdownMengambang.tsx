@@ -31,7 +31,7 @@ export function DropdownMengambang({
 }: {
   buka: boolean;
   onTutup: () => void;
-  triggerRef: RefObject<HTMLElement>;
+  triggerRef: RefObject<HTMLElement | null>;
   /** Panel rata kanan atau kiri terhadap tepi pemicunya. */
   anchor?: 'kanan' | 'kiri';
   lebar?: number;

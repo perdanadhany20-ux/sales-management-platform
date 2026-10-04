@@ -1,5 +1,6 @@
 // Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
 // atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
+import { kirimPushAdmin } from '@/lib/push';
 import { NextResponse, type NextRequest } from 'next/server';
 import { fiturTersedia } from '@/lib/lisensi/server';
 import bcrypt from 'bcryptjs';
@@ -168,6 +169,13 @@ export async function POST(request: NextRequest) {
     entity_id: user.id,
     detail: { username, division, position },
   });
+
+  // Admin diberi tahu lewat push (bila diaktifkan) — pendaftar tidak perlu
+  // menunggu sampai Admin kebetulan membuka panel Persetujuan.
+  await kirimPushAdmin({
+    judul: 'Pendaftaran akun baru', isi: `${fullName || username} menunggu persetujuan.`,
+    url: '/admin', tag: 'pendaftaran',
+  }).catch(() => 0);
 
   return NextResponse.json({
     ok: true,

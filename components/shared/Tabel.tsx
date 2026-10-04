@@ -26,10 +26,32 @@ export interface KolomTabel<T> {
   render: (baris: T) => React.ReactNode;
   /** Nilai pembanding; bila diisi, judul kolomnya bisa diklik untuk mengurutkan. */
   urut?: (baris: T) => string | number | null | undefined;
+  /** Kolom database untuk pengurutan di server (lihat `urutServer`). */
+  kolomDb?: string;
+}
+
+/** Urutan yang diminta ke server: kolom database + arah. */
+export interface UrutanServer { kolom: string; naik: boolean }
+
+/**
+ * Pengurutan untuk daftar berhalaman: tanpa ini, klik judul hanya mengurutkan
+ * 20 baris di halaman yang tampil — baris teratas "terbesar" belum tentu
+ * terbesar dari seluruh data. Hook ini menyimpan urutannya; halaman memakai
+ * `terapkanUrutan` pada kuerinya dan kembali ke halaman pertama saat berubah.
+ */
+export function useUrutanServer(): [UrutanServer | null, (u: UrutanServer | null) => void] {
+  return useState<UrutanServer | null>(null);
+}
+
+/** Pasang urutan pilihan pengguna di depan urutan bawaan kueri. */
+export function terapkanUrutan<Q>(q: Q, u: UrutanServer | null): Q {
+  if (!u) return q;
+  const b = q as unknown as { order: (k: string, o: { ascending: boolean; nullsFirst: boolean }) => Q };
+  return b.order(u.kolom, { ascending: u.naik, nullsFirst: false });
 }
 
 export function Tabel<T>({
-  kolom, data, kunci, aksi, lebarAksi = 'w-24',
+  kolom, data, kunci, aksi, lebarAksi = 'w-24', urutServer, nomorAwal = 0,
 }: {
   kolom: KolomTabel<T>[];
   data: T[];
@@ -39,13 +61,19 @@ export function Tabel<T>({
   /** Lebar kolom Aksi — perbesar (mis. "w-64") kalau isinya bukan cuma ikon,
    *  ada juga tombol berlabel seperti "Reset Sandi". */
   lebarAksi?: string;
+  /** Daftar berhalaman: klik judul kolom ber-`kolomDb` mengurutkan SELURUH
+   *  data di server (bukan halaman ini saja). Kolom tanpa `kolomDb` tidak
+   *  bisa diklik dalam mode ini. */
+  urutServer?: { urutan: UrutanServer | null; onUrut: (u: UrutanServer | null) => void };
+  /** Offset nomor baris (halaman × jumlah per halaman). */
+  nomorAwal?: number;
 }) {
   // Klik judul: naik → turun → kembali ke urutan asal dari server.
   const [urutan, setUrutan] = useState<{ kolom: number; arah: 1 | -1 } | null>(null);
 
   const tampil = useMemo(() => {
     const fn = urutan ? kolom[urutan.kolom]?.urut : undefined;
-    if (!urutan || !fn) return data;
+    if (urutServer || !urutan || !fn) return data;
     return [...data].sort((a, b) => {
       const x = fn(a), y = fn(b);
       // Nilai kosong selalu di bawah, apa pun arahnya.
@@ -56,11 +84,27 @@ export function Tabel<T>({
         : String(x).localeCompare(String(y), 'id', { numeric: true, sensitivity: 'base' });
       return beda * urutan.arah;
     });
-  }, [data, kolom, urutan]);
+  }, [data, kolom, urutan, urutServer]);
 
   function klikJudul(i: number) {
+    if (urutServer) {
+      const db = kolom[i]?.kolomDb;
+      if (!db) return;
+      const u = urutServer.urutan;
+      urutServer.onUrut(!u || u.kolom !== db ? { kolom: db, naik: true } : u.naik ? { kolom: db, naik: false } : null);
+      return;
+    }
     setUrutan((u) => (!u || u.kolom !== i ? { kolom: i, arah: 1 } : u.arah === 1 ? { kolom: i, arah: -1 } : null));
   }
+  // Status tampilan header (mode server dibaca dari urutan server).
+  const aktifPada = (i: number): 1 | -1 | null => {
+    if (urutServer) {
+      const u = urutServer.urutan, db = kolom[i]?.kolomDb;
+      return u && db && u.kolom === db ? (u.naik ? 1 : -1) : null;
+    }
+    return urutan?.kolom === i ? urutan.arah : null;
+  };
+  const bisaUrut = (k: KolomTabel<T>) => (urutServer ? Boolean(k.kolomDb) : Boolean(k.urut));
 
   return (
     <>
@@ -76,7 +120,7 @@ export function Tabel<T>({
         <li key={kunci(baris)} id={`kartu-${kunci(baris)}`}
           className="bg-white rounded-kartu border border-slate-200 px-3.5 py-3">
           <div className="flex items-start gap-2">
-            <span className="text-[11px] text-slate-400 tabular-nums pt-0.5 w-5 flex-shrink-0">{i + 1}</span>
+            <span className="text-[11px] text-slate-400 tabular-nums pt-0.5 w-5 flex-shrink-0">{nomorAwal + i + 1}</span>
             <div className="min-w-0 flex-1 text-[13px] text-slate-700">{kolom[0]?.render(baris)}</div>
             {aksi && <div className="flex items-center gap-0.5 flex-shrink-0 -mr-1 -mt-1">{aksi(baris)}</div>}
           </div>
@@ -113,19 +157,20 @@ export function Tabel<T>({
               No
             </th>
             {kolom.map((k, i) => {
-              const aktif = urutan?.kolom === i;
+              const arah = aktifPada(i);
+              const aktif = arah !== null;
               return (
                 <th key={i}
-                  aria-sort={aktif ? (urutan!.arah === 1 ? 'ascending' : 'descending') : undefined}
+                  aria-sort={aktif ? (arah === 1 ? 'ascending' : 'descending') : undefined}
                   className={`px-3 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wide ${k.className ?? ''}`}>
-                  {k.urut ? (
+                  {bisaUrut(k) ? (
                     <button type="button" onClick={() => klikJudul(i)}
                       title="Klik untuk mengurutkan"
                       className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-800 transition-colors
                                   ${aktif ? 'text-aksen-700' : ''}`}>
                       {k.label}
                       <span aria-hidden="true" className={`text-[9px] ${aktif ? '' : 'text-slate-300'}`}>
-                        {aktif ? (urutan!.arah === 1 ? '▲' : '▼') : '↕'}
+                        {aktif ? (arah === 1 ? '▲' : '▼') : '↕'}
                       </span>
                     </button>
                   ) : k.label}
@@ -143,7 +188,7 @@ export function Tabel<T>({
           {tampil.map((baris, i) => (
             <tr key={kunci(baris)} id={`baris-${kunci(baris)}`}
               className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 transition-colors">
-              <td className="px-3 py-3 text-[12px] text-slate-400 tabular-nums align-top">{i + 1}</td>
+              <td className="px-3 py-3 text-[12px] text-slate-400 tabular-nums align-top">{nomorAwal + i + 1}</td>
               {kolom.map((k, ki) => (
                 <td key={ki} className={`px-3 py-3 text-[12.5px] text-slate-700 align-top ${k.className ?? ''}`}>
                   {k.render(baris)}
@@ -165,7 +210,7 @@ export function Tabel<T>({
   );
 }
 
-type RupaIkon = 'lihat' | 'sunting' | 'hapus' | 'sandi' | 'nonaktif' | 'aktif';
+type RupaIkon = 'lihat' | 'sunting' | 'hapus' | 'sandi' | 'nonaktif' | 'aktif' | 'dualangkah';
 
 const WARNA_IKON: Record<RupaIkon, string> = {
   lihat:    'text-[#2a78d6] hover:bg-[#e3edfb]',
@@ -174,6 +219,7 @@ const WARNA_IKON: Record<RupaIkon, string> = {
   sandi:    'text-slate-500 hover:bg-slate-100',
   nonaktif: 'text-[#e34948] hover:bg-[#fce3e3]',
   aktif:    'text-[#008300] hover:bg-[#e0f2e0]',
+  dualangkah: 'text-[#7c3aed] hover:bg-[#ede9fe]',
 };
 
 /** Tombol ikon bulat kecil untuk kolom Aksi; label tampil sebagai tooltip. */
@@ -211,6 +257,12 @@ export function TombolIkon({
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="8" cy="15" r="4" stroke="currentColor" strokeWidth="1.8" />
           <path d="M10.8 12.2 20 3m-3 3 2.5 2.5M15 8l2 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {rupa === 'dualangkah' && (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="6" y="2" width="12" height="20" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M10 18h4M9.5 10.5l1.8 1.8 3.2-3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
       {(rupa === 'nonaktif' || rupa === 'aktif') && (

@@ -13,7 +13,7 @@ import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat } from '@/components/shared/Feedback';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
-import { Tabel } from '@/components/shared/Tabel';
+import { Tabel, useUrutanServer, terapkanUrutan } from '@/components/shared/Tabel';
 import { BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { pesanGalat } from '@/lib/pesan-galat';
 
@@ -75,6 +75,7 @@ export default function HalamanActivity() {
   const [galat, setGalat] = useState<string | null>(null);
 
   const [halaman, setHalaman] = useState(0);
+  const [urutan, setUrutan] = useUrutanServer();
   const [dari, setDari] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 14);
@@ -101,11 +102,11 @@ export default function HalamanActivity() {
     const batasAtas = new Date(sampai);
     batasAtas.setDate(batasAtas.getDate() + 1);
 
-    let q = supabase
+    let q = terapkanUrutan(supabase
       .from('sm_activity_feed')
       .select('*', { count: 'exact' })
       .gte('terjadi_pada', new Date(`${dari}T00:00:00`).toISOString())
-      .lt('terjadi_pada', new Date(`${tanggalISO(batasAtas)}T00:00:00`).toISOString())
+      .lt('terjadi_pada', new Date(`${tanggalISO(batasAtas)}T00:00:00`).toISOString()), urutan)
       .order('terjadi_pada', { ascending: false })
       .range(halaman * PER_HALAMAN, halaman * PER_HALAMAN + PER_HALAMAN - 1);
 
@@ -121,7 +122,7 @@ export default function HalamanActivity() {
     setDaftar((data ?? []) as Aktivitas[]);
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [dari, sampai, filterJenis, filterOrang, cariTertunda, halaman]);
+  }, [dari, sampai, filterJenis, filterOrang, cariTertunda, halaman, urutan]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -233,7 +234,6 @@ export default function HalamanActivity() {
               `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
               filterJenis ? `Jenis: ${(JENIS[filterJenis] ?? JENIS_BAWAAN).label}` : 'Jenis: semua',
               filterOrang ? `Pengguna: ${namaOrang[filterOrang] ?? '—'}` : 'Pengguna: semua yang boleh Anda lihat',
-              `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
             ],
             kolom: [
               { judul: 'Waktu', lebar: 18,
@@ -369,12 +369,14 @@ export default function HalamanActivity() {
       ) : (
         <>
           <Tabel
+            urutServer={{ urutan, onUrut: (u) => { setUrutan(u); setHalaman(0); } }}
+            nomorAwal={halaman * PER_HALAMAN}
             data={daftar}
             kunci={(a) => a.id}
             kolom={[
               {
                 label: 'Waktu', className: 'w-32 whitespace-nowrap',
-                urut: (a) => a.terjadi_pada,
+                urut: (a) => a.terjadi_pada, kolomDb: 'terjadi_pada',
                 render: (a) => (
                   <span className="tabular-nums">
                     {tanggalPendek(tanggalISO(new Date(a.terjadi_pada)))}
@@ -384,7 +386,7 @@ export default function HalamanActivity() {
               },
               {
                 label: 'Jenis', className: 'w-36',
-                urut: (a) => (JENIS[a.jenis] ?? JENIS_BAWAAN).label,
+                urut: (a) => (JENIS[a.jenis] ?? JENIS_BAWAAN).label, kolomDb: 'jenis',
                 render: (a) => {
                   const gaya = JENIS[a.jenis] ?? JENIS_BAWAAN;
                   return (
@@ -397,7 +399,7 @@ export default function HalamanActivity() {
               },
               {
                 label: 'Customer', className: 'w-[20%]',
-                urut: (a) => a.judul,
+                urut: (a) => a.judul, kolomDb: 'judul',
                 render: (a) => <span className="font-bold text-slate-900 truncate block">{a.judul || '—'}</span>,
               },
               {
@@ -427,7 +429,7 @@ export default function HalamanActivity() {
               }] : []),
               {
                 label: 'Nilai', className: 'w-28 text-right',
-                urut: (a) => (a.jenis === 'PIPELINE' ? Number(a.nilai ?? 0) : null),
+                urut: (a) => (a.jenis === 'PIPELINE' ? Number(a.nilai ?? 0) : null), kolomDb: 'nilai',
                 render: (a) => (a.jenis === 'PIPELINE' && a.nilai != null
                   ? <span className="font-semibold tabular-nums">{rupiahRingkas(a.nilai)}</span>
                   : <span className="text-slate-300">—</span>),

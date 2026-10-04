@@ -17,7 +17,7 @@ import { Tombol, Teks, Lencana } from '@/components/shared/FormParts';
 import { PilihCari } from '@/components/shared/PilihCari';
 import { Kosong, KerangkaBaris, PanelGalat, useToast } from '@/components/shared/Feedback';
 import { Konfirmasi } from '@/components/shared/Modal';
-import { Tabel, TombolIkon } from '@/components/shared/Tabel';
+import { Tabel, TombolIkon, useUrutanServer, terapkanUrutan } from '@/components/shared/Tabel';
 import { TombolEkspor } from '@/components/shared/TombolEkspor';
 import { selTanggal, BATAS_BARIS_EKSPOR } from '@/lib/ekspor-excel';
 import { FormProyek } from './_components/FormProyek';
@@ -55,6 +55,7 @@ export default function HalamanProyek() {
   const [galat, setGalat] = useState<string | null>(null);
 
   const [halaman, setHalaman] = useState(0);
+  const [urutan, setUrutan] = useUrutanServer();
   const [filterStatus, setFilterStatus] = useState('AKTIF');
   const [filterSales, setFilterSales] = useState('');
   const [cari, setCari] = useState('');
@@ -75,9 +76,9 @@ export default function HalamanProyek() {
     setMemuat(true);
     setGalat(null);
 
-    let q = supabase
+    let q = terapkanUrutan(supabase
       .from('sm_proyek_ringkasan')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact' }), urutan)
       .order('created_at', { ascending: false })
       .range(halaman * PER_HALAMAN, halaman * PER_HALAMAN + PER_HALAMAN - 1);
 
@@ -94,7 +95,7 @@ export default function HalamanProyek() {
     setDaftar((data ?? []) as ProyekRingkasan[]);
     setTotal(count ?? 0);
     setMemuat(false);
-  }, [filterStatus, filterSales, cariTertunda, halaman]);
+  }, [filterStatus, filterSales, cariTertunda, halaman, urutan]);
 
   useEffect(() => { void muat(); }, [muat]);
 
@@ -175,7 +176,6 @@ export default function HalamanProyek() {
               keterangan: [
                 filterStatus ? `Status: ${STATUS_PROYEK[filterStatus as StatusProyek]?.label ?? filterStatus}` : 'Status: semua',
                 filterSales ? `Pemilik: ${namaOrang[filterSales] ?? '—'}` : 'Pemilik: semua yang boleh Anda lihat',
-                `Diekspor oleh ${pengguna?.full_name ?? '—'}`,
               ],
               kolom: [
                 { judul: 'Kode', lebar: 18, nilai: (p) => p.kode },
@@ -309,12 +309,14 @@ export default function HalamanProyek() {
       ) : (
         <>
           <Tabel
+            urutServer={{ urutan, onUrut: (u) => { setUrutan(u); setHalaman(0); } }}
+            nomorAwal={halaman * PER_HALAMAN}
             data={daftar}
             kunci={(p) => p.id}
             kolom={[
               {
                 label: 'Proyek', className: 'w-[30%]',
-                urut: (p) => p.name,
+                urut: (p) => p.name, kolomDb: 'name',
                 render: (p) => {
                   const gaya = STATUS_PROYEK[p.status as StatusProyek] ?? STATUS_PROYEK.AKTIF;
                   const langkah = tahapProyek(p);
@@ -349,7 +351,7 @@ export default function HalamanProyek() {
               },
               {
                 label: 'Pipeline / Profit', className: 'w-40 text-right',
-                urut: (p) => Number(p.nilai_pipeline),
+                urut: (p) => Number(p.nilai_pipeline), kolomDb: 'nilai_pipeline',
                 render: (p) => (
                   <div className="text-right">
                     <p className="font-bold text-slate-900 tabular-nums">{rupiah(p.nilai_pipeline)}</p>

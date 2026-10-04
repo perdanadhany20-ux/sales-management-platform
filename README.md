@@ -30,18 +30,26 @@ percakapan dengan satu sistem yang bisa dipertanggungjawabkan:
 
 | Modul | Isi |
 |---|---|
-| Dashboard | Agenda & tindak lanjut hari ini, ringkasan tim, tren, kepatuhan laporan, GP, pencapaian target |
-| Daily Report | Laporan kunjungan harian, ekspor Excel |
+| Dashboard | Agenda & tindak lanjut hari ini, ringkasan tim, tren, kepatuhan laporan, GP, pencapaian target, antrian persetujuan GP (paling atas untuk Finance) |
+| Daily Report | Laporan kunjungan harian, ekspor Excel; tetap bisa disimpan saat offline dan terkirim otomatis saat online |
 | Proyek | Induk yang mengikat pipeline, jadwal, dan GP satu proyek |
 | Pipeline | Peluang, probabilitas, tahapan, estimasi closing |
 | Schedule | Pengajuan & penugasan jadwal, status terlewat otomatis |
 | Meeting | Check-in GPS, foto bukti, penyelesaian, override pengawas |
 | GP Calculation | Hitung GP dari item, persetujuan Manager → Director → Finance |
 | Activity | Jejak seluruh modul, termasuk check-in yang ditolak |
+| Laporan | Tren bulanan, target vs realisasi, peringkat Sales, ekspor Excel (lisensi Advanced Reporting) |
 | Admin Panel | Pengguna, persetujuan akun, hak akses menu, lokasi meeting, target Sales, tampilan dashboard, nilai bisnis, audit log |
 
-Setiap daftar punya pencarian, kolom yang bisa diurutkan, dan konfirmasi
-sebelum menghapus. Menu di sidebar dikelompokkan menurut pekerjaan (Kerja
+Setiap daftar punya pencarian, kolom yang bisa diurutkan (di server, seluruh
+data), dan konfirmasi sebelum menghapus. Ekspor Excel memakai satu template
+siap cetak: kop & logo perusahaan dari Branding, tabel bergaris, baris TOTAL,
+ringkasan, blok tanda tangan, kertas A4 dengan nomor halaman.
+
+**Keamanan akun:** verifikasi dua langkah (TOTP + kode cadangan) opsional per
+pengguna, daftar perangkat aktif yang bisa diputus, reset sandi & reset 2FA
+oleh Admin. **Notifikasi push** (opsional, butuh kunci VAPID): ringkasan tugas
+pagi & siang, dan pendaftaran akun baru ke Admin. Menu di sidebar dikelompokkan menurut pekerjaan (Kerja
 Harian, Penjualan, Pemantauan, Sistem) dan hanya menampilkan menu yang boleh
 dibuka peran tersebut.
 
@@ -70,8 +78,9 @@ Diagram alur lengkap ada di [`docs/ALUR.md`](docs/ALUR.md).
 
 ## 4. Teknologi
 
-Next.js 14.2 (App Router) · React 18.3 · TypeScript 5.7 · Tailwind 3.4 ·
-Supabase (Postgres 17 + PostgREST + Storage) · bcryptjs · ExcelJS · Leaflet.
+Next.js 15.5 (App Router) · React 19.1 · TypeScript 5.7 · Tailwind 3.4 ·
+Supabase (Postgres 17 + PostgREST + Storage) · bcryptjs · ExcelJS · Leaflet ·
+web-push · qrcode.
 
 Grafik digambar sebagai SVG tanpa pustaka grafik.
 
@@ -96,7 +105,9 @@ npm run dev
 | `LICENSE_DEPLOYMENT_KEY` | **rahasia** | Ditampilkan sekali saat registrasi |
 | `LICENSE_PUBLIC_KEY` | server (publik) | `npm run keys` di repo privat sales-license-authority |
 | `LICENSE_MODE` | server | `production` (bawaan); `development` hanya berlaku di `next dev` |
-| `CRON_SECRET` | **rahasia** | Acak; dipakai Vercel Cron untuk verifikasi lisensi harian |
+| `CRON_SECRET` | **rahasia** | Acak (≥ 16 karakter); dipakai Vercel Cron: verifikasi lisensi harian & notifikasi push |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | server / **rahasia** (privat) | Opsional — notifikasi push. Buat dengan `npm run vapid` |
+| `MFA_ENCRYPTION_KEY` | **rahasia** | Opsional — kunci enkripsi rahasia 2FA; bila kosong diturunkan dari `SUPABASE_JWT_SECRET` (mengganti salah satunya membuat 2FA semua pengguna harus dipasang ulang) |
 | `ANDROID_PACKAGE_ID`, `ANDROID_CERT_SHA256` | server | Opsional — aplikasi Android (`android/README.md`) |
 
 Dua yang bertanda rahasia tidak boleh diawali `NEXT_PUBLIC_` dan tidak boleh
@@ -181,8 +192,9 @@ bukti tidak boleh ditimpa.
 
 ## 11. Pengujian
 
-Tujuh skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
-Supabase. Setiap skrip diakhiri `ROLLBACK`, jadi data ujinya tidak pernah
+Sembilan skrip uji keamanan di `supabase/tests/`, dijalankan di SQL Editor
+Supabase — atau semuanya sekaligus pada Postgres kosong dengan
+`scripts/uji-sql.sh` (dipakai CI). Setiap skrip diakhiri `ROLLBACK`, jadi data ujinya tidak pernah
 tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 
 | Berkas | Uji | Cakupan |
@@ -193,11 +205,23 @@ tersimpan. Kolom `nyata` harus sama dengan `harapan` di setiap baris.
 | `keamanan-customer.sql` | 15 | Customer hanya terlihat oleh Sales pemiliknya dan garis atasannya; nama unik per Sales |
 | `keamanan-struktur.sql` | 13 | Jenjang posisi dan pohon organisasi: atasan harus lebih tinggi, tanpa lingkaran, tidak menurunkan posisi selagi membawahi yang setara |
 | `keamanan-hak.sql` | 20 | Sales menyunting tapi tidak menghapus miliknya, hanya Admin mengubah data orang lain, isolasi Target Sales, kolom pribadi `users` |
-| `keamanan-lisensi.sql` | 20 | Admin pelanggan tidak bisa mengubah lisensi, fitur tak berlisensi tertutup di database (termasuk lewat fungsi DEFINER), kedaluwarsa/penangguhan/tenggang, downgrade tanpa kehilangan data |
+| `keamanan-akun.sql` | 10 | Rahasia 2FA, sesi, langganan push, dan lonceng orang lain hanya untuk server |
+| `keamanan-aplikasi.sql` | 10 | Kunci tanda tangan aplikasi Android & laporan lokasi bertanda tangan |
+| `keamanan-lisensi.sql` | 21 | Admin pelanggan tidak bisa mengubah lisensi, fitur tak berlisensi tertutup di database (termasuk lewat fungsi DEFINER), kedaluwarsa/penangguhan/tenggang, downgrade tanpa kehilangan data |
 
 Uji Authority pusat: `supabase/tests/authority.sql` di repo privat sales-license-authority (22 uji).
 
-Pemeriksaan kode: `npm run typecheck`, `npm test` (uji unit lisensi, Node ≥ 22.6) dan `npm run build`.
+Pemeriksaan kode: `npm run typecheck`, `npm test` (uji unit lisensi, impor, TOTP; Node ≥ 22.6) dan `npm run build`.
+
+**CI (GitHub Actions, `.github/workflows/ci.yml`)** menjalankan semuanya di setiap
+push ke `main` dan pull request: typecheck, unit test, build, kecocokan
+`SETUP_LENGKAP.sql`, lalu seluruh migrasi + uji keamanan SQL di Postgres 16.
+Workflow `apk.yml` (manual) membangun APK per pelanggan dari secret dan
+mengunggahnya ke bucket privat `aplikasi` Supabase pelanggan itu.
+
+**Rilis ke repo/server lain** (mis. demo): `npm run rilis -- <commit-terpasang>`
+menghasilkan ZIP berisi hanya berkas yang berubah, daftar berkas yang dihapus,
+SQL susulan migrasi baru, dan panduan update.
 
 ## 12. Deploy
 
@@ -226,5 +250,5 @@ terhadap fungsi database baru (atau sebaliknya) bisa gagal.
   lokasi tiruan Android bekerja di tingkat sistem operasi. Platform ini
   mengenali jejak khasnya dan mencatat seluruh laporan untuk dilihat pengawas;
   kepastian penuh butuh aplikasi Android native.
-- **Pengurutan kolom berlaku per halaman** yang sedang tampil, bukan seluruh
-  data.
+- **Pengurutan kolom** mengurutkan seluruh data di server untuk kolom bertanda
+  ↕; kolom nama Sales/Owner tidak bisa diurutkan karena tersimpan sebagai id.

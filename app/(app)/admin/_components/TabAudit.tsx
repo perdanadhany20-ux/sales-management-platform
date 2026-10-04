@@ -190,7 +190,6 @@ export function TabAudit() {
             keterangan: [
               filterAksi ? `Tindakan: ${GAYA_AKSI[filterAksi]?.label ?? filterAksi}` : 'Tindakan: semua',
               cariTertunda ? `Pelaku mengandung: ${cariTertunda}` : 'Pelaku: semua',
-              `Diekspor pada ${tanggalPendek(new Date().toISOString())}`,
             ],
             kolom: [
               { judul: 'Waktu', lebar: 18,

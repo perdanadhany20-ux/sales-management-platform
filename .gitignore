@@ -23,3 +23,6 @@ android/*.keystore
 android/*.jks
 android/*.apk
 android/*.aab
+
+# Paket rilis (npm run rilis)
+rilis/

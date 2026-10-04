@@ -23,6 +23,7 @@ interface Pengguna {
   created_at: string;
   manager_id: string | null;
   position: string | null;
+  mfa_aktif?: boolean;
 }
 
 const GAYA_PERAN: Record<string, { color: string; bg: string }> = {
@@ -64,6 +65,7 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
   const [formBuka, setFormBuka] = useState(false);
   const [sunting, setSunting] = useState<Pengguna | null>(null);
   const [resetUntuk, setResetUntuk] = useState<Pengguna | null>(null);
+  const [reset2faUntuk, setReset2faUntuk] = useState<Pengguna | null>(null);
   const [akanUbahAktif, setAkanUbahAktif] = useState<Pengguna | null>(null);
   const [memproses, setMemproses] = useState(false);
 
@@ -113,6 +115,23 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
     void muat();
   }
 
+  async function reset2fa() {
+    if (!reset2faUntuk) return;
+    setMemproses(true);
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id: reset2faUntuk.id, reset_2fa: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setMemproses(false);
+    if (!res.ok) { toast('galat', data?.error ?? 'Gagal mereset verifikasi dua langkah.'); return; }
+    toast('sukses', `Verifikasi dua langkah ${reset2faUntuk.full_name} direset. Sesinya dikeluarkan.`);
+    setReset2faUntuk(null);
+    void muat();
+  }
+
   return (
     <div className="flex flex-col gap-4">
 
@@ -143,7 +162,7 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
         <Tabel
           data={tersaring}
           kunci={(u) => u.id}
-          lebarAksi="w-32"
+          lebarAksi="w-40"
           kolom={[
             {
               label: 'Pengguna', className: 'w-[28%]',
@@ -159,6 +178,7 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="font-bold text-slate-900 truncate">{u.full_name}</span>
                         {sendiri && <Lencana label="Anda" color="#64748b" bg="#f1f5f9" />}
+                        {u.mfa_aktif && <Lencana label="2FA" color="#7c3aed" bg="#ede9fe" />}
                       </div>
                       <p className="text-[11px] text-slate-500 truncate">@{u.username}</p>
                     </div>
@@ -216,6 +236,10 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
                   onClick={() => { setSunting(u); setFormBuka(true); }} />
                 <TombolIkon rupa="sandi" label="Reset kata sandi"
                   onClick={() => setResetUntuk(u)} />
+                {u.mfa_aktif && !sendiri && (
+                  <TombolIkon rupa="dualangkah" label="Reset verifikasi dua langkah (2FA)"
+                    onClick={() => setReset2faUntuk(u)} />
+                )}
                 {!sendiri && (
                   <TombolIkon rupa={u.active ? 'nonaktif' : 'aktif'}
                     label={u.active ? 'Nonaktifkan akun' : 'Aktifkan akun'}
@@ -245,6 +269,17 @@ export function TabPengguna({ pemanggilId }: { pemanggilId: string }) {
           pengguna={resetUntuk}
         />
       )}
+
+      <Konfirmasi
+        buka={Boolean(reset2faUntuk)}
+        onTutup={() => setReset2faUntuk(null)}
+        onSetuju={reset2fa}
+        memproses={memproses}
+        bahaya
+        judul="Reset verifikasi dua langkah?"
+        pesan={`Gunakan hanya bila ${reset2faUntuk?.full_name ?? ''} kehilangan HP dan kode cadangannya — pastikan identitasnya lebih dulu. Sesinya dikeluarkan; berikutnya ia masuk dengan sandi saja lalu bisa memasang 2FA lagi dari Profil.`}
+        labelSetuju="Reset 2FA"
+      />
 
       <Konfirmasi
         buka={Boolean(akanUbahAktif)}

@@ -7,6 +7,8 @@ import { eksporExcel, BATAS_BARIS_EKSPOR, type OpsiEkspor } from '@/lib/ekspor-e
 import { useToast } from './Feedback';
 import { pesanGalat } from '@/lib/pesan-galat';
 import { useLisensi } from '@/lib/lisensi/use-lisensi';
+import { usePenggunaAktif } from '@/lib/auth';
+import { LABEL_PERAN } from '@/lib/constants';
 
 /**
  * components/shared/TombolEkspor.tsx — satu tombol ekspor untuk semua modul.
@@ -35,6 +37,7 @@ export function TombolEkspor<T>({ ambil, susun, label = 'Ekspor Excel', classNam
   const toast = useToast();
   const [sibuk, setSibuk] = useState(false);
   const { lisensi } = useLisensi();
+  const { pengguna } = usePenggunaAktif();
 
   async function jalankan() {
     setSibuk(true);
@@ -49,7 +52,13 @@ export function TombolEkspor<T>({ ambil, susun, label = 'Ekspor Excel', classNam
       const dipotong = baris.length > BATAS_BARIS_EKSPOR;
       const dipakai = dipotong ? baris.slice(0, BATAS_BARIS_EKSPOR) : baris;
 
-      await eksporExcel(susun(dipakai));
+      const opsi = susun(dipakai);
+      await eksporExcel({
+        ...opsi,
+        pengekspor: opsi.pengekspor ?? (pengguna
+          ? { nama: pengguna.full_name, jabatan: (LABEL_PERAN as Record<string, string>)[pengguna.role] ?? pengguna.role }
+          : undefined),
+      });
 
       if (dipotong) {
         // Diberitahukan, bukan didiamkan: berkas yang diam-diam terpotong

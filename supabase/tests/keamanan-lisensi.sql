@@ -147,6 +147,15 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims','{"sub":"f1111111-1111-4111-8111-111111111111","role":"authenticated","user_role":"SALES"}',true);
 INSERT INTO hasil SELECT 11,'PROFESSIONAL: pipeline lama muncul kembali','1 baris',
   count(*)::text||' baris' FROM public.sm_pipeline WHERE id = 'fe000000-0000-4000-8000-000000000001';
+DO $x$ BEGIN
+  BEGIN
+    PERFORM * FROM public.sm_laporan_bulanan(current_date - 30, current_date);
+    INSERT INTO hasil VALUES (21,'PROFESSIONAL tanpa advanced_reporting: menu Laporan','ditolak','DITERIMA');
+  EXCEPTION WHEN raise_exception THEN
+    INSERT INTO hasil VALUES (21,'PROFESSIONAL tanpa advanced_reporting: menu Laporan','ditolak',
+      CASE WHEN SQLERRM = 'FEATURE_NOT_LICENSED' THEN 'ditolak' ELSE SQLERRM END);
+  END;
+END $x$;
 RESET ROLE;
 
 -- ══ 5. Downgrade tidak menghapus data ══════════════════════════════════════

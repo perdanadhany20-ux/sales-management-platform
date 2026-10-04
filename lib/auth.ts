@@ -18,7 +18,10 @@ export interface PenggunaAktif {
   wajib_ganti_sandi?: boolean;
 }
 
-export async function masuk(username: string, password: string): Promise<PenggunaAktif> {
+/** Hasil langkah pertama login: langsung masuk, atau perlu kode 2FA. */
+export type HasilMasuk = { pengguna: PenggunaAktif } | { perlu2fa: true; tiket: string };
+
+export async function masuk(username: string, password: string): Promise<HasilMasuk> {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -28,10 +31,30 @@ export async function masuk(username: string, password: string): Promise<Penggun
 
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error ?? 'Gagal masuk.');
+  if (data.perlu_2fa) return { perlu2fa: true, tiket: String(data.tiket) };
 
   setDbToken(data.db_token ?? null);
   lupakanSesi();
-  return data.user as PenggunaAktif;
+  return { pengguna: data.user as PenggunaAktif };
+}
+
+/** Langkah kedua: kode authenticator 6 digit atau kode cadangan. */
+export async function masuk2fa(tiket: string, kode: string): Promise<{ pengguna: PenggunaAktif; sisaCadangan?: number }> {
+  const res = await fetch('/api/auth/login/2fa', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ tiket, kode }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(data?.error ?? 'Kode verifikasi salah.') as Error & { ulang?: boolean };
+    e.ulang = Boolean(data?.ulang);
+    throw e;
+  }
+  setDbToken(data.db_token ?? null);
+  lupakanSesi();
+  return { pengguna: data.user as PenggunaAktif, sisaCadangan: data.sisa_cadangan };
 }
 
 export async function keluar(): Promise<void> {

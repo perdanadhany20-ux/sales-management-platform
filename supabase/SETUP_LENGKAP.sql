@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- Sales Management Platform — SETUP LENGKAP (migrasi 001–044 + Admin pertama)
+-- Sales Management Platform — SETUP LENGKAP (migrasi 001–047 + Admin pertama)
 -- Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
 -- atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 --
@@ -5738,6 +5738,234 @@ DROP INDEX IF EXISTS public.idx_daily_reports_customer;
 
 CREATE INDEX IF NOT EXISTS idx_impor_dibuat_oleh     ON public.sm_impor (dibuat_oleh);
 CREATE INDEX IF NOT EXISTS idx_impor_dibatalkan_oleh ON public.sm_impor (dibatalkan_oleh);
+
+
+-- ▼▼▼ 045_keamanan_akun.sql ▼▼▼
+-- Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+-- atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
+-- ════════════════════════════════════════════════════════════════════════════
+-- 045 — Keamanan akun: verifikasi dua langkah (TOTP) & perangkat aktif
+--
+-- 1. user_mfa: rahasia TOTP (terenkripsi AES-256-GCM di server, bukan teks
+--    polos), langkah waktu terakhir yang dipakai (tolak kode diputar ulang),
+--    dan hash kode cadangan sekali pakai. Hanya service role yang menyentuh
+--    tabel ini — sama seperti user_credentials.
+-- 2. user_sessions: alamat IP & waktu terakhir aktif, untuk daftar
+--    "Perangkat aktif" di Profil (pengguna bisa memutus sesi lain).
+-- Tidak mengubah data lama. Aman dijalankan ulang.
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS public.user_mfa (
+  user_id         uuid PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+  rahasia_enc     text        NOT NULL,
+  aktif           boolean     NOT NULL DEFAULT false,
+  langkah_terakhir bigint     NOT NULL DEFAULT 0,
+  kode_cadangan   text[]      NOT NULL DEFAULT '{}',
+  dibuat_at       timestamptz NOT NULL DEFAULT now(),
+  diaktifkan_at   timestamptz
+);
+
+ALTER TABLE public.user_mfa ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.user_mfa FROM PUBLIC;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON public.user_mfa FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON public.user_mfa FROM authenticated;
+  END IF;
+END $$;
+
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS ip text;
+ALTER TABLE public.user_sessions ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
+
+
+-- ▼▼▼ 046_notifikasi_push.sql ▼▼▼
+-- Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+-- atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
+-- ════════════════════════════════════════════════════════════════════════════
+-- 046 — Notifikasi push (Web Push)
+--
+-- 1. sm_push_langganan: endpoint push per perangkat. Hanya service role
+--    (server) yang menyentuhnya; pengguna mendaftar lewat /api/push.
+-- 2. sm_lonceng_untuk(uuid): isi lonceng seorang pengguna, untuk dikirim
+--    cron push saat aplikasinya tertutup. Memakai sm_lonceng() yang sama
+--    dengan header aplikasi, sehingga isi push = isi lonceng. Hanya bisa
+--    dipanggil service role.
+-- Tidak mengubah data lama. Aman dijalankan ulang.
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS public.sm_push_langganan (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  endpoint       text        NOT NULL UNIQUE CHECK (endpoint ~ '^https://' AND length(endpoint) <= 1000),
+  p256dh         text        NOT NULL CHECK (length(p256dh) <= 200),
+  auth           text        NOT NULL CHECK (length(auth) <= 100),
+  user_agent     text,
+  dibuat_at      timestamptz NOT NULL DEFAULT now(),
+  terakhir_kirim timestamptz,
+  slot_terakhir  text
+);
+CREATE INDEX IF NOT EXISTS idx_push_user ON public.sm_push_langganan (user_id);
+
+ALTER TABLE public.sm_push_langganan ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.sm_push_langganan FROM PUBLIC;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON public.sm_push_langganan FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON public.sm_push_langganan FROM authenticated;
+  END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.sm_lonceng_untuk(p_user uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SET search_path TO 'public', 'pg_temp'
+AS $$
+DECLARE
+  v_role text;
+BEGIN
+  SELECT role INTO v_role FROM public.users WHERE id = p_user AND active;
+  IF v_role IS NULL THEN RETURN NULL; END IF;
+  -- Identitas pengguna itu hanya untuk sisa transaksi ini (is_local = true).
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', p_user, 'role', 'authenticated', 'user_role', v_role)::text, true);
+  RETURN public.sm_lonceng();
+END $$;
+
+REVOKE EXECUTE ON FUNCTION public.sm_lonceng_untuk(uuid) FROM PUBLIC;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE EXECUTE ON FUNCTION public.sm_lonceng_untuk(uuid) FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE EXECUTE ON FUNCTION public.sm_lonceng_untuk(uuid) FROM authenticated;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT EXECUTE ON FUNCTION public.sm_lonceng_untuk(uuid) TO service_role;
+  END IF;
+END $$;
+
+
+-- ▼▼▼ 047_laporan_lanjutan.sql ▼▼▼
+-- Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+-- atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
+-- ════════════════════════════════════════════════════════════════════════════
+-- 047 — Laporan lanjutan (fitur lisensi advanced_reporting)
+--
+-- sm_laporan_bulanan(dari, sampai): satu baris per BULAN × SALES —
+-- jumlah laporan harian, meeting selesai, peluang baru, closing (WON),
+-- dan targetnya. Dipakai menu Laporan (tren, target vs realisasi,
+-- peringkat) dan ekspor Excel-nya. Juga kartu Dashboard Antrian
+-- Persetujuan GP (Manager → Director → Finance).
+--
+-- Keamanan: SECURITY INVOKER — setiap tabel tetap disaring RLS pemanggil
+-- (Sales hanya dirinya, pengawas seluruh tim), dan fungsi menolak bila
+-- lisensi platform tidak memuat advanced_reporting (gagal tertutup).
+-- Definisi realisasi = sm_pencapaian_target (WON berdasarkan won_at).
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.sm_laporan_bulanan(p_dari date, p_sampai date)
+RETURNS TABLE (
+  bulan           date,
+  sales_user_id   uuid,
+  full_name       text,
+  laporan         integer,
+  meeting_selesai integer,
+  peluang_baru    integer,
+  nilai_peluang   numeric,
+  won             integer,
+  nilai_won       numeric,
+  gp_won          numeric,
+  target_nilai    numeric,
+  target_gp       numeric
+)
+LANGUAGE plpgsql
+STABLE
+SET search_path TO 'public', 'pg_temp'
+SET "TimeZone" TO 'Asia/Jakarta'
+AS $$
+BEGIN
+  IF NOT public.sm_fitur_berlisensi('advanced_reporting') THEN
+    RAISE EXCEPTION 'FEATURE_NOT_LICENSED' USING DETAIL = 'advanced_reporting',
+      HINT = 'Fitur ini tidak termasuk dalam lisensi platform saat ini.';
+  END IF;
+  IF p_dari IS NULL OR p_sampai IS NULL OR p_sampai < p_dari OR p_sampai - p_dari > 800 THEN
+    RAISE EXCEPTION 'Rentang tanggal tidak sah (maksimal ±2 tahun).';
+  END IF;
+
+  RETURN QUERY
+  WITH sales AS (
+    SELECT u.id, u.full_name FROM public.users u
+     WHERE u.active AND u.role = 'SALES'
+       AND (public.sm_is_pengawas() OR u.id = public.sm_uid())
+  ),
+  bln AS (
+    SELECT generate_series(date_trunc('month', p_dari), date_trunc('month', p_sampai), interval '1 month')::date AS b
+  ),
+  lap AS (
+    SELECT d.sales_user_id AS u, date_trunc('month', d.report_date)::date AS b, count(*)::int AS n
+      FROM public.sm_daily_reports d WHERE d.report_date BETWEEN p_dari AND p_sampai GROUP BY 1, 2
+  ),
+  mtg AS (
+    SELECT s.assigned_to AS u, date_trunc('month', s.schedule_date)::date AS b, count(*)::int AS n
+      FROM public.sm_schedules s
+     WHERE s.status = 'COMPLETED' AND s.schedule_date BETWEEN p_dari AND p_sampai GROUP BY 1, 2
+  ),
+  pip AS (
+    SELECT p.sales_user_id AS u, date_trunc('month', p.pipeline_date)::date AS b,
+           count(*)::int AS n, sum(p.project_value) AS v
+      FROM public.sm_pipeline p WHERE p.pipeline_date BETWEEN p_dari AND p_sampai GROUP BY 1, 2
+  ),
+  wn AS (
+    SELECT p.sales_user_id AS u, date_trunc('month', p.won_at)::date AS b,
+           count(*)::int AS n, sum(p.project_value) AS v, sum(p.project_gp) AS g
+      FROM public.sm_pipeline p
+     WHERE p.stage = 'WON' AND p.won_at BETWEEN p_dari AND p_sampai GROUP BY 1, 2
+  ),
+  tgt AS (
+    SELECT t.sales_user_id AS u, t.periode AS b, t.target_nilai AS v, t.target_gp AS g
+      FROM public.sm_sales_targets t
+     WHERE t.periode BETWEEN date_trunc('month', p_dari)::date AND p_sampai
+  )
+  SELECT bln.b, s.id, s.full_name,
+         COALESCE(lap.n, 0), COALESCE(mtg.n, 0),
+         COALESCE(pip.n, 0), COALESCE(pip.v, 0),
+         COALESCE(wn.n, 0), COALESCE(wn.v, 0), COALESCE(wn.g, 0),
+         COALESCE(tgt.v, 0), tgt.g
+    FROM bln CROSS JOIN sales s
+    LEFT JOIN lap ON lap.u = s.id AND lap.b = bln.b
+    LEFT JOIN mtg ON mtg.u = s.id AND mtg.b = bln.b
+    LEFT JOIN pip ON pip.u = s.id AND pip.b = bln.b
+    LEFT JOIN wn  ON wn.u  = s.id AND wn.b  = bln.b
+    LEFT JOIN tgt ON tgt.u = s.id AND tgt.b = bln.b
+   ORDER BY bln.b, s.full_name;
+END $$;
+
+REVOKE EXECUTE ON FUNCTION public.sm_laporan_bulanan(date, date) FROM PUBLIC;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE EXECUTE ON FUNCTION public.sm_laporan_bulanan(date, date) FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    GRANT EXECUTE ON FUNCTION public.sm_laporan_bulanan(date, date) TO authenticated;
+  END IF;
+END $$;
+
+-- Menu bawaan: semua peran (isi tetap disaring RLS). Akun dengan daftar menu
+-- khusus (sm_user_menu) tidak diubah — Admin menambahkannya sendiri.
+INSERT INTO public.sm_role_menu (role, menu_key)
+SELECT r, 'laporan' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
+ON CONFLICT DO NOTHING;
+
+-- Kartu Dashboard "Antrian Persetujuan GP" bisa diatur dari Dashboard Setting.
+UPDATE public.sm_settings
+   SET value = value || '[{"key":"antrian_gp","label":"Antrian Persetujuan GP","aktif":true}]'::jsonb
+ WHERE key = 'dashboard_widgets'
+   AND NOT (value @> '[{"key":"antrian_gp"}]'::jsonb);
 
 
 -- ════════════════════════════════════════════════════════════════════════════
