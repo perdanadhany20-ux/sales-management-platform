@@ -125,16 +125,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
   usePantauKlikTautan();
   const sedangNavigasi = useSedangNavigasi();
 
+  // Middleware biasanya sudah mengalihkan sebelum sampai sini. Ini jaring
+  // pengaman untuk cookie yang ada tapi sesinya sudah dihapus di server.
+  // Di efek, bukan saat render: mengubah router di tengah render memicu
+  // peringatan React dan bisa mengalihkan dua kali.
+  const tanpaSesi = !memuat && !pengguna;
+  useEffect(() => { if (tanpaSesi) router.replace('/'); }, [tanpaSesi, router]);
+
   if (pengguna?.wajib_ganti_sandi) return <LayarGantiSandi nama={pengguna.full_name} onSelesai={muatUlang} />;
 
   if (memuat || (pengguna && menuSaya === null)) return <LayarMemuat pesan="Memulihkan sesi…" />;
 
-  if (!pengguna) {
-    // Middleware biasanya sudah mengalihkan sebelum sampai sini. Ini jaring
-    // pengaman untuk cookie yang ada tapi sesinya sudah dihapus di server.
-    router.replace('/');
-    return <LayarMemuat pesan="Mengalihkan…" />;
-  }
+  if (!pengguna) return <LayarMemuat pesan="Mengalihkan…" />;
 
   const menu = MENU_APLIKASI.filter((m) => menuSaya!.includes(m.kunci));
   // Bilah bawah memuat paling banyak 5 slot. Kalau menunya lebih, slot
