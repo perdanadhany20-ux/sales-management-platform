@@ -11,7 +11,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "sql:setup": "node scripts/gabung-migrasi.mjs",
-    "test": "node --test --experimental-strip-types --no-warnings tests/*.test.ts"
+    "test": "node --test --experimental-strip-types --no-warnings tests/*.test.ts",
+    "rilis": "node scripts/paket-rilis.mjs"
   },
   "engines": {
     "node": "24.x"
