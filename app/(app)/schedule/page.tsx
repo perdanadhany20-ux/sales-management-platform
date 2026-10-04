@@ -267,7 +267,6 @@ export default function HalamanSchedule() {
                 `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
                 filterSales ? `Sales: ${namaSales[filterSales] ?? '—'}` : 'Sales: semua',
                 filterKategori ? `Kategori: ${filterKategori}` : 'Kategori: semua',
-                `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
               ],
               kolom: [
                 { judul: 'Tanggal', format: 'tanggal', lebar: 12, nilai: (j) => selTanggal(j.schedule_date) },

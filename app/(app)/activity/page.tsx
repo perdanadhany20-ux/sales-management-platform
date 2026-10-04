@@ -233,7 +233,6 @@ export default function HalamanActivity() {
               `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
               filterJenis ? `Jenis: ${(JENIS[filterJenis] ?? JENIS_BAWAAN).label}` : 'Jenis: semua',
               filterOrang ? `Pengguna: ${namaOrang[filterOrang] ?? '—'}` : 'Pengguna: semua yang boleh Anda lihat',
-              `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
             ],
             kolom: [
               { judul: 'Waktu', lebar: 18,

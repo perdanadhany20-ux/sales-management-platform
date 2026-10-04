@@ -195,7 +195,6 @@ export default function HalamanCustomer() {
               keterangan: [
                 filterPemilik ? `Pemilik: ${namaOrang[filterPemilik] ?? '—'}` : 'Pemilik: semua yang boleh Anda lihat',
                 filterHangat ? `Kehangatan: ${KEHANGATAN[filterHangat as Kehangatan].label}` : 'Kehangatan: semua',
-                `Diekspor oleh ${pengguna?.full_name ?? '—'}`,
               ],
               kolom: [
                 { judul: 'Customer', lebar: 30, nilai: (c) => c.name },

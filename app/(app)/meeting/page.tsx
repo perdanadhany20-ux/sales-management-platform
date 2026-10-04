@@ -289,7 +289,6 @@ export default function HalamanMeeting() {
             keterangan: [
               `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
               pengawas && filterSales ? `Sales: ${namaSales[filterSales] ?? '—'}` : 'Sales: semua yang boleh Anda lihat',
-              `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
             ],
             kolom: [
               { judul: 'Tanggal', format: 'tanggal', lebar: 12, nilai: (m) => selTanggal(m.schedule_date) },

@@ -225,7 +225,6 @@ export default function HalamanGp() {
                 `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
                 filterSales ? `Sales: ${namaOrang[filterSales] ?? '—'}` : 'Sales: semua yang boleh Anda lihat',
                 filterStatus ? `Status: ${STATUS_GP[filterStatus as StatusGp]?.label ?? filterStatus}` : 'Status: semua',
-                `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
               ],
               kolom: [
                 { judul: 'Nomor', lebar: 18, nilai: (g) => g.nomor },

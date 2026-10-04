@@ -175,7 +175,6 @@ export default function HalamanProyek() {
               keterangan: [
                 filterStatus ? `Status: ${STATUS_PROYEK[filterStatus as StatusProyek]?.label ?? filterStatus}` : 'Status: semua',
                 filterSales ? `Pemilik: ${namaOrang[filterSales] ?? '—'}` : 'Pemilik: semua yang boleh Anda lihat',
-                `Diekspor oleh ${pengguna?.full_name ?? '—'}`,
               ],
               kolom: [
                 { judul: 'Kode', lebar: 18, nilai: (p) => p.kode },

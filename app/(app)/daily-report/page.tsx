@@ -243,7 +243,6 @@ export default function HalamanDailyReport() {
                 `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
                 filterSales ? `Sales: ${namaSales[filterSales] ?? '—'}` : 'Sales: semua',
                 cariTertunda ? `Kata kunci: ${cariTertunda}` : 'Tanpa kata kunci',
-                `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
               ],
               kolom: [
                 { judul: 'Tanggal', format: 'tanggal', lebar: 12, nilai: (r) => selTanggal(r.report_date) },

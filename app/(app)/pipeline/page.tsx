@@ -224,7 +224,6 @@ export default function HalamanPipeline() {
                 `Rentang: ${tanggalPendek(dari)} – ${tanggalPendek(sampai)}`,
                 filterSales ? `Sales: ${namaSales[filterSales] ?? '—'}` : 'Sales: semua',
                 filterStage ? `Stage: ${filterStage}` : 'Stage: semua',
-                `Diekspor oleh ${pengguna?.full_name ?? '—'} pada ${tanggalPendek(tanggalISO())}`,
               ],
               kolom: [
                 { judul: 'Tanggal', format: 'tanggal', lebar: 12, nilai: (p) => selTanggal(p.pipeline_date) },
