@@ -1,0 +1,66 @@
+# Hak Cipta © 2026 DWP. Seluruh hak dilindungi.
+# CI: setiap push & pull request diperiksa sebelum Vercel men-deploy.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  aplikasi:
+    name: Typecheck · Unit test · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: SETUP_LENGKAP.sql sesuai migrasi
+        run: |
+          npm run sql:setup
+          git diff --exit-code supabase/SETUP_LENGKAP.sql || { echo "::error::Jalankan 'npm run sql:setup' lalu commit SETUP_LENGKAP.sql"; exit 1; }
+      - name: Build
+        run: npm run build
+        env:
+          # Nilai tiruan — build tidak menghubungi layanan apa pun.
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_TELEMETRY_DISABLED: 1
+
+  database:
+    name: Migrasi + uji keamanan SQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/uji-sql.sh
+
