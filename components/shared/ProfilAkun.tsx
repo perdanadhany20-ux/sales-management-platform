@@ -19,6 +19,7 @@ import { PilihCari } from '@/components/shared/PilihCari';
 import { PanelGalat, LayarMemuat, useToast } from '@/components/shared/Feedback';
 import { KartuAplikasi } from '@/components/shared/KartuAplikasi';
 import { DuaLangkah, PerangkatAktif } from '@/components/shared/KeamananAkun';
+import { NotifikasiPush } from '@/components/shared/NotifikasiPush';
 import { Modal } from '@/components/shared/Modal';
 import { ACARA_BUKA_PROFIL } from '@/lib/buka-profil';
 
@@ -586,6 +587,9 @@ export function IsiProfil({ onTutup }: { onTutup?: () => void } = {}) {
                 )}
               </div>
             )}
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <NotifikasiPush />
+            </div>
           </Panel>
 
           <Panel ikon="grafik" judul="Ringkasan Aktivitas">

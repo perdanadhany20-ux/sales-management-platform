@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "sql:setup": "node scripts/gabung-migrasi.mjs",
     "test": "node --test --experimental-strip-types --no-warnings tests/*.test.ts",
-    "rilis": "node scripts/paket-rilis.mjs"
+    "rilis": "node scripts/paket-rilis.mjs",
+    "vapid": "node scripts/buat-vapid.mjs"
   },
   "engines": {
     "node": "24.x"
@@ -26,7 +27,8 @@
     "next": "15.5.27",
     "qrcode": "1.5.4",
     "react": "19.1.9",
-    "react-dom": "19.1.9"
+    "react-dom": "19.1.9",
+    "web-push": "3.6.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -36,6 +38,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "19.1.17",
     "@types/react-dom": "19.1.11",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "10.4.20",
     "postcss": "8.5.28",
     "tailwindcss": "3.4.17",

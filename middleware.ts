@@ -34,7 +34,7 @@ const TERBUKA = [
   '/api/auth/register',
   '/api/opsi-pendaftaran',
   // Dipanggil Vercel Cron tanpa cookie; route-nya sendiri menuntut CRON_SECRET.
-  '/api/lisensi/cron',
+  '/api/lisensi/cron', '/api/push/cron',
   // Berkas PWA/Android: dibaca peramban dan Play Store sebelum ada sesi.
   '/manifest.webmanifest', '/sw.js', '/offline.html', '/.well-known/assetlinks.json',
 ];

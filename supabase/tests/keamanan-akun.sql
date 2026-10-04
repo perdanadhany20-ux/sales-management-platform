@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- Uji keamanan akun — 2FA (user_mfa) & sesi (migrasi 045)
+-- Uji keamanan akun — 2FA (user_mfa) & sesi (migrasi 045), push (046)
 --
 -- Jalankan seluruh berkas sebagai pemilik basis data (SQL Editor Supabase).
 -- Skrip TIDAK diakhiri COMMIT: data uji hilang sendiri saat koneksi ditutup.
@@ -64,6 +64,14 @@ RESET ROLE;
 DELETE FROM public.users WHERE id='d1000000-0000-4000-8000-000000000001';
 INSERT INTO hasil SELECT 7,'2FA ikut terhapus bersama pengguna','0', count(*)::text
   FROM public.user_mfa WHERE user_id='d1000000-0000-4000-8000-000000000001';
+
+-- 8–10: langganan push & lonceng orang lain hanya untuk server
+INSERT INTO hasil SELECT 8,'authenticated punya hak SELECT sm_push_langganan','false',
+  has_table_privilege('authenticated','public.sm_push_langganan','SELECT')::text;
+INSERT INTO hasil SELECT 9,'authenticated boleh memanggil sm_lonceng_untuk','false',
+  has_function_privilege('authenticated','public.sm_lonceng_untuk(uuid)','EXECUTE')::text;
+INSERT INTO hasil SELECT 10,'anon boleh memanggil sm_lonceng_untuk','false',
+  has_function_privilege('anon','public.sm_lonceng_untuk(uuid)','EXECUTE')::text;
 
 SELECT no, uji, harapan, nyata, (harapan = nyata) AS lulus FROM hasil ORDER BY no;
 ROLLBACK;

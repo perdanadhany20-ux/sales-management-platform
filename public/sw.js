@@ -8,8 +8,11 @@
  * segar. Satu-satunya yang disimpan adalah halaman luring dan logonya,
  * supaya membuka aplikasi tanpa sinyal menampilkan pesan yang jelas, bukan
  * layar dinosaurus peramban.
+ *
+ * Juga menerima notifikasi push (lib/push.ts): isinya hanya judul, kalimat
+ * ringkas, dan halaman tujuan — bukan data bisnis.
  */
-const CACHE = 'smp-luring-v1';
+const CACHE = 'smp-luring-v2';
 const ASET = ['/offline.html', '/brand/logo.png'];
 
 self.addEventListener('install', (e) => {
@@ -35,4 +38,34 @@ self.addEventListener('fetch', (e) => {
   if (url.origin === self.location.origin && ASET.includes(url.pathname)) {
     e.respondWith(caches.match(req).then((r) => r || fetch(req)));
   }
+});
+
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { isi: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.judul || 'Sales Management', {
+    body: d.isi || '',
+    icon: '/brand/logo.png',
+    badge: '/brand/logo.png',
+    tag: d.tag || undefined,
+    renotify: Boolean(d.tag),
+    data: { url: d.url || '/' },
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const tujuan = new URL((e.notification.data && e.notification.data.url) || '/', self.location.origin);
+  if (tujuan.origin !== self.location.origin) return;
+  e.waitUntil((async () => {
+    const semua = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of semua) {
+      if (new URL(c.url).origin === self.location.origin && 'focus' in c) {
+        await c.focus();
+        if ('navigate' in c) await c.navigate(tujuan.href).catch(() => {});
+        return;
+      }
+    }
+    await self.clients.openWindow(tujuan.href);
+  })());
 });
