@@ -39,7 +39,7 @@ export const REGISTRY_FITUR: DefinisiFitur[] = [
   { key: 'schedule',           display_name: 'Schedule',           category: 'lapangan',  description: 'Penjadwalan dan penugasan kunjungan.' },
   { key: 'project',            display_name: 'Proyek',             category: 'penjualan', description: 'Proyek yang mengikat pipeline dan lokasi.' },
   { key: 'gp_calculation',     display_name: 'GP Calculation',     category: 'keuangan',  description: 'Perhitungan gross profit beserta persetujuannya.' },
-  { key: 'advanced_reporting', display_name: 'Advanced Reporting', category: 'laporan',   description: 'Ekspor laporan ke Excel dari setiap modul.' },
+  { key: 'advanced_reporting', display_name: 'Advanced Reporting', category: 'laporan',   description: 'Menu Laporan (tren, target vs realisasi, peringkat) dan ekspor Excel dari setiap modul.' },
   { key: 'approval',           display_name: 'Advanced Approval',  category: 'sistem',    description: 'Pendaftaran akun mandiri dengan antrean persetujuan Admin.' },
   { key: 'admin_settings',     display_name: 'Admin Settings',     category: 'sistem',    description: 'Pengelolaan pengguna, struktur, dan konfigurasi.' },
   { key: 'notifications',      display_name: 'Notifications',      category: 'sistem',    description: 'Lonceng notifikasi dan pengingat.' },
@@ -497,6 +497,7 @@ export const FITUR_MENU: Record<string, KunciFitur> = {
   customer: 'customer',
   gp: 'gp_calculation',
   activity: 'sales_activity',
+  laporan: 'advanced_reporting',
   admin: 'admin_settings',
 };
 

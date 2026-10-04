@@ -95,6 +95,7 @@ export const MENU_APLIKASI: Menu[] = [
   { kelompok: 'Penjualan', href: '/proyek',       label: 'Proyek',       kunci: 'proyek',        ikon: I('M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z') },
   { kelompok: 'Penjualan', href: '/gp',           label: 'GP Calculation', kunci: 'gp',          ikon: I('M9 7h6M9 11h6M9 15h3M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z') },
   { kelompok: 'Pemantauan', href: '/activity',     label: 'Activity',     kunci: 'activity',      ikon: I('M3 12h4l3 8 4-16 3 8h4') },
+  { kelompok: 'Pemantauan', href: '/laporan',      label: 'Laporan',      kunci: 'laporan',       ikon: I('M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-3M20 16V6') },
   { kelompok: 'Sistem', href: '/admin',        label: 'Admin Panel',  kunci: 'admin',         ikon: I('M10.3 4.3a1.9 1.9 0 013.4 0l.5 1a1.9 1.9 0 002.3 1l1-.3a1.9 1.9 0 012.1 2.9l-.6.9a1.9 1.9 0 000 2.4l.6.9a1.9 1.9 0 01-2.1 2.9l-1-.3a1.9 1.9 0 00-2.3 1l-.5 1a1.9 1.9 0 01-3.4 0l-.5-1a1.9 1.9 0 00-2.3-1l-1 .3a1.9 1.9 0 01-2.1-2.9l.6-.9a1.9 1.9 0 000-2.4l-.6-.9a1.9 1.9 0 012.1-2.9l1 .3a1.9 1.9 0 002.3-1l.5-1z M12 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z') },
 ];
 
