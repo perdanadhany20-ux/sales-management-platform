@@ -59,12 +59,13 @@ self.addEventListener('notificationclick', (e) => {
   if (tujuan.origin !== self.location.origin) return;
   e.waitUntil((async () => {
     const semua = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // focus() bisa ditolak peramban dan navigate() hanya berlaku untuk tab
+    // yang dikendalikan service worker ini — masing-masing dicoba terpisah
+    // supaya satu kegagalan tidak membatalkan perpindahan halaman.
     for (const c of semua) {
-      if (new URL(c.url).origin === self.location.origin && 'focus' in c) {
-        await c.focus();
-        if ('navigate' in c) await c.navigate(tujuan.href).catch(() => {});
-        return;
-      }
+      if (new URL(c.url).origin !== self.location.origin) continue;
+      try { await c.focus(); } catch { /* lanjut */ }
+      try { if (await c.navigate(tujuan.href)) return; } catch { /* coba tab lain */ }
     }
     await self.clients.openWindow(tujuan.href);
   })());
