@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS public.sm_impor (
 );
 
 ALTER TABLE public.sm_impor ENABLE ROW LEVEL SECURITY;
+-- Seperti tabel lain (005, 027): tamu tanpa login tidak punya hak apa pun,
+-- dan TRUNCATE tidak pernah diberikan.
+REVOKE ALL ON public.sm_impor FROM anon;
+REVOKE TRUNCATE ON public.sm_impor FROM authenticated;
 
 -- Hanya Admin yang melihat riwayat impor; menulis hanya lewat server.
 DROP POLICY IF EXISTS impor_baca ON public.sm_impor;

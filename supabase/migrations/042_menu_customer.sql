@@ -84,6 +84,24 @@ CREATE INDEX IF NOT EXISTS idx_daily_reports_customer ON public.sm_daily_reports
 CREATE INDEX IF NOT EXISTS idx_schedules_customer ON public.sm_schedules (customer_id);
 
 -- Menu bawaan: semua peran boleh membuka Customer (isinya tetap dibatasi RLS).
-INSERT INTO public.sm_role_menu (role, menu_key)
-SELECT r, 'customer' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
-ON CONFLICT DO NOTHING;
+-- Menu bawaan dipasang SEKALI seumur server (penanda di sm_settings
+-- 'menu_bawaan_terpasang'). Menjalankan ulang berkas SQL tidak mengembalikan
+-- menu yang sudah dicabut Admin lewat Hak Akses Menu.
+DO $menu$
+DECLARE v_tanda jsonb;
+BEGIN
+  SELECT value INTO v_tanda FROM public.sm_settings WHERE key = 'menu_bawaan_terpasang';
+  v_tanda := coalesce(v_tanda, '[]'::jsonb);
+  IF NOT (v_tanda ? 'customer') THEN
+    IF NOT EXISTS (SELECT 1 FROM public.sm_role_menu WHERE menu_key = 'customer') THEN
+      INSERT INTO public.sm_role_menu (role, menu_key)
+      SELECT r, 'customer' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
+      ON CONFLICT DO NOTHING;
+    END IF;
+    INSERT INTO public.sm_settings (key, value, description)
+    VALUES ('menu_bawaan_terpasang', v_tanda || '["customer"]'::jsonb,
+            'Penanda internal migrasi: menu bawaan yang sudah pernah dipasang.')
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  END IF;
+END
+$menu$;

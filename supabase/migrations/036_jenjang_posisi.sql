@@ -37,7 +37,10 @@ UPDATE public.users SET position = CASE lower(btrim(position))
     WHEN 'direktur'        THEN 'Direktur'
     ELSE NULL
   END
- WHERE position IS NOT NULL;
+ WHERE position IS NOT NULL
+   -- Nilai yang sudah baku tidak disentuh (berkas SQL aman dijalankan ulang
+   -- tanpa mengubah updated_at seluruh pengguna).
+   AND position NOT IN ('Staff', 'Supervisor', 'Manager', 'General Manager', 'Direktur');
 
 ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_position_jenjang;
 ALTER TABLE public.users ADD CONSTRAINT users_position_jenjang
@@ -48,7 +51,8 @@ ALTER TABLE public.users ADD CONSTRAINT users_position_jenjang
 UPDATE public.sm_settings
    SET value = '["Staff","Supervisor","Manager","General Manager","Direktur"]'::jsonb,
        updated_at = now()
- WHERE key = 'positions';
+ WHERE key = 'positions'
+   AND value IS DISTINCT FROM '["Staff","Supervisor","Manager","General Manager","Direktur"]'::jsonb;
 
 -- ── 2. Peringkat ───────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.sm_peringkat_posisi(p text)

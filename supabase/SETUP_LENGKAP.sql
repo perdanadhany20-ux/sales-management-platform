@@ -1,17 +1,18 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- Sales Management Platform — SETUP LENGKAP (migrasi 001–047 + Admin pertama)
+-- Sales Management Platform — SQL FULL (migrasi 001–047 + Admin pertama + DATA DEMO)
 -- Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
 -- atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
 --
--- Untuk project Supabase BARU yang masih kosong. Cara pakai:
---   1. Ubah 3 isian akun Admin di bawah (username, nama, kata sandi sementara).
---   2. Supabase → SQL Editor → New query → tempel SELURUH isi berkas → Run.
---   3. Hasil akhir menampilkan akun Admin. Saat login pertama Admin wajib ganti sandi.
---   4. (Opsional) DATA DEMO di akhir berkas: ubah isian "true/false" di bagian
---      ▼▼▼ DATA DEMO ▼▼▼ untuk mengisi contoh skenario (akun demo.*).
+-- SATU berkas untuk SERVER BARU maupun SERVER YANG SUDAH TERPASANG:
+--   Supabase → SQL Editor → New query → tempel SELURUH isi berkas → Run.
 --
--- Project yang SUDAH terpasang: JANGAN pakai berkas ini (migrasi lama akan
--- bentrok) — pakai berkas PEMBARUAN (DARI=… di scripts/gabung-migrasi.mjs).
+-- Server yang sudah terpasang: tidak ada yang perlu diubah. Migrasi yang sudah
+-- ada dilewati/disegarkan tanpa mengubah data, menu yang dicabut Admin tidak
+-- kembali, dan Admin yang sudah ada tidak dibuat ulang.
+-- Server baru: (opsional) ubah 3 isian Admin di bawah; saat login pertama
+-- Admin wajib ganti kata sandi.
+-- DATA DEMO (bagian ▼▼▼ DATA DEMO ▼▼▼ di akhir): true = isi contoh skenario
+-- (akun demo.*), false = lewati. Data demo yang sudah ada tidak digandakan.
 --
 -- Seluruh isi berjalan dalam SATU transaksi: bila ada yang gagal, tidak ada
 -- yang tersimpan — perbaiki penyebabnya lalu jalankan ulang.
@@ -1861,39 +1862,48 @@ CREATE INDEX IF NOT EXISTS idx_settings_pengubah
 -- sm_locations — dikelola Manager & Admin
 DROP POLICY IF EXISTS lok_kelola ON public.sm_locations;
 
+DROP POLICY IF EXISTS lok_tambah ON public.sm_locations;
 CREATE POLICY lok_tambah ON public.sm_locations
   FOR INSERT TO authenticated WITH CHECK (public.sm_is_pengawas());
 
+DROP POLICY IF EXISTS lok_ubah ON public.sm_locations;
 CREATE POLICY lok_ubah ON public.sm_locations
   FOR UPDATE TO authenticated
   USING (public.sm_is_pengawas()) WITH CHECK (public.sm_is_pengawas());
 
+DROP POLICY IF EXISTS lok_hapus ON public.sm_locations;
 CREATE POLICY lok_hapus ON public.sm_locations
   FOR DELETE TO authenticated USING (public.sm_is_pengawas());
 
 -- sm_settings — hanya Admin
 DROP POLICY IF EXISTS settings_admin ON public.sm_settings;
 
+DROP POLICY IF EXISTS settings_tambah ON public.sm_settings;
 CREATE POLICY settings_tambah ON public.sm_settings
   FOR INSERT TO authenticated WITH CHECK (public.sm_is_admin());
 
+DROP POLICY IF EXISTS settings_ubah ON public.sm_settings;
 CREATE POLICY settings_ubah ON public.sm_settings
   FOR UPDATE TO authenticated
   USING (public.sm_is_admin()) WITH CHECK (public.sm_is_admin());
 
+DROP POLICY IF EXISTS settings_hapus ON public.sm_settings;
 CREATE POLICY settings_hapus ON public.sm_settings
   FOR DELETE TO authenticated USING (public.sm_is_admin());
 
 -- users — hanya Admin
 DROP POLICY IF EXISTS users_admin_kelola ON public.users;
 
+DROP POLICY IF EXISTS users_admin_tambah ON public.users;
 CREATE POLICY users_admin_tambah ON public.users
   FOR INSERT TO authenticated WITH CHECK (public.sm_is_admin());
 
+DROP POLICY IF EXISTS users_admin_ubah ON public.users;
 CREATE POLICY users_admin_ubah ON public.users
   FOR UPDATE TO authenticated
   USING (public.sm_is_admin()) WITH CHECK (public.sm_is_admin());
 
+DROP POLICY IF EXISTS users_admin_hapus ON public.users;
 CREATE POLICY users_admin_hapus ON public.users
   FOR DELETE TO authenticated USING (public.sm_is_admin());
 
@@ -2255,6 +2265,9 @@ CREATE INDEX IF NOT EXISTS idx_gp_items_induk
 -- melihat ringkasan miliknya sendiri. Tanpa opsi ini, satu SELECT ke view ini
 -- membuka seluruh angka GP tim — termasuk margin proyek Sales lain.
 
+-- sm_proyek_ringkasan (018) bergantung pada view ini — dilepas dulu supaya
+-- berkas SQL lengkap aman dijalankan ulang; 018 membuatnya kembali.
+DROP VIEW IF EXISTS public.sm_proyek_ringkasan;
 DROP VIEW IF EXISTS public.sm_gp_ringkasan;
 
 CREATE VIEW public.sm_gp_ringkasan
@@ -2935,7 +2948,11 @@ GRANT SELECT ON public.sm_gp_ringkasan TO authenticated;
 CREATE VIEW public.sm_proyek_ringkasan
 WITH (security_invoker = true) AS
 SELECT
-  p.*,
+  -- Kolom proyek ditulis satu per satu, BUKAN p.*: p.* dikunci saat view
+  -- dibuat, sehingga berkas SQL lengkap yang dijalankan ulang (sesudah 020
+  -- menambah location_id) akan menghasilkan view berbeda dari server baru.
+  p.id, p.kode, p.name, p.customer_id, p.customer_name, p.owner_user_id, p.status,
+  p.description, p.target_value, p.start_date, p.end_date, p.created_at, p.updated_at,
 
   COALESCE(pl.jml, 0)          AS jumlah_pipeline,
   COALESCE(pl.nilai, 0)        AS nilai_pipeline,
@@ -3387,13 +3404,13 @@ CREATE POLICY sch_kelola ON public.sm_schedules
 -- supaya menerapkan migrasi ini tidak mengunci siapa pun secara tiba-tiba.
 -- ════════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE public.sm_role_menu (
+CREATE TABLE IF NOT EXISTS public.sm_role_menu (
   role     text NOT NULL,
   menu_key text NOT NULL,
   PRIMARY KEY (role, menu_key)
 );
 
-CREATE TABLE public.sm_user_menu (
+CREATE TABLE IF NOT EXISTS public.sm_user_menu (
   user_id  uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   menu_key text NOT NULL,
   PRIMARY KEY (user_id, menu_key)
@@ -3402,22 +3419,49 @@ CREATE TABLE public.sm_user_menu (
 ALTER TABLE public.sm_role_menu ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sm_user_menu ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS rm_baca ON public.sm_role_menu;
 CREATE POLICY rm_baca  ON public.sm_role_menu FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS rm_tulis ON public.sm_role_menu;
 CREATE POLICY rm_tulis ON public.sm_role_menu FOR INSERT TO authenticated WITH CHECK (public.sm_is_admin());
+DROP POLICY IF EXISTS rm_ubah ON public.sm_role_menu;
 CREATE POLICY rm_ubah  ON public.sm_role_menu FOR UPDATE TO authenticated USING (public.sm_is_admin()) WITH CHECK (public.sm_is_admin());
+DROP POLICY IF EXISTS rm_hapus ON public.sm_role_menu;
 CREATE POLICY rm_hapus ON public.sm_role_menu FOR DELETE TO authenticated USING (public.sm_is_admin());
 
+DROP POLICY IF EXISTS um_baca ON public.sm_user_menu;
 CREATE POLICY um_baca  ON public.sm_user_menu FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS um_tulis ON public.sm_user_menu;
 CREATE POLICY um_tulis ON public.sm_user_menu FOR INSERT TO authenticated WITH CHECK (public.sm_is_admin());
+DROP POLICY IF EXISTS um_ubah ON public.sm_user_menu;
 CREATE POLICY um_ubah  ON public.sm_user_menu FOR UPDATE TO authenticated USING (public.sm_is_admin()) WITH CHECK (public.sm_is_admin());
+DROP POLICY IF EXISTS um_hapus ON public.sm_user_menu;
 CREATE POLICY um_hapus ON public.sm_user_menu FOR DELETE TO authenticated USING (public.sm_is_admin());
 
-INSERT INTO public.sm_role_menu (role, menu_key)
-SELECT r, k
-FROM unnest(ARRAY['SALES','MANAGER','ADMIN','DIRECTOR','FINANCE']) AS r
-CROSS JOIN unnest(ARRAY['dashboard','daily-report','proyek','pipeline','schedule','meeting','gp','activity']) AS k;
-
-INSERT INTO public.sm_role_menu (role, menu_key) VALUES ('MANAGER', 'admin'), ('ADMIN', 'admin');
+-- Menu bawaan dipasang SEKALI seumur server (penanda di sm_settings
+-- 'menu_bawaan_terpasang'). Menjalankan ulang berkas SQL tidak mengembalikan
+-- menu yang sudah dicabut Admin lewat Hak Akses Menu.
+DO $menu$
+DECLARE v_tanda jsonb;
+BEGIN
+  SELECT value INTO v_tanda FROM public.sm_settings WHERE key = 'menu_bawaan_terpasang';
+  v_tanda := coalesce(v_tanda, '[]'::jsonb);
+  IF NOT (v_tanda ? 'dasar') THEN
+    IF NOT EXISTS (SELECT 1 FROM public.sm_role_menu) THEN
+      INSERT INTO public.sm_role_menu (role, menu_key)
+      SELECT r, k
+      FROM unnest(ARRAY['SALES','MANAGER','ADMIN','DIRECTOR','FINANCE']) AS r
+      CROSS JOIN unnest(ARRAY['dashboard','daily-report','proyek','pipeline','schedule','meeting','gp','activity']) AS k
+      ON CONFLICT DO NOTHING;
+      INSERT INTO public.sm_role_menu (role, menu_key) VALUES ('MANAGER', 'admin'), ('ADMIN', 'admin')
+      ON CONFLICT DO NOTHING;
+    END IF;
+    INSERT INTO public.sm_settings (key, value, description)
+    VALUES ('menu_bawaan_terpasang', v_tanda || '["dasar"]'::jsonb,
+            'Penanda internal migrasi: menu bawaan yang sudah pernah dipasang.')
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  END IF;
+END
+$menu$;
 
 -- ── BAGIAN 2: Biodata & atasan ───────────────────────────────────────────────
 --
@@ -3433,6 +3477,7 @@ ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS address     text,
   ADD COLUMN IF NOT EXISTS manager_id  uuid REFERENCES public.users(id) ON DELETE SET NULL;
 
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_manager_not_self;
 ALTER TABLE public.users
   ADD CONSTRAINT users_manager_not_self CHECK (manager_id IS NULL OR manager_id <> id);
 
@@ -4733,7 +4778,10 @@ UPDATE public.users SET position = CASE lower(btrim(position))
     WHEN 'direktur'        THEN 'Direktur'
     ELSE NULL
   END
- WHERE position IS NOT NULL;
+ WHERE position IS NOT NULL
+   -- Nilai yang sudah baku tidak disentuh (berkas SQL aman dijalankan ulang
+   -- tanpa mengubah updated_at seluruh pengguna).
+   AND position NOT IN ('Staff', 'Supervisor', 'Manager', 'General Manager', 'Direktur');
 
 ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_position_jenjang;
 ALTER TABLE public.users ADD CONSTRAINT users_position_jenjang
@@ -4744,7 +4792,8 @@ ALTER TABLE public.users ADD CONSTRAINT users_position_jenjang
 UPDATE public.sm_settings
    SET value = '["Staff","Supervisor","Manager","General Manager","Direktur"]'::jsonb,
        updated_at = now()
- WHERE key = 'positions';
+ WHERE key = 'positions'
+   AND value IS DISTINCT FROM '["Staff","Supervisor","Manager","General Manager","Direktur"]'::jsonb;
 
 -- ── 2. Peringkat ───────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.sm_peringkat_posisi(p text)
@@ -5670,9 +5719,27 @@ CREATE INDEX IF NOT EXISTS idx_daily_reports_customer ON public.sm_daily_reports
 CREATE INDEX IF NOT EXISTS idx_schedules_customer ON public.sm_schedules (customer_id);
 
 -- Menu bawaan: semua peran boleh membuka Customer (isinya tetap dibatasi RLS).
-INSERT INTO public.sm_role_menu (role, menu_key)
-SELECT r, 'customer' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
-ON CONFLICT DO NOTHING;
+-- Menu bawaan dipasang SEKALI seumur server (penanda di sm_settings
+-- 'menu_bawaan_terpasang'). Menjalankan ulang berkas SQL tidak mengembalikan
+-- menu yang sudah dicabut Admin lewat Hak Akses Menu.
+DO $menu$
+DECLARE v_tanda jsonb;
+BEGIN
+  SELECT value INTO v_tanda FROM public.sm_settings WHERE key = 'menu_bawaan_terpasang';
+  v_tanda := coalesce(v_tanda, '[]'::jsonb);
+  IF NOT (v_tanda ? 'customer') THEN
+    IF NOT EXISTS (SELECT 1 FROM public.sm_role_menu WHERE menu_key = 'customer') THEN
+      INSERT INTO public.sm_role_menu (role, menu_key)
+      SELECT r, 'customer' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
+      ON CONFLICT DO NOTHING;
+    END IF;
+    INSERT INTO public.sm_settings (key, value, description)
+    VALUES ('menu_bawaan_terpasang', v_tanda || '["customer"]'::jsonb,
+            'Penanda internal migrasi: menu bawaan yang sudah pernah dipasang.')
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  END IF;
+END
+$menu$;
 
 
 -- ▼▼▼ 043_impor_data.sql ▼▼▼
@@ -5707,6 +5774,10 @@ CREATE TABLE IF NOT EXISTS public.sm_impor (
 );
 
 ALTER TABLE public.sm_impor ENABLE ROW LEVEL SECURITY;
+-- Seperti tabel lain (005, 027): tamu tanpa login tidak punya hak apa pun,
+-- dan TRUNCATE tidak pernah diberikan.
+REVOKE ALL ON public.sm_impor FROM anon;
+REVOKE TRUNCATE ON public.sm_impor FROM authenticated;
 
 -- Hanya Admin yang melihat riwayat impor; menulis hanya lewat server.
 DROP POLICY IF EXISTS impor_baca ON public.sm_impor;
@@ -5962,9 +6033,27 @@ END $$;
 
 -- Menu bawaan: semua peran (isi tetap disaring RLS). Akun dengan daftar menu
 -- khusus (sm_user_menu) tidak diubah — Admin menambahkannya sendiri.
-INSERT INTO public.sm_role_menu (role, menu_key)
-SELECT r, 'laporan' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
-ON CONFLICT DO NOTHING;
+-- Menu bawaan dipasang SEKALI seumur server (penanda di sm_settings
+-- 'menu_bawaan_terpasang'). Menjalankan ulang berkas SQL tidak mengembalikan
+-- menu yang sudah dicabut Admin lewat Hak Akses Menu.
+DO $menu$
+DECLARE v_tanda jsonb;
+BEGIN
+  SELECT value INTO v_tanda FROM public.sm_settings WHERE key = 'menu_bawaan_terpasang';
+  v_tanda := coalesce(v_tanda, '[]'::jsonb);
+  IF NOT (v_tanda ? 'laporan') THEN
+    IF NOT EXISTS (SELECT 1 FROM public.sm_role_menu WHERE menu_key = 'laporan') THEN
+      INSERT INTO public.sm_role_menu (role, menu_key)
+      SELECT r, 'laporan' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
+      ON CONFLICT DO NOTHING;
+    END IF;
+    INSERT INTO public.sm_settings (key, value, description)
+    VALUES ('menu_bawaan_terpasang', v_tanda || '["laporan"]'::jsonb,
+            'Penanda internal migrasi: menu bawaan yang sudah pernah dipasang.')
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  END IF;
+END
+$menu$;
 
 -- Kartu Dashboard "Antrian Persetujuan GP" bisa diatur dari Dashboard Setting.
 UPDATE public.sm_settings

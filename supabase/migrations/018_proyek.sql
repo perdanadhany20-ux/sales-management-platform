@@ -195,7 +195,11 @@ GRANT SELECT ON public.sm_gp_ringkasan TO authenticated;
 CREATE VIEW public.sm_proyek_ringkasan
 WITH (security_invoker = true) AS
 SELECT
-  p.*,
+  -- Kolom proyek ditulis satu per satu, BUKAN p.*: p.* dikunci saat view
+  -- dibuat, sehingga berkas SQL lengkap yang dijalankan ulang (sesudah 020
+  -- menambah location_id) akan menghasilkan view berbeda dari server baru.
+  p.id, p.kode, p.name, p.customer_id, p.customer_name, p.owner_user_id, p.status,
+  p.description, p.target_value, p.start_date, p.end_date, p.created_at, p.updated_at,
 
   COALESCE(pl.jml, 0)          AS jumlah_pipeline,
   COALESCE(pl.nilai, 0)        AS nilai_pipeline,

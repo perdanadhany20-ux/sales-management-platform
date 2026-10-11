@@ -27,13 +27,13 @@
 -- supaya menerapkan migrasi ini tidak mengunci siapa pun secara tiba-tiba.
 -- ════════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE public.sm_role_menu (
+CREATE TABLE IF NOT EXISTS public.sm_role_menu (
   role     text NOT NULL,
   menu_key text NOT NULL,
   PRIMARY KEY (role, menu_key)
 );
 
-CREATE TABLE public.sm_user_menu (
+CREATE TABLE IF NOT EXISTS public.sm_user_menu (
   user_id  uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   menu_key text NOT NULL,
   PRIMARY KEY (user_id, menu_key)
@@ -42,22 +42,49 @@ CREATE TABLE public.sm_user_menu (
 ALTER TABLE public.sm_role_menu ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sm_user_menu ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS rm_baca ON public.sm_role_menu;
 CREATE POLICY rm_baca  ON public.sm_role_menu FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS rm_tulis ON public.sm_role_menu;
 CREATE POLICY rm_tulis ON public.sm_role_menu FOR INSERT TO authenticated WITH CHECK (public.sm_is_admin());
+DROP POLICY IF EXISTS rm_ubah ON public.sm_role_menu;
 CREATE POLICY rm_ubah  ON public.sm_role_menu FOR UPDATE TO authenticated USING (public.sm_is_admin()) WITH CHECK (public.sm_is_admin());
+DROP POLICY IF EXISTS rm_hapus ON public.sm_role_menu;
 CREATE POLICY rm_hapus ON public.sm_role_menu FOR DELETE TO authenticated USING (public.sm_is_admin());
 
+DROP POLICY IF EXISTS um_baca ON public.sm_user_menu;
 CREATE POLICY um_baca  ON public.sm_user_menu FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS um_tulis ON public.sm_user_menu;
 CREATE POLICY um_tulis ON public.sm_user_menu FOR INSERT TO authenticated WITH CHECK (public.sm_is_admin());
+DROP POLICY IF EXISTS um_ubah ON public.sm_user_menu;
 CREATE POLICY um_ubah  ON public.sm_user_menu FOR UPDATE TO authenticated USING (public.sm_is_admin()) WITH CHECK (public.sm_is_admin());
+DROP POLICY IF EXISTS um_hapus ON public.sm_user_menu;
 CREATE POLICY um_hapus ON public.sm_user_menu FOR DELETE TO authenticated USING (public.sm_is_admin());
 
-INSERT INTO public.sm_role_menu (role, menu_key)
-SELECT r, k
-FROM unnest(ARRAY['SALES','MANAGER','ADMIN','DIRECTOR','FINANCE']) AS r
-CROSS JOIN unnest(ARRAY['dashboard','daily-report','proyek','pipeline','schedule','meeting','gp','activity']) AS k;
-
-INSERT INTO public.sm_role_menu (role, menu_key) VALUES ('MANAGER', 'admin'), ('ADMIN', 'admin');
+-- Menu bawaan dipasang SEKALI seumur server (penanda di sm_settings
+-- 'menu_bawaan_terpasang'). Menjalankan ulang berkas SQL tidak mengembalikan
+-- menu yang sudah dicabut Admin lewat Hak Akses Menu.
+DO $menu$
+DECLARE v_tanda jsonb;
+BEGIN
+  SELECT value INTO v_tanda FROM public.sm_settings WHERE key = 'menu_bawaan_terpasang';
+  v_tanda := coalesce(v_tanda, '[]'::jsonb);
+  IF NOT (v_tanda ? 'dasar') THEN
+    IF NOT EXISTS (SELECT 1 FROM public.sm_role_menu) THEN
+      INSERT INTO public.sm_role_menu (role, menu_key)
+      SELECT r, k
+      FROM unnest(ARRAY['SALES','MANAGER','ADMIN','DIRECTOR','FINANCE']) AS r
+      CROSS JOIN unnest(ARRAY['dashboard','daily-report','proyek','pipeline','schedule','meeting','gp','activity']) AS k
+      ON CONFLICT DO NOTHING;
+      INSERT INTO public.sm_role_menu (role, menu_key) VALUES ('MANAGER', 'admin'), ('ADMIN', 'admin')
+      ON CONFLICT DO NOTHING;
+    END IF;
+    INSERT INTO public.sm_settings (key, value, description)
+    VALUES ('menu_bawaan_terpasang', v_tanda || '["dasar"]'::jsonb,
+            'Penanda internal migrasi: menu bawaan yang sudah pernah dipasang.')
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  END IF;
+END
+$menu$;
 
 -- ── BAGIAN 2: Biodata & atasan ───────────────────────────────────────────────
 --
@@ -73,5 +100,6 @@ ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS address     text,
   ADD COLUMN IF NOT EXISTS manager_id  uuid REFERENCES public.users(id) ON DELETE SET NULL;
 
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_manager_not_self;
 ALTER TABLE public.users
   ADD CONSTRAINT users_manager_not_self CHECK (manager_id IS NULL OR manager_id <> id);

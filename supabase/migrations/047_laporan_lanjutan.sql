@@ -104,9 +104,27 @@ END $$;
 
 -- Menu bawaan: semua peran (isi tetap disaring RLS). Akun dengan daftar menu
 -- khusus (sm_user_menu) tidak diubah — Admin menambahkannya sendiri.
-INSERT INTO public.sm_role_menu (role, menu_key)
-SELECT r, 'laporan' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
-ON CONFLICT DO NOTHING;
+-- Menu bawaan dipasang SEKALI seumur server (penanda di sm_settings
+-- 'menu_bawaan_terpasang'). Menjalankan ulang berkas SQL tidak mengembalikan
+-- menu yang sudah dicabut Admin lewat Hak Akses Menu.
+DO $menu$
+DECLARE v_tanda jsonb;
+BEGIN
+  SELECT value INTO v_tanda FROM public.sm_settings WHERE key = 'menu_bawaan_terpasang';
+  v_tanda := coalesce(v_tanda, '[]'::jsonb);
+  IF NOT (v_tanda ? 'laporan') THEN
+    IF NOT EXISTS (SELECT 1 FROM public.sm_role_menu WHERE menu_key = 'laporan') THEN
+      INSERT INTO public.sm_role_menu (role, menu_key)
+      SELECT r, 'laporan' FROM unnest(ARRAY['SALES', 'MANAGER', 'DIRECTOR', 'FINANCE', 'ADMIN']) AS r
+      ON CONFLICT DO NOTHING;
+    END IF;
+    INSERT INTO public.sm_settings (key, value, description)
+    VALUES ('menu_bawaan_terpasang', v_tanda || '["laporan"]'::jsonb,
+            'Penanda internal migrasi: menu bawaan yang sudah pernah dipasang.')
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+  END IF;
+END
+$menu$;
 
 -- Kartu Dashboard "Antrian Persetujuan GP" bisa diatur dari Dashboard Setting.
 UPDATE public.sm_settings

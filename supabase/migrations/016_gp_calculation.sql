@@ -165,6 +165,9 @@ CREATE INDEX IF NOT EXISTS idx_gp_items_induk
 -- melihat ringkasan miliknya sendiri. Tanpa opsi ini, satu SELECT ke view ini
 -- membuka seluruh angka GP tim — termasuk margin proyek Sales lain.
 
+-- sm_proyek_ringkasan (018) bergantung pada view ini — dilepas dulu supaya
+-- berkas SQL lengkap aman dijalankan ulang; 018 membuatnya kembali.
+DROP VIEW IF EXISTS public.sm_proyek_ringkasan;
 DROP VIEW IF EXISTS public.sm_gp_ringkasan;
 
 CREATE VIEW public.sm_gp_ringkasan

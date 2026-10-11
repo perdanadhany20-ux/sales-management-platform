@@ -63,38 +63,47 @@ CREATE INDEX IF NOT EXISTS idx_settings_pengubah
 -- sm_locations — dikelola Manager & Admin
 DROP POLICY IF EXISTS lok_kelola ON public.sm_locations;
 
+DROP POLICY IF EXISTS lok_tambah ON public.sm_locations;
 CREATE POLICY lok_tambah ON public.sm_locations
   FOR INSERT TO authenticated WITH CHECK (public.sm_is_pengawas());
 
+DROP POLICY IF EXISTS lok_ubah ON public.sm_locations;
 CREATE POLICY lok_ubah ON public.sm_locations
   FOR UPDATE TO authenticated
   USING (public.sm_is_pengawas()) WITH CHECK (public.sm_is_pengawas());
 
+DROP POLICY IF EXISTS lok_hapus ON public.sm_locations;
 CREATE POLICY lok_hapus ON public.sm_locations
   FOR DELETE TO authenticated USING (public.sm_is_pengawas());
 
 -- sm_settings — hanya Admin
 DROP POLICY IF EXISTS settings_admin ON public.sm_settings;
 
+DROP POLICY IF EXISTS settings_tambah ON public.sm_settings;
 CREATE POLICY settings_tambah ON public.sm_settings
   FOR INSERT TO authenticated WITH CHECK (public.sm_is_admin());
 
+DROP POLICY IF EXISTS settings_ubah ON public.sm_settings;
 CREATE POLICY settings_ubah ON public.sm_settings
   FOR UPDATE TO authenticated
   USING (public.sm_is_admin()) WITH CHECK (public.sm_is_admin());
 
+DROP POLICY IF EXISTS settings_hapus ON public.sm_settings;
 CREATE POLICY settings_hapus ON public.sm_settings
   FOR DELETE TO authenticated USING (public.sm_is_admin());
 
 -- users — hanya Admin
 DROP POLICY IF EXISTS users_admin_kelola ON public.users;
 
+DROP POLICY IF EXISTS users_admin_tambah ON public.users;
 CREATE POLICY users_admin_tambah ON public.users
   FOR INSERT TO authenticated WITH CHECK (public.sm_is_admin());
 
+DROP POLICY IF EXISTS users_admin_ubah ON public.users;
 CREATE POLICY users_admin_ubah ON public.users
   FOR UPDATE TO authenticated
   USING (public.sm_is_admin()) WITH CHECK (public.sm_is_admin());
 
+DROP POLICY IF EXISTS users_admin_hapus ON public.users;
 CREATE POLICY users_admin_hapus ON public.users
   FOR DELETE TO authenticated USING (public.sm_is_admin());
