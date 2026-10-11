@@ -1,14 +1,25 @@
 // Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
 // atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
-// Menyusun supabase/SETUP_LENGKAP.sql: SELURUH migrasi + akun Admin pertama
-// dalam SATU berkas untuk project Supabase baru. Jalankan ulang setiap kali
-// ada migrasi baru:  npm run sql:setup
+// Menyusun berkas SQL siap tempel (SATU berkas, tanpa perlu dipotong):
+//
+//   npm run sql:setup
+//     → supabase/SETUP_LENGKAP.sql — SERVER BARU: migrasi 001–terakhir +
+//       Admin pertama + bagian DATA DEMO (saklar bawaan false).
+//
+//   DARI=041 DEMO=1 KELUAR=<berkas> node scripts/gabung-migrasi.mjs
+//     → PEMBARUAN server yang sudah terpasang: hanya migrasi mulai DARI
+//       (semuanya aman diulang) + DATA DEMO aktif, tanpa isian Admin.
+//
+// DEMO=1 menyalakan saklar data demo; KELUAR mengganti nama berkas hasil.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const folder = 'supabase/migrations';
 const berkas = readdirSync(folder).filter((f) => /^\d{3}_.+\.sql$/.test(f)).sort();
 const terakhir = berkas.at(-1)?.slice(0, 3);
+const dari = process.env.DARI ?? null;                 // mode pembaruan
+const dipakai = dari ? berkas.filter((f) => f.slice(0, 3) >= dari) : berkas;
+if (dari && dipakai.length === 0) throw new Error(`Tidak ada migrasi mulai ${dari}.`);
 
 const kepala = `-- ════════════════════════════════════════════════════════════════════════════
 -- Sales Management Platform — SETUP LENGKAP (migrasi 001–${terakhir} + Admin pertama)
@@ -22,10 +33,8 @@ const kepala = `-- ════════════════════�
 --   4. (Opsional) DATA DEMO di akhir berkas: ubah isian "true/false" di bagian
 --      ▼▼▼ DATA DEMO ▼▼▼ untuk mengisi contoh skenario (akun demo.*).
 --
--- Project yang SUDAH terpasang: JANGAN jalankan seluruh berkas (migrasi lama
--- akan bentrok). Salin dari baris "-- ▼▼▼ NNN_..." migrasi pertama yang belum
--- dijalankan SAMPAI AKHIR berkas, lalu Run. Potongan itu aman diulang: Admin
--- dan data demo yang sudah ada dilewati.
+-- Project yang SUDAH terpasang: JANGAN pakai berkas ini (migrasi lama akan
+-- bentrok) — pakai berkas PEMBARUAN (DARI=… di scripts/gabung-migrasi.mjs).
 --
 -- Seluruh isi berjalan dalam SATU transaksi: bila ada yang gagal, tidak ada
 -- yang tersimpan — perbaiki penyebabnya lalu jalankan ulang.
@@ -45,7 +54,7 @@ INSERT INTO _admin_awal VALUES (
 -- ▲▲▲ selesai — tidak perlu mengubah apa pun di bawah ini ▲▲▲
 `;
 
-const isi = berkas.map((f) => `\n\n-- ▼▼▼ ${f} ▼▼▼\n${readFileSync(join(folder, f), 'utf8').trimEnd()}\n`).join('');
+const isi = dipakai.map((f) => `\n\n-- ▼▼▼ ${f} ▼▼▼\n${readFileSync(join(folder, f), 'utf8').trimEnd()}\n`).join('');
 
 const ekor = `
 
@@ -114,6 +123,28 @@ COMMIT;
 SELECT username, full_name, role, position FROM public.users WHERE username LIKE 'demo.%' ORDER BY role, username;
 `;
 
+// Mode pembaruan: kepala sendiri, tanpa isian & blok Admin.
+const kepalaPembaruan = `-- ════════════════════════════════════════════════════════════════════════════
+-- Sales Management Platform — PEMBARUAN SERVER (migrasi ${dari}–${terakhir}${demoAktif ? ' + DATA DEMO' : ''})
+-- Hak Cipta © 2026 DWP. Seluruh hak dilindungi. Dilarang menyalin, mengubah,
+-- atau menggunakan tanpa izin tertulis dari DWP. Lihat berkas LICENSE.
+--
+-- Untuk project Supabase yang SUDAH terpasang (minimal sampai migrasi ${String(Number(dari) - 1).padStart(3, '0')}).
+-- Cara pakai: Supabase → SQL Editor → New query → tempel SELURUH isi berkas → Run.
+-- TIDAK ADA yang perlu diubah. Aman dijalankan ulang: migrasi yang sudah ada
+-- tidak bentrok${demoAktif ? ', dan data demo yang sudah ada dilewati (tidak dobel)' : ''}.
+-- Berkas ini DIHASILKAN oleh scripts/gabung-migrasi.mjs.
+-- ════════════════════════════════════════════════════════════════════════════
+
+BEGIN;
+`;
+const ekorPembaruan = `
+
+COMMIT;
+`;
+
 const keluaran = process.env.KELUAR || 'supabase/SETUP_LENGKAP.sql';
-writeFileSync(keluaran, kepala + isi + ekor + demo);
-console.log(`${keluaran} — ${berkas.length} migrasi (001–${terakhir}) + Admin pertama + data demo (${demoAktif ? 'AKTIF' : 'nonaktif'})`);
+writeFileSync(keluaran, dari ? kepalaPembaruan + isi + ekorPembaruan + demo : kepala + isi + ekor + demo);
+console.log(dari
+  ? `${keluaran} — PEMBARUAN migrasi ${dari}–${terakhir} (${dipakai.length} berkas) + data demo (${demoAktif ? 'AKTIF' : 'nonaktif'})`
+  : `${keluaran} — ${berkas.length} migrasi (001–${terakhir}) + Admin pertama + data demo (${demoAktif ? 'AKTIF' : 'nonaktif'})`);

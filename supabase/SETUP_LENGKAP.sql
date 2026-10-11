@@ -10,10 +10,8 @@
 --   4. (Opsional) DATA DEMO di akhir berkas: ubah isian "true/false" di bagian
 --      ▼▼▼ DATA DEMO ▼▼▼ untuk mengisi contoh skenario (akun demo.*).
 --
--- Project yang SUDAH terpasang: JANGAN jalankan seluruh berkas (migrasi lama
--- akan bentrok). Salin dari baris "-- ▼▼▼ NNN_..." migrasi pertama yang belum
--- dijalankan SAMPAI AKHIR berkas, lalu Run. Potongan itu aman diulang: Admin
--- dan data demo yang sudah ada dilewati.
+-- Project yang SUDAH terpasang: JANGAN pakai berkas ini (migrasi lama akan
+-- bentrok) — pakai berkas PEMBARUAN (DARI=… di scripts/gabung-migrasi.mjs).
 --
 -- Seluruh isi berjalan dalam SATU transaksi: bila ada yang gagal, tidak ada
 -- yang tersimpan — perbaiki penyebabnya lalu jalankan ulang.
