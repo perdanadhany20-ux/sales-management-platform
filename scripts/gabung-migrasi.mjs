@@ -19,6 +19,13 @@ const kepala = `-- ════════════════════�
 --   1. Ubah 3 isian akun Admin di bawah (username, nama, kata sandi sementara).
 --   2. Supabase → SQL Editor → New query → tempel SELURUH isi berkas → Run.
 --   3. Hasil akhir menampilkan akun Admin. Saat login pertama Admin wajib ganti sandi.
+--   4. (Opsional) DATA DEMO di akhir berkas: ubah isian "true/false" di bagian
+--      ▼▼▼ DATA DEMO ▼▼▼ untuk mengisi contoh skenario (akun demo.*).
+--
+-- Project yang SUDAH terpasang: JANGAN jalankan seluruh berkas (migrasi lama
+-- akan bentrok). Salin dari baris "-- ▼▼▼ NNN_..." migrasi pertama yang belum
+-- dijalankan SAMPAI AKHIR berkas, lalu Run. Potongan itu aman diulang: Admin
+-- dan data demo yang sudah ada dilewati.
 --
 -- Seluruh isi berjalan dalam SATU transaksi: bila ada yang gagal, tidak ada
 -- yang tersimpan — perbaiki penyebabnya lalu jalankan ulang.
@@ -52,6 +59,11 @@ DECLARE
   a  record;
   v_id uuid;
 BEGIN
+  -- Isian Admin tidak ikut tersalin (pembaruan project yang sudah terpasang) → lewati.
+  IF to_regclass('pg_temp._admin_awal') IS NULL THEN
+    RAISE NOTICE 'Isian Admin tidak ada — pembuatan Admin dilewati.';
+    RETURN;
+  END IF;
   SELECT * INTO a FROM _admin_awal LIMIT 1;
   IF a.username IS NULL OR a.username !~ '^[a-z0-9._-]{3,40}$' THEN
     RAISE EXCEPTION 'Username Admin tidak sah: huruf kecil, angka, titik, garis bawah, strip (3–40 karakter).';
@@ -78,5 +90,30 @@ SELECT username, full_name, role, approval_status, 'Login lalu ganti kata sandi'
 FROM public.users WHERE role = 'ADMIN';
 `;
 
-writeFileSync('supabase/SETUP_LENGKAP.sql', kepala + isi + ekor);
-console.log(`supabase/SETUP_LENGKAP.sql — ${berkas.length} migrasi (001–${terakhir}) + Admin pertama`);
+// Data demo: bagian mandiri di akhir berkas, dengan saklarnya sendiri.
+// DEMO=1 npm run sql:setup → saklar bawaan "true" (untuk server demo).
+const demoAktif = process.env.DEMO === '1';
+const demo = `
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- ▼▼▼ DATA DEMO — UBAH DI SINI ▼▼▼
+-- ════════════════════════════════════════════════════════════════════════════
+BEGIN;
+CREATE TEMP TABLE _opsi_demo (isi boolean, sandi text) ON COMMIT DROP;
+INSERT INTO _opsi_demo VALUES (
+  ${demoAktif ? 'true ' : 'false'},           -- true = isi data contoh skenario; false = lewati (pelanggan sungguhan)
+  'DemoSales2026'   -- kata sandi semua akun demo.* (min. 8 karakter)
+);
+-- ▲▲▲ selesai ▲▲▲
+SET LOCAL search_path = public, extensions;
+
+${readFileSync('supabase/data-demo.sql', 'utf8').trimEnd()}
+
+COMMIT;
+
+SELECT username, full_name, role, position FROM public.users WHERE username LIKE 'demo.%' ORDER BY role, username;
+`;
+
+const keluaran = process.env.KELUAR || 'supabase/SETUP_LENGKAP.sql';
+writeFileSync(keluaran, kepala + isi + ekor + demo);
+console.log(`${keluaran} — ${berkas.length} migrasi (001–${terakhir}) + Admin pertama + data demo (${demoAktif ? 'AKTIF' : 'nonaktif'})`);
