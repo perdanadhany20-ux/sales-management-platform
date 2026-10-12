@@ -3,6 +3,7 @@
 -- ════════════════════════════════════════════════════════════════════════════
 -- DATA DEMO — beberapa skenario siap tunjuk untuk presentasi ke calon pelanggan
 --
+-- Untuk menghapusnya lagi: supabase/HAPUS_DATA_DEMO.sql.
 -- Disisipkan ke SETUP_LENGKAP*.sql oleh scripts/gabung-migrasi.mjs (bagian ini
 -- bukan migrasi). Hanya berjalan bila _opsi_demo.isi = true, dan DILEWATI bila
 -- akun demo.direktur sudah ada — aman dijalankan ulang, tidak menggandakan.
